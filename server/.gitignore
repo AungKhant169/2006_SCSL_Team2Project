@@ -1,0 +1,71 @@
+# ==============================================================================
+# Python Virtual Environments & Packages
+# ==============================================================================
+.venv/
+venv/
+ENV/
+env/
+pythonenv/
+built/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==============================================================================
+# FastAPI / Python Runtime & Caching
+# ==============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.nox/
+.tox/
+
+# ==============================================================================
+# Environment Variables & Secrets (CRITICAL for security)
+# ==============================================================================
+.env
+.env.*
+!.env.example
+.secrets
+secrets.*
+
+# ==============================================================================
+# Local Databases (If using SQLite locally)
+# ==============================================================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ==============================================================================
+# Editors & IDEs (VS Code, PyCharm, Mac OS)
+# ==============================================================================
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
