@@ -1,0 +1,29 @@
+set dotenv-load
+
+# For compatibility with Nix installations.
+ruff := env_var_or_default("RUFF", ".venv/bin/ruff")
+
+check:
+    {{ruff}} check
+
+dev:
+    .venv/bin/uvicorn main:app --reload
+
+format:
+    {{ruff}} format
+
+migrate:
+    .venv/bin/alembic upgrade head
+
+purge:
+    find . -path ./.venv -prune -o -type d \( -name __pycache__ -o -name .ruff_cache \) -print -exec rm -rf {} +
+    find . -path ./.venv -prune -o -type f -name '*.pyc' -print -exec rm -f {} +
+
+revision msg:
+    .venv/bin/alembic revision --autogenerate -m "{{msg}}"
+
+start:
+    .venv/bin/uvicorn main:app
+
+test:
+    .venv/bin/python -m pytest
