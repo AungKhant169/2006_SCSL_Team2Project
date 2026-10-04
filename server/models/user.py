@@ -3,6 +3,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Self
+from dotenv import load_dotenv
 
 import bcrypt
 import jwt
@@ -14,6 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 from core.exceptions import HttpError
 from models.base import Base, Persistable
 
+load_dotenv()
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 USERNAME_PATTERN = re.compile(r"[A-Za-z0-9]{1,36}")
