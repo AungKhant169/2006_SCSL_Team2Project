@@ -1,0 +1,14 @@
+/*
+ * Entry point for all global styles. Shared styling lives in the focused
+ * modules imported below; components only add one-off Tailwind utilities.
+ */
+@import '@fontsource-variable/public-sans';
+@import 'tailwindcss';
+
+@import './theme.css';
+@import './base.css';
+@import './animations.css';
+@import './typography.css';
+@import './buttons.css';
+@import './forms.css';
+@import './surfaces.css';

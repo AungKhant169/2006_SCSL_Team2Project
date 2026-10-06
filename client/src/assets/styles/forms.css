@@ -1,0 +1,30 @@
+@layer components {
+  .field {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .field-label {
+    @apply text-[13px] font-semibold;
+  }
+
+  /* Small upper-case labels used by the search / filter bar and roadmap editor */
+  .field-label-caps {
+    @apply text-xs font-semibold tracking-wide text-muted uppercase;
+  }
+
+  .field-hint {
+    @apply text-xs font-normal text-muted;
+  }
+
+  .field-control {
+    @apply w-full rounded-lg border border-control bg-white px-3 py-2.5 text-sm font-normal tracking-normal text-ink normal-case;
+  }
+
+  .field-control-invalid {
+    @apply border-danger-field;
+  }
+
+  .field-error {
+    @apply text-[13px] font-medium text-danger;
+  }
+}

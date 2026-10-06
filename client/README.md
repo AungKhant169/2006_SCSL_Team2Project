@@ -1,42 +1,36 @@
-# client
+# PathSG client
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 + TypeScript single-page app for the PathSG education planning platform, styled with Tailwind CSS 4.
 
-## Recommended IDE Setup
-
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
-
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+## Setup
 
 ```sh
 npm install
+cp .env.example .env   # API base URL and dev server port
 ```
 
-### Compile and Hot-Reload for Development
+## Scripts
 
-```sh
-npm run dev
-```
+| Command              | Purpose                                      |
+| -------------------- | -------------------------------------------- |
+| `npm run dev`        | Start the Vite dev server with hot reload    |
+| `npm run build`      | Type-check, then build for production        |
+| `npm run type-check` | Type-check app and test sources with vue-tsc |
+| `npm test`           | Run the Vitest suite once                    |
+| `npm run test:watch` | Run Vitest in watch mode                     |
+| `npm run format`     | Format `src/` with Prettier                  |
 
-### Type-Check, Compile and Minify for Production
+## Styling
 
-```sh
-npm run build
-```
+Tailwind utilities are used directly in templates. Anything repeated across components lives in
+`src/assets/styles/`, one module per concern, all pulled in by `main.css`:
+
+| Module            | Contents                                           |
+| ----------------- | -------------------------------------------------- |
+| `theme.css`       | Design tokens (`@theme`): colours, font, shadows   |
+| `base.css`        | Element defaults, focus ring                       |
+| `animations.css`  | Keyframes and `animate-*` utilities                |
+| `typography.css`  | Page / section headings, captions                  |
+| `buttons.css`     | Buttons, nav links, segmented switches, tiles      |
+| `forms.css`       | Field, label, input and validation styles          |
+| `surfaces.css`    | Cards, pills, alerts                               |

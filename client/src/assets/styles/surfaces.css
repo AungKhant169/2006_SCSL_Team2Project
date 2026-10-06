@@ -1,0 +1,53 @@
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-white;
+  }
+
+  .card-padded {
+    @apply flex flex-col gap-3.5 p-5;
+  }
+
+  .card-interactive {
+    @apply cursor-pointer transition hover:border-primary hover:shadow-card-hover;
+  }
+
+  .card-empty {
+    @apply flex flex-col items-center gap-3 rounded-xl border border-dashed border-control bg-white px-6 py-12 text-center;
+  }
+
+  .panel {
+    @apply rounded-[10px] border border-line-soft;
+  }
+
+  .pill {
+    @apply inline-block rounded-full bg-chip px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap text-soft;
+  }
+
+  .pill-lg {
+    @apply px-2.5 py-[3px] text-xs;
+  }
+
+  .pill-primary {
+    @apply bg-primary-tint text-primary;
+  }
+
+  .pill-solid {
+    @apply bg-primary text-white;
+  }
+
+  .alert {
+    @apply rounded-lg px-3 py-2 text-[13px];
+  }
+
+  .alert-danger {
+    @apply bg-danger-tint text-danger;
+  }
+
+  .alert-success {
+    @apply rounded-[10px] border border-success-line bg-success-tint px-4 py-3.5 text-sm font-semibold text-success-ink;
+  }
+
+  .alert-warn {
+    @apply border-b border-warn-line bg-warn-tint px-6 py-2.5 text-[13px] text-warn-ink;
+  }
+}

@@ -1,0 +1,85 @@
+@layer components {
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition-colors;
+    @apply disabled:cursor-not-allowed;
+  }
+
+  .btn-sm {
+    @apply px-3 py-1.5 text-[13px];
+  }
+
+  .btn-lg {
+    @apply px-5 py-3 text-[15px];
+  }
+
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-dark disabled:bg-disabled;
+  }
+
+  .btn-ai {
+    @apply bg-ai text-white hover:bg-ai-dark;
+  }
+
+  .btn-danger {
+    @apply bg-danger text-white hover:opacity-90;
+  }
+
+  .btn-outline {
+    @apply border-line bg-white text-ink hover:bg-chip;
+  }
+
+  .btn-outline-primary {
+    @apply border-control bg-white text-primary hover:bg-primary-faint;
+  }
+
+  .btn-outline-danger {
+    @apply border-control bg-white text-danger hover:bg-danger-tint;
+  }
+
+  .btn-outline-danger-strong {
+    @apply border-danger bg-white text-danger hover:bg-danger-tint;
+  }
+
+  /* Header navigation entries */
+  .nav-link {
+    @apply cursor-pointer rounded-lg border-0 bg-transparent px-3.5 py-2 text-sm font-medium text-ink transition-colors hover:bg-chip;
+  }
+
+  .nav-link-active {
+    @apply bg-chip;
+  }
+
+  /* Segmented switches (tier tabs, citizenship tabs, log in / create account) */
+  .segmented {
+    @apply flex gap-0.5 rounded-lg bg-segment p-[3px];
+  }
+
+  .segmented-outlined {
+    @apply flex flex-wrap gap-0.5 rounded-[10px] border border-line bg-white p-1;
+  }
+
+  .segmented-item {
+    @apply cursor-pointer rounded-md border-0 bg-transparent px-3 py-1.5 text-[13px] font-semibold whitespace-nowrap text-soft transition-colors;
+  }
+
+  .segmented-item-active {
+    @apply bg-primary text-white;
+  }
+
+  /* Selectable tiles (roadmap stage, target education level) */
+  .option-tile {
+    @apply flex cursor-pointer flex-col gap-1 rounded-[10px] border-2 border-line-soft bg-white px-3.5 py-3 text-left transition-colors hover:border-primary/40;
+  }
+
+  .option-tile-active {
+    @apply border-primary bg-primary-tint;
+  }
+
+  .toggle-chip {
+    @apply cursor-pointer rounded-full border border-control bg-white px-4 py-2 text-sm font-semibold text-ink transition-colors;
+  }
+
+  .toggle-chip-active {
+    @apply border-primary bg-primary text-white;
+  }
+}

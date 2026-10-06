@@ -1,0 +1,10 @@
+/* Exposes the `animate-spin-slow` utility used by loading indicators. */
+@theme {
+  --animate-spin-slow: pathsg-spin 0.9s linear infinite;
+
+  @keyframes pathsg-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

@@ -1,0 +1,44 @@
+/* Design tokens. Every colour below becomes a Tailwind utility (bg-primary, text-muted, ...). */
+@theme {
+  --font-sans: 'Public Sans Variable', Helvetica, Arial, sans-serif;
+
+  --color-page: #eceeed;
+  --color-surface: #f7f8f7;
+  --color-ink: #17201f;
+  --color-soft: #40504f;
+  --color-muted: #5b6664;
+  --color-line: #dfe3e1;
+  --color-line-soft: #e6e9e8;
+  --color-control: #cfd5d3;
+  --color-chip: #eef1f0;
+  --color-segment: #f0f4f6;
+  --color-disabled: #7f918f;
+  --color-rule-off: #c5ccca;
+
+  --color-primary: #1c5d7a;
+  --color-primary-dark: #134458;
+  --color-primary-tint: #e3eef3;
+  --color-primary-faint: #f4f8fa;
+
+  --color-ai: #5a4a6e;
+  --color-ai-dark: #483a59;
+  --color-ai-tint: #f0ecf5;
+
+  --color-danger: #9a2f22;
+  --color-danger-field: #d98b7f;
+  --color-danger-line: #f2d0ca;
+  --color-danger-tint: #fbe9e6;
+
+  --color-success: #1f8a5c;
+  --color-success-ink: #14663f;
+  --color-success-line: #bfe0cc;
+  --color-success-tint: #e8f4ec;
+
+  --color-warn-ink: #6b4d05;
+  --color-warn-line: #f0dfa8;
+  --color-warn-tint: #fbf3df;
+
+  --shadow-frame: 0 8px 30px rgb(23 32 31 / 0.06);
+  --shadow-card-hover: 0 2px 10px rgb(28 93 122 / 0.1);
+  --shadow-modal: 0 18px 50px rgb(23 32 31 / 0.25);
+}

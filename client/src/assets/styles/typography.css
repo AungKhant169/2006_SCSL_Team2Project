@@ -1,0 +1,25 @@
+@layer components {
+  .page-title {
+    @apply m-0 text-[26px] font-bold tracking-tight;
+  }
+
+  .page-subtitle {
+    @apply mt-1.5 mb-0 text-sm text-muted;
+  }
+
+  .section-title {
+    @apply m-0 text-base font-bold;
+  }
+
+  .section-title-lg {
+    @apply m-0 text-[17px] font-bold;
+  }
+
+  .section-hint {
+    @apply mt-1 mb-0 text-[13px] text-muted;
+  }
+
+  .caps-label {
+    @apply text-[11px] font-semibold tracking-wide text-muted uppercase;
+  }
+}

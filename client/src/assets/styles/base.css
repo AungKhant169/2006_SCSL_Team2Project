@@ -1,0 +1,32 @@
+@layer base {
+  html,
+  body {
+    @apply m-0 bg-page p-0 font-sans text-ink antialiased;
+    font-variant-numeric: tabular-nums;
+  }
+
+  a {
+    @apply text-primary no-underline hover:text-primary-dark hover:underline;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    color: inherit;
+  }
+
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  button:focus-visible,
+  a:focus-visible {
+    @apply outline-2 outline-offset-1 outline-primary;
+  }
+
+  button {
+    @apply cursor-pointer;
+  }
+}
