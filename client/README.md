@@ -22,6 +22,12 @@ cp .env.example .env   # VITE_API_URL (FastAPI server) and VITE_PORT (dev server
 | `npm run test:watch` | Run Vitest in watch mode                     |
 | `npm run format`     | Format `src/` with Prettier                  |
 
+## Docker
+
+`Dockerfile` builds the site and serves it with nginx, which also proxies `/api/` to the server
+(`nginx.conf.template`, upstream set by `API_UPSTREAM`). Images are published by GitHub Actions;
+see [`../DEPLOYMENT.md`](../DEPLOYMENT.md) for running and releasing them.
+
 ## What talks to the server
 
 | Area                                  | Source                                                                       |

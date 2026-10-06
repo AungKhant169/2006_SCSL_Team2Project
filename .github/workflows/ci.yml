@@ -1,0 +1,105 @@
+name: CI
+
+# Runs on pull requests, and is called by the publish workflow so images are only pushed from
+# commits that pass every check.
+on:
+  pull_request:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  client:
+    name: Client (format, types, tests, build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Type-check
+        run: npm run type-check
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build-only
+
+  server:
+    name: Server (lint, format, tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: server/requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - name: Lint
+        run: ruff check
+
+      - name: Check formatting
+        run: ruff format --check
+
+      - name: Test
+        run: python -m pytest
+
+  # Docker builds are verified on pull requests. On pushes the publish workflow builds the
+  # same images, so they are skipped here to avoid building everything twice.
+  images:
+    name: Build ${{ matrix.service }} image
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [client, server]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  compose:
+    name: Validate docker-compose.yml
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the compose file renders
+        run: docker compose config --quiet
+        env:
+          SECRET_KEY: ci-placeholder

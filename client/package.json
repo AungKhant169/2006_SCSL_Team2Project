@@ -11,7 +11,8 @@
     "type-check": "vue-tsc --build",
     "format": "prettier --write --experimental-cli src/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "format:check": "prettier --check --experimental-cli src/"
   },
   "dependencies": {
     "@fontsource-variable/public-sans": "^5.3.0",
