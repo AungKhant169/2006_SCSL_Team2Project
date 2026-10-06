@@ -17,8 +17,8 @@
   </div>
 </template>
 
-<script lang="ts">
-import { defineComponent } from 'vue'
+<script setup lang="ts">
+import { onMounted, ref } from 'vue'
 
 // Interface for backend response typing
 interface ApiResponse {
@@ -26,48 +26,36 @@ interface ApiResponse {
   timestamp?: string
 }
 
-export default defineComponent({
-  name: 'SamplePage',
+const backendResponse = ref<ApiResponse | null>(null)
+const loading = ref(true)
+const error = ref('')
+const apiBaseUrl = import.meta.env.VITE_API_URL as string
 
-  data() {
-    return {
-      backendResponse: null as ApiResponse | null,
-      loading: true as boolean,
-      error: '' as string,
-      apiBaseUrl: import.meta.env.VITE_API_URL as string
+async function fetchData(): Promise<void> {
+  loading.value = true
+  error.value = ''
+
+  try {
+    const response = await fetch(apiBaseUrl)
+
+    if (!response.ok) {
+      throw new Error(`HTTP status ${response.status}`)
     }
-  },
 
-  mounted() {
-    this.fetchData()
-  },
-
-  methods: {
-    async fetchData(): Promise<void> {
-      this.loading = true
-      this.error = ''
-
-      try {
-        const response = await fetch(this.apiBaseUrl)
-        
-        if (!response.ok) {
-          throw new Error(`HTTP status ${response.status}`)
-        }
-
-        const data: ApiResponse = await response.json()
-        this.backendResponse = data
-      } catch (err: unknown) {
-        if (err instanceof Error) {
-          this.error = err.message
-        } else {
-          this.error = 'An unknown error occurred.'
-        }
-      } finally {
-        this.loading = false
-      }
+    const data: ApiResponse = await response.json()
+    backendResponse.value = data
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      error.value = err.message
+    } else {
+      error.value = 'An unknown error occurred.'
     }
+  } finally {
+    loading.value = false
   }
-})
+}
+
+onMounted(fetchData)
 </script>
 
 <style scoped>
