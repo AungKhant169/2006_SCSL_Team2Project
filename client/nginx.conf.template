@@ -1,0 +1,42 @@
+server {
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Liveness probe for container health checks.
+    location = /healthz {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    # The API, same-origin: /api/user/login -> ${API_UPSTREAM}/user/login
+    location /api/ {
+        proxy_pass ${API_UPSTREAM}/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Vite fingerprints everything in /assets, so it can be cached for a year.
+    location /assets/ {
+        expires 1y;
+        try_files $uri =404;
+    }
+
+    # Single-page app: unknown paths are client-side routes. index.html itself must stay fresh.
+    location / {
+        expires -1;
+        try_files $uri $uri/ /index.html;
+    }
+}

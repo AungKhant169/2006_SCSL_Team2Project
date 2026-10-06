@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+coverage
+.git
+.vscode
+.idea
+
+# Local environment and design reference material never belong in an image.
+.env
+.env.*
+!.env.example
+Design Conversation
+
+Dockerfile
+.dockerignore
+*.log

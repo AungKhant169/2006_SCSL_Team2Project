@@ -1,0 +1,19 @@
+.venv
+venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.ruff_cache
+.git
+
+# Local state and secrets never belong in an image.
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+
+tests
+Dockerfile
+.dockerignore
+Justfile
