@@ -57,3 +57,14 @@ export function validateProfile({ level, scoreA, scoreB, postal }: ProfileFields
   }
   return ''
 }
+
+/** One-line description of the score on file for a level, used as the roadmap's pre-selection caption. */
+export function describeScore(level: TierId, scoreA: string): string {
+  const prefix: Partial<Record<TierId, string>> = {
+    secondary: 'PSLE AL',
+    postsec: 'L1R5',
+    uni: 'Poly GPA',
+  }
+  const label = prefix[level]
+  return label && scoreA.trim() ? `${label} ${scoreA.trim()}` : 'No score on file'
+}

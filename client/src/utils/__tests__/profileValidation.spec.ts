@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateProfile } from '../profileValidation'
+import { describeScore, validateProfile } from '../profileValidation'
 import type { ProfileFields } from '../profileValidation'
 
 const base: ProfileFields = { level: 'secondary', scoreA: '8', scoreB: '', postal: '556000' }
@@ -81,5 +81,20 @@ describe('validateProfile', () => {
     it.each(['91', '-2', 'rp'])('rejects rank points %j', (scoreB) => {
       expect(check({ level, scoreA: '', scoreB })).toMatch(/Rank points must be between 0 and 90/)
     })
+  })
+})
+
+describe('describeScore', () => {
+  it('names the score that matters for the level', () => {
+    expect(describeScore('secondary', '8')).toBe('PSLE AL 8')
+    expect(describeScore('postsec', ' 12 ')).toBe('L1R5 12')
+    expect(describeScore('uni', '3.85')).toBe('Poly GPA 3.85')
+  })
+
+  it('reports no score when the level collects none or the field is empty', () => {
+    expect(describeScore('preschool', '8')).toBe('No score on file')
+    expect(describeScore('primary', '8')).toBe('No score on file')
+    expect(describeScore('secondary', '')).toBe('No score on file')
+    expect(describeScore('uni', '   ')).toBe('No score on file')
   })
 })

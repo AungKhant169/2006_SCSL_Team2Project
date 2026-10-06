@@ -5,40 +5,19 @@ import type { RouteRecordRaw } from 'vue-router'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { vi } from 'vitest'
-import { createAppRouter } from '@/router'
+import { createAppRouter, routes } from '@/router'
 import { useAuthStore } from '@/stores/auth'
 
 const Blank = defineComponent({ render: () => h('div') })
 
-/** Stand-in pages with the same names and access rules as the real routes. */
-export const stubRoutes: RouteRecordRaw[] = [
-  { path: '/', name: 'directory', component: Blank },
-  { path: '/schools/:id', name: 'school', component: Blank },
-  {
-    path: '/roadmap',
-    name: 'roadmap',
-    component: Blank,
-    meta: { requiresAuth: true, authMessage: 'Log in to generate and save an education roadmap.' },
-  },
-  { path: '/login', name: 'login', component: Blank, meta: { guestOnly: true } },
-  {
-    path: '/profile',
-    name: 'profile',
-    component: Blank,
-    meta: { requiresAuth: true, authMessage: 'Log in to edit your profile.' },
-  },
-  {
-    path: '/saved',
-    name: 'saved',
-    component: Blank,
-    meta: { requiresAuth: true, authMessage: 'Log in to view your saved institutions.' },
-  },
-  { path: '/admin', name: 'admin', component: Blank, meta: { requiresAdmin: true } },
-]
+/** The real routes (names, params, access rules) with every page swapped for an empty stub. */
+export const stubRoutes: RouteRecordRaw[] = routes.map((route) =>
+  'redirect' in route ? route : ({ ...route, component: Blank } as RouteRecordRaw),
+)
 
 /** A router with guards installed, backed by in-memory history and, by default, stub pages. */
-export function createTestRouter(routes: RouteRecordRaw[] = stubRoutes) {
-  return createAppRouter(createMemoryHistory(), routes)
+export function createTestRouter(routeRecords: RouteRecordRaw[] = stubRoutes) {
+  return createAppRouter(createMemoryHistory(), routeRecords)
 }
 
 interface MountOptions {
