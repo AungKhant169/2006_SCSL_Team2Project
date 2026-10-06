@@ -1,16 +1,23 @@
 # syntax=docker/dockerfile:1
 FROM python:3.14-slim
 
+# uv is a single static binary, so copy it from its official image instead of installing it.
+# Keep the version in step with the setup-uv step in .github/workflows/ci.yml.
+COPY --from=ghcr.io/astral-sh/uv:0.12.23 /uv /usr/local/bin/uv
+
+# UV_LINK_MODE=copy: the cache mount below is a different filesystem from site-packages, so
+# uv's default hardlinks would fail and fall back to copying with a warning.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Dependencies first so this layer is cached until requirements.txt changes.
+# Dependencies first so this layer is cached until requirements.txt changes. The cache mount keeps
+# downloaded wheels between builds without adding them to the image.
 COPY requirements.txt ./
-RUN pip install -r requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --system -r requirements.txt
 
 COPY . .
 
