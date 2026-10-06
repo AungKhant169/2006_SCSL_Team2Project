@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.app.json",
-  "include": ["env.d.ts", "src/**/__tests__/*", "src/test/**/*"],
+  "include": ["env.d.ts", "src/router/meta.ts", "src/**/__tests__/*", "src/test/**/*"],
   "exclude": [],
   "compilerOptions": {
     "types": ["node"],

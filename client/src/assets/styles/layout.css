@@ -1,0 +1,11 @@
+@layer components {
+  /* Padded, vertically stacked content area shared by every page */
+  .page {
+    @apply flex flex-col gap-5 p-4 sm:p-6;
+  }
+
+  /* Narrow centred variant for forms and admin tools */
+  .page-narrow {
+    @apply w-full max-w-[820px] self-center;
+  }
+}

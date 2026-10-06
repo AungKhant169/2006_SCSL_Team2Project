@@ -42,7 +42,7 @@
 
   /* Header navigation entries */
   .nav-link {
-    @apply cursor-pointer rounded-lg border-0 bg-transparent px-3.5 py-2 text-sm font-medium text-ink transition-colors hover:bg-chip;
+    @apply flex cursor-pointer items-center gap-2 rounded-lg border-0 bg-transparent px-3.5 py-2 text-left text-sm font-medium text-ink no-underline transition-colors hover:bg-chip hover:text-ink hover:no-underline;
   }
 
   .nav-link-active {
@@ -64,6 +64,15 @@
 
   .segmented-item-active {
     @apply bg-primary text-white;
+  }
+
+  /* Variant for switches whose selected entry is a white "raised" tab */
+  .segmented-item-raised {
+    @apply flex-1 py-2 text-sm text-muted;
+  }
+
+  .segmented-item-raised.segmented-item-active {
+    @apply bg-white text-ink;
   }
 
   /* Selectable tiles (roadmap stage, target education level) */
