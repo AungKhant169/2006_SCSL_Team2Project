@@ -24,8 +24,9 @@ const school = computed(() => getSchool(Number(props.id)))
 
     <SchoolIdentityCard :school="school" :has-postal="directory.hasPostal" />
 
+    <FeeTable :school="school" />
+
     <div class="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-5">
-      <FeeTable :school="school" class="col-span-full" />
       <BenchmarkHistory :school="school" />
       <FinancialSupport :school="school" />
     </div>

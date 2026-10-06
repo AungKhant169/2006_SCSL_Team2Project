@@ -31,10 +31,10 @@ const citizenshipLabel = computed(() => CITIZENSHIPS.find((c) => c.id === citize
       <table class="w-full border-collapse text-left text-sm">
         <thead class="bg-surface text-xs tracking-wide text-muted uppercase">
           <tr>
-            <th scope="col" class="w-[42%] px-3.5 py-2.5 font-semibold">{{ tier.courseColumn }}</th>
-            <th scope="col" class="px-3.5 py-2.5 font-semibold">Field</th>
-            <th scope="col" class="px-3.5 py-2.5 text-right font-semibold">Tuition</th>
-            <th scope="col" class="px-3.5 py-2.5 text-right font-semibold">Misc. fees</th>
+            <th scope="col" class="w-2/5 px-3.5 py-2.5 font-semibold">{{ tier.courseColumn }}</th>
+            <th scope="col" class="w-1/5 px-3.5 py-2.5 font-semibold">Field</th>
+            <th scope="col" class="w-1/5 px-3.5 py-2.5 text-right font-semibold">Tuition</th>
+            <th scope="col" class="w-1/5 px-3.5 py-2.5 text-right font-semibold">Misc. fees</th>
           </tr>
         </thead>
         <tbody>
