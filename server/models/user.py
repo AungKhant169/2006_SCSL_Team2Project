@@ -3,10 +3,10 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Self
-from dotenv import load_dotenv
 
 import bcrypt
 import jwt
+from dotenv import load_dotenv
 from fastapi import status
 from sqlalchemy import String
 from sqlalchemy.exc import IntegrityError

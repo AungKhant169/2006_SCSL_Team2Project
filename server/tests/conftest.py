@@ -9,6 +9,8 @@ TMP = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = f"sqlite:///{TMP}/test.db"
 # Generate a random secret key for tests.
 os.environ["SECRET_KEY"] = secrets.token_hex(32)
+# The app refuses to start without a CORS origin; tests must not depend on a developer's .env.
+os.environ["FRONTEND_ORIGIN"] = "http://localhost:5173"
 
 import pytest
 from fastapi.testclient import TestClient
