@@ -48,12 +48,18 @@ interface MountOptions {
   routes?: RouteRecordRaw[]
   props?: Record<string, unknown>
   attachTo?: HTMLElement
+  /** Signs this user in (against the stubbed auth API) before mounting. Use 'admin' for the Admin role. */
+  signedInAs?: string
 }
 
 /** Mounts a component with a fresh Pinia and a guarded router, resolved to `route`. */
 export async function mountWithApp(component: Component, options: MountOptions = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
+  if (options.signedInAs) {
+    stubAuthApi()
+    await signInAs(options.signedInAs)
+  }
   const router = createTestRouter(options.routes)
   await router.push(options.route ?? '/')
   await router.isReady()

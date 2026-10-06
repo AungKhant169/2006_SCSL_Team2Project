@@ -25,7 +25,7 @@
   }
 
   .btn-outline {
-    @apply border-line bg-white text-ink hover:bg-chip;
+    @apply border-line bg-white text-ink hover:bg-chip disabled:opacity-50 disabled:hover:bg-white;
   }
 
   .btn-outline-primary {
