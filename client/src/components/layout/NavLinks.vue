@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import BaseButton from '@/components/ui/BaseButton.vue'
+import LinkButton from '@/components/ui/LinkButton.vue'
 import PillBadge from '@/components/ui/PillBadge.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBookmarksStore } from '@/stores/bookmarks'
@@ -76,13 +77,12 @@ async function logOut() {
       <span class="size-2 rounded-full bg-success" aria-hidden="true" />
       {{ auth.username }} · Log out
     </BaseButton>
-    <RouterLink
+    <LinkButton
       v-else
       :to="{ name: 'login' }"
-      class="btn btn-primary hover:text-white hover:no-underline"
-      :class="isColumn ? 'mt-1.5 min-h-11 text-[15px]' : 'ml-2 text-sm'"
+      :class="isColumn ? 'mt-1.5 min-h-11 text-[15px]' : 'ml-2'"
     >
       Log in
-    </RouterLink>
+    </LinkButton>
   </nav>
 </template>

@@ -6,6 +6,7 @@ import FeeTable from '@/components/schools/FeeTable.vue'
 import FinancialSupport from '@/components/schools/FinancialSupport.vue'
 import SchoolIdentityCard from '@/components/schools/SchoolIdentityCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
+import LinkButton from '@/components/ui/LinkButton.vue'
 import { getSchool } from '@/data/schools'
 import { useDirectoryStore } from '@/stores/directory'
 
@@ -35,12 +36,7 @@ const school = computed(() => getSchool(Number(props.id)))
 
   <div v-else class="page">
     <EmptyState title="School not found" message="This school is not in the directory.">
-      <RouterLink
-        :to="{ name: 'directory' }"
-        class="btn btn-primary hover:text-white hover:no-underline"
-      >
-        Back to directory
-      </RouterLink>
+      <LinkButton :to="{ name: 'directory' }">Back to directory</LinkButton>
     </EmptyState>
   </div>
 </template>

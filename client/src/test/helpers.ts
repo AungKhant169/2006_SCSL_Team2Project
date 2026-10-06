@@ -71,7 +71,7 @@ export async function mountWithApp(component: Component, options: MountOptions =
   return { wrapper, router, pinia }
 }
 
-function json(body: unknown, status = 200) {
+export function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json' },
@@ -88,10 +88,14 @@ export function stubAuthApi(overrides: Partial<Record<string, () => Response>> =
     const override = overrides[path]
     if (override) return override()
     if (path === '/user/login' || path === '/user/register') {
-      return json({ access_token: 'access', refresh_token: 'refresh', token_type: 'bearer' })
+      return jsonResponse({
+        access_token: 'access',
+        refresh_token: 'refresh',
+        token_type: 'bearer',
+      })
     }
     if (path === '/user/logout') return new Response(null, { status: 204 })
-    return json({ detail: 'Not found' }, 404)
+    return jsonResponse({ detail: 'Not found' }, 404)
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock

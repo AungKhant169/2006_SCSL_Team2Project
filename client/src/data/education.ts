@@ -1,4 +1,4 @@
-import type { EducationLevel } from '@/types/profile'
+import type { EducationLevel, PrimaryResult, ResultField } from '@/types/profile'
 import type { CitizenshipId, DirectoryTierId, Tier, TierId } from '@/types/school'
 
 export const TIERS: Tier[] = [
@@ -141,3 +141,48 @@ export const SORT_OPTIONS = [
   { value: 'dist', label: 'Distance (nearest first)' },
 ] as const
 export type SortOrder = (typeof SORT_OPTIONS)[number]['value']
+
+/** Academic result inputs shown for each target level (REQ-2.7). Other levels collect none. */
+export const RESULT_FIELDS: Partial<Record<TierId, ResultField[]>> = {
+  secondary: [
+    {
+      key: 'scoreA',
+      label: 'PSLE Aggregate AL score',
+      placeholder: '4 – 32',
+      hint: 'Integer between 4 (best) and 32.',
+      inputmode: 'numeric',
+    },
+  ],
+  postsec: [
+    {
+      key: 'scoreA',
+      label: 'O-Level L1R5 (net)',
+      placeholder: '2 – 54',
+      hint: 'For Junior College admission.',
+      inputmode: 'numeric',
+    },
+    {
+      key: 'scoreB',
+      label: 'O-Level ELR2B2',
+      placeholder: 'e.g. 12',
+      hint: 'For Polytechnic / ITE admission.',
+      inputmode: 'numeric',
+    },
+  ],
+  uni: [
+    {
+      key: 'scoreA',
+      label: 'Polytechnic cumulative GPA',
+      placeholder: '0.00 – 4.00',
+      inputmode: 'decimal',
+    },
+    {
+      key: 'scoreB',
+      label: 'A-Level rank points',
+      placeholder: '0 – 90',
+      inputmode: 'decimal',
+    },
+  ],
+}
+
+export const PRIMARY_RESULT_OPTIONS: PrimaryResult[] = ['None', 'Kindergarten completion']

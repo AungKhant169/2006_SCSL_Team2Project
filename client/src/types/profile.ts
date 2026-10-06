@@ -13,3 +13,13 @@ export interface EducationLevel {
 }
 
 export type PrimaryResult = 'None' | 'Kindergarten completion'
+
+/** One numeric academic result input on the profile form. */
+export interface ResultField {
+  /** Which profile score the input edits. */
+  key: 'scoreA' | 'scoreB'
+  label: string
+  placeholder: string
+  hint?: string
+  inputmode: 'numeric' | 'decimal'
+}
