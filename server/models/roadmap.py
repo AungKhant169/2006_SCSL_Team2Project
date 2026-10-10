@@ -33,7 +33,9 @@ class Roadmap(Base, Persistable):
     __tablename__ = "roadmaps"
 
     # Unique: an account keeps at most one saved roadmap.
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), unique=True, index=True
+    )
     stage: Mapped[str] = mapped_column(String, nullable=False)
     source: Mapped[str] = mapped_column(String, nullable=False)
     # School ids in preference order.
@@ -53,7 +55,9 @@ class Roadmap(Base, Persistable):
 
     @validates("choices")
     def choices_validator(self, key: str, value: list[int]) -> list[int]:
-        if not 1 <= len(value) <= PLAN_LENGTH or not all(isinstance(v, int) for v in value):
+        if not 1 <= len(value) <= PLAN_LENGTH or not all(
+            isinstance(v, int) for v in value
+        ):
             raise RoadmapError.INVALID_CHOICES
         return value
 
@@ -64,7 +68,9 @@ class Roadmap(Base, Persistable):
         return roadmap
 
     @classmethod
-    def save(cls, user_id: int, stage: str, source: str, choices: list[int]) -> "Roadmap":
+    def save(
+        cls, user_id: int, stage: str, source: str, choices: list[int]
+    ) -> "Roadmap":
         """Store the user's roadmap, replacing any existing one."""
         if existing := cls.get_by_key(user_id=user_id):
             return cls.update(existing.id, stage=stage, source=source, choices=choices)

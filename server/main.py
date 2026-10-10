@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.exceptions import HttpError, http_error_handler
-from routers import user_router, roadmap_router
+from routers import roadmap_router, user_router
 
 load_dotenv()
 

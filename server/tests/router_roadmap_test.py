@@ -1,4 +1,4 @@
-""" need to update """
+"""need to update"""
 
 from models.user import UserError
 from tests.conftest import client

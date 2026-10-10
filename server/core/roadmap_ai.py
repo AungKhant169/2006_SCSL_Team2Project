@@ -20,6 +20,6 @@ class AIRoadmapGenerator:
     @classmethod
     def generate(cls, user: User, request: AIRoadmapRequest) -> list[int]:
         """Return school ids in preference order for the requested stage."""
-        ...
+
 
 """ file to add openai roadmap generation"""
