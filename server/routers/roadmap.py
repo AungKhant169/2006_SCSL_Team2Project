@@ -20,7 +20,7 @@ def to_response(roadmap: Roadmap) -> RoadmapResponse:
     )
 
 
-@router.post("/generate-ai-roadmap", response_model=AIRoadmapResponse)
+@router.post("/generate-ai", response_model=AIRoadmapResponse)
 def generate_ai_roadmap(data: AIRoadmapRequest, user: Requester):
     choices = AIRoadmapGenerator.generate(user, data)
     return AIRoadmapResponse(choices=choices)
