@@ -6,13 +6,13 @@ Stage = Literal["preschool", "primary", "secondary", "postsec", "uni"]
 Source = Literal["Rule-Based Plan", "AI-Generated Plan"]
 
 
-class AIRoadmapRequest(BaseModel):
+class CreateRoadmapRequest(BaseModel):
     stage: Stage
     postal: str | None = None
     previous_academic_score: float | None = None
 
 
-class AIRoadmapResponse(BaseModel):
+class CreateRoadmapResponse(BaseModel):
     # School ids in preference order.
     choices: list[int]
 

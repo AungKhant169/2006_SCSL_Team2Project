@@ -2,10 +2,11 @@ from fastapi import APIRouter, status
 
 from core.authenticator import Requester
 from core.roadmap_ai import AIRoadmapGenerator
+from core.roadmap_rules import RuleRoadmapGenerator
 from models.roadmap import Roadmap
 from schemas.roadmap import (
-    AIRoadmapRequest,
-    AIRoadmapResponse,
+    CreateRoadmapRequest,
+    CreateRoadmapResponse,
     RoadmapEdit,
     RoadmapResponse,
     RoadmapSave,
@@ -20,10 +21,14 @@ def to_response(roadmap: Roadmap) -> RoadmapResponse:
     )
 
 
-@router.post("/generate-ai-roadmap", response_model=AIRoadmapResponse)
-def generate_ai_roadmap(data: AIRoadmapRequest, user: Requester):
-    choices = AIRoadmapGenerator.generate(user, data)
-    return AIRoadmapResponse(choices=choices)
+@router.post("/generate-ai-roadmap", response_model=CreateRoadmapResponse)
+def generate_ai_roadmap(data: CreateRoadmapRequest, user: Requester):
+    return CreateRoadmapResponse(choices=AIRoadmapGenerator.generate(user, data))
+
+
+@router.post("/generate-rule-roadmap", response_model=CreateRoadmapResponse)
+def generate_rule_roadmap(data: CreateRoadmapRequest, user: Requester):
+    return CreateRoadmapResponse(choices=RuleRoadmapGenerator.generate(user, data))
 
 
 @router.get("", response_model=RoadmapResponse)

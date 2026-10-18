@@ -6,24 +6,16 @@ from fastapi import status
 from openai import APITimeoutError, OpenAI, OpenAIError
 
 from core.exceptions import HttpError
+from core.roadmap_pool import candidate_pool
 from models.roadmap import PLAN_LENGTH
 from models.school_record import SchoolInfo
 from models.user import User
-from schemas.roadmap import AIRoadmapRequest
+from schemas.roadmap import CreateRoadmapRequest
 
 load_dotenv()
 
 # The client gives up after 5 seconds (PERF-7), so stop slightly earlier than that.
 AI_TIMEOUT_SECONDS = 10
-
-# Each stage matches schools whose mainlevel_code contains one of these values.
-STAGE_LEVELS = {
-    "preschool": (),  # no preschool records in the data
-    "primary": ("PRIMARY",),
-    "secondary": ("SECONDARY",),  # covers "SECONDARY (S1-S5)" and "SECONDARY (S1-S4)"
-    "postsec": ("POLYTECHNIC", "JUNIOR COLLEGE"),
-    "uni": ("UNI",),
-}
 
 # Strict JSON schema: the model must answer with {"choices": [<school id>, ...]}.
 RESPONSE_FORMAT = {
@@ -152,20 +144,9 @@ def _describe(school: SchoolInfo) -> dict:
 
 class AIRoadmapGenerator:
     @classmethod
-    def generate(cls, user: User, request: AIRoadmapRequest) -> list[int]:
+    def generate(cls, user: User, request: CreateRoadmapRequest) -> list[int]:
         """Return school ids in preference order for the requested stage."""
-        levels = STAGE_LEVELS[request.stage]
-        if not levels:
-            return []
-
-        # Fetch every school at the requested level. search() matches one level at a
-        # time, so run it once per level and merge the results. 
-        # Because some levels have multiple different types. For example, post-sec has "Poly" and "JC".
-        pool = {}
-        for level in levels:
-            for school in SchoolInfo.search(level=level, limit=1000):
-                pool[school.id] = school
-        if not pool:
+        if not (pool := candidate_pool(request.stage)):
             return []
 
         # The username is deliberately not sent to the AI: no personal identifiers should leave the system.
@@ -193,7 +174,7 @@ class AIRoadmapGenerator:
         return choices
 
     @staticmethod
-    def _build_prompt(request: AIRoadmapRequest, schools: list[SchoolInfo]) -> str:
+    def _build_prompt(request: CreateRoadmapRequest, schools: list[SchoolInfo]) -> str:
         score = request.previous_academic_score
         criteria = [
             "Only use ids that appear in the candidate list. Never invent or repeat an id.",
