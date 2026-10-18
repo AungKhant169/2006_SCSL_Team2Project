@@ -9,8 +9,7 @@ const base: ProfileFields = {
   postal: '556000',
 }
 
-const check = (overrides: Partial<ProfileFields>) =>
-  validateProfile({ ...base, ...overrides })
+const check = (overrides: Partial<ProfileFields>) => validateProfile({ ...base, ...overrides })
 
 describe('validateProfile', () => {
   it('accepts a complete secondary profile', () => {
@@ -18,14 +17,9 @@ describe('validateProfile', () => {
   })
 
   describe('postal code (REQ-2.10, REQ-2.16)', () => {
-    it.each(['', '12345', '1234567', 'abcdef', '55 600'])(
-      'rejects %j',
-      (postal) => {
-        expect(check({ postal })).toBe(
-          'Please enter a valid 6-digit Singapore postal code.',
-        )
-      },
-    )
+    it.each(['', '12345', '1234567', 'abcdef', '55 600'])('rejects %j', (postal) => {
+      expect(check({ postal })).toBe('Please enter a valid 6-digit Singapore postal code.')
+    })
 
     it('is reported ahead of a score problem', () => {
       expect(check({ postal: '123', scoreA: '99' })).toMatch(/postal code/)
@@ -57,12 +51,9 @@ describe('validateProfile', () => {
     // 31 = upper boundary - 1
     // 32 = upper boundary
     // 17 = representative valid equivalence-class value
-    it.each(['4', '5', '17', '31', '32'])(
-      'accepts %s',
-      (scoreA) => {
-        expect(check({ scoreA })).toBe('')
-      },
-    )
+    it.each(['4', '5', '17', '31', '32'])('accepts %s', (scoreA) => {
+      expect(check({ scoreA })).toBe('')
+    })
 
     // Boundary Value Analysis:
     // 3 = lower boundary - 1
@@ -74,14 +65,9 @@ describe('validateProfile', () => {
     // '' = blank
     // abc = non-numeric
     // -4 = negative integer
-    it.each(['3', '33', '35', '8.5', '', 'abc', '-4'])(
-      'rejects %j',
-      (scoreA) => {
-        expect(check({ scoreA })).toMatch(
-          /^Invalid academic score! PSLE AL/,
-        )
-      },
-    )
+    it.each(['3', '33', '35', '8.5', '', 'abc', '-4'])('rejects %j', (scoreA) => {
+      expect(check({ scoreA })).toMatch(/^Invalid academic score! PSLE AL/)
+    })
   })
 
   describe('post-secondary (L1R5 2–54, ELR2B2)', () => {
@@ -129,18 +115,15 @@ describe('validateProfile', () => {
     // 53 = upper boundary - 1
     // 54 = upper boundary
     // 28 = representative valid equivalence-class value
-    it.each(['2', '3', '28', '53', '54'])(
-      'accepts L1R5 boundary/valid value %s',
-      (scoreA) => {
-        expect(
-          check({
-            level,
-            scoreA,
-            scoreB: '',
-          }),
-        ).toBe('')
-      },
-    )
+    it.each(['2', '3', '28', '53', '54'])('accepts L1R5 boundary/valid value %s', (scoreA) => {
+      expect(
+        check({
+          level,
+          scoreA,
+          scoreB: '',
+        }),
+      ).toBe('')
+    })
 
     // Boundary Value Analysis:
     // 1 = lower boundary - 1
@@ -149,20 +132,15 @@ describe('validateProfile', () => {
     // Equivalence Class Testing:
     // 9.5 = decimal
     // x = non-numeric
-    it.each(['1', '55', '9.5', 'x'])(
-      'rejects L1R5 %j',
-      (scoreA) => {
-        expect(
-          check({
-            level,
-            scoreA,
-            scoreB: '',
-          }),
-        ).toMatch(
-          /L1R5 must be a whole number from 2 to 54/,
-        )
-      },
-    )
+    it.each(['1', '55', '9.5', 'x'])('rejects L1R5 %j', (scoreA) => {
+      expect(
+        check({
+          level,
+          scoreA,
+          scoreB: '',
+        }),
+      ).toMatch(/L1R5 must be a whole number from 2 to 54/)
+    })
 
     it('rejects a non-numeric ELR2B2', () => {
       expect(
@@ -196,18 +174,15 @@ describe('validateProfile', () => {
     // 3.50 = representative valid equivalence-class value
     // 3.99 = just below upper boundary
     // 4 = upper boundary
-    it.each(['0', '0.01', '3.50', '3.99', '4'])(
-      'accepts GPA boundary/valid value %s',
-      (scoreA) => {
-        expect(
-          check({
-            level,
-            scoreA,
-            scoreB: '',
-          }),
-        ).toBe('')
-      },
-    )
+    it.each(['0', '0.01', '3.50', '3.99', '4'])('accepts GPA boundary/valid value %s', (scoreA) => {
+      expect(
+        check({
+          level,
+          scoreA,
+          scoreB: '',
+        }),
+      ).toBe('')
+    })
 
     // Boundary / Equivalence Class Testing for GPA:
     //
@@ -215,20 +190,15 @@ describe('validateProfile', () => {
     // 4.01 = above upper boundary
     // 4.5 = value above valid range
     // abc = non-numeric input
-    it.each(['-0.01', '4.01', '4.5', 'abc'])(
-      'rejects GPA %j',
-      (scoreA) => {
-        expect(
-          check({
-            level,
-            scoreA,
-            scoreB: '',
-          }),
-        ).toMatch(
-          /GPA must be between 0.00 and 4.00/,
-        )
-      },
-    )
+    it.each(['-0.01', '4.01', '4.5', 'abc'])('rejects GPA %j', (scoreA) => {
+      expect(
+        check({
+          level,
+          scoreA,
+          scoreB: '',
+        }),
+      ).toMatch(/GPA must be between 0.00 and 4.00/)
+    })
 
     // Boundary Value Analysis for A-Level Rank Points:
     // Valid range: 0 to 90
@@ -257,20 +227,15 @@ describe('validateProfile', () => {
     // 90.01 = above upper boundary
     // 91 = value above valid range
     // rp = non-numeric input
-    it.each(['-0.01', '90.01', '91', 'rp'])(
-      'rejects rank points %j',
-      (scoreB) => {
-        expect(
-          check({
-            level,
-            scoreA: '',
-            scoreB,
-          }),
-        ).toMatch(
-          /Rank points must be between 0 and 90/,
-        )
-      },
-    )
+    it.each(['-0.01', '90.01', '91', 'rp'])('rejects rank points %j', (scoreB) => {
+      expect(
+        check({
+          level,
+          scoreA: '',
+          scoreB,
+        }),
+      ).toMatch(/Rank points must be between 0 and 90/)
+    })
   })
 })
 

@@ -27,8 +27,7 @@ function deferred<T>() {
   }
 }
 
-const flush = () =>
-  new Promise((resolve) => setTimeout(resolve, 0))
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
 describe('roadmap store (UC-3.1 to UC-3.4)', () => {
   beforeEach(() => {
@@ -128,9 +127,7 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
         'National University of Singapore',
       ])
 
-      expect(r.rulePlan[0]?.detail).toContain(
-        'IGP GPA (10th–90th)',
-      )
+      expect(r.rulePlan[0]?.detail).toContain('IGP GPA (10th–90th)')
     })
 
     it('has no institutions to plan with for preschool yet', () => {
@@ -238,9 +235,7 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       expect(r.generated).toBe(false)
       expect(r.showSaved).toBe(true)
 
-      expect(r.savedPlan.map((n) => n.schoolName)[0]).toBe(
-        "St. Gabriel's Secondary School",
-      )
+      expect(r.savedPlan.map((n) => n.schoolName)[0]).toBe("St. Gabriel's Secondary School")
     })
 
     it('saves the AI-generated plan', async () => {
@@ -275,73 +270,70 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
     })
   })
 
-  describe(
-    'editing a saved roadmap (REQ-3.5, REQ-3.13, REQ-3.14)',
-    () => {
-      function withSavedRoadmap() {
-        const r = useRoadmapStore()
+  describe('editing a saved roadmap (REQ-3.5, REQ-3.13, REQ-3.14)', () => {
+    function withSavedRoadmap() {
+      const r = useRoadmapStore()
 
-        r.generate()
-        r.save('Rule-Based Plan')
+      r.generate()
+      r.save('Rule-Based Plan')
 
-        return r
-      }
+      return r
+    }
 
-      it('offers only institutions from the saved stage', () => {
-        const r = withSavedRoadmap()
+    it('offers only institutions from the saved stage', () => {
+      const r = withSavedRoadmap()
 
-        expect(r.savedPool.map((s) => s.tier)).toEqual([
-          'secondary',
-          'secondary',
-          'secondary',
-          'secondary',
-        ])
-      })
+      expect(r.savedPool.map((s) => s.tier)).toEqual([
+        'secondary',
+        'secondary',
+        'secondary',
+        'secondary',
+      ])
+    })
 
-      it('saves changed choices', () => {
-        const r = withSavedRoadmap()
+    it('saves changed choices', () => {
+      const r = withSavedRoadmap()
 
-        r.startEdit()
+      r.startEdit()
 
-        expect(r.editing).toBe(true)
-        expect(r.editChoices).toEqual([8, 6, 5])
+      expect(r.editing).toBe(true)
+      expect(r.editChoices).toEqual([8, 6, 5])
 
-        r.setChoice(0, 7)
-        r.saveEdits()
+      r.setChoice(0, 7)
+      r.saveEdits()
 
-        expect(r.editing).toBe(false)
-        expect(r.saved?.choices).toEqual([7, 6, 5])
-        expect(r.saved?.source).toBe('Rule-Based Plan')
-      })
+      expect(r.editing).toBe(false)
+      expect(r.saved?.choices).toEqual([7, 6, 5])
+      expect(r.saved?.source).toBe('Rule-Based Plan')
+    })
 
-      it('cancel restores the stored version (REQ-3.15)', () => {
-        const r = withSavedRoadmap()
+    it('cancel restores the stored version (REQ-3.15)', () => {
+      const r = withSavedRoadmap()
 
-        r.startEdit()
-        r.setChoice(1, 7)
-        r.cancelEdit()
+      r.startEdit()
+      r.setChoice(1, 7)
+      r.cancelEdit()
 
-        expect(r.editing).toBe(false)
-        expect(r.saved?.choices).toEqual([8, 6, 5])
+      expect(r.editing).toBe(false)
+      expect(r.saved?.choices).toEqual([8, 6, 5])
 
-        r.startEdit()
+      r.startEdit()
 
-        expect(r.editChoices).toEqual([8, 6, 5])
-      })
+      expect(r.editChoices).toEqual([8, 6, 5])
+    })
 
-      it('does nothing when there is no saved roadmap', () => {
-        const r = useRoadmapStore()
+    it('does nothing when there is no saved roadmap', () => {
+      const r = useRoadmapStore()
 
-        r.startEdit()
+      r.startEdit()
 
-        expect(r.editing).toBe(false)
+      expect(r.editing).toBe(false)
 
-        r.saveEdits()
+      r.saveEdits()
 
-        expect(r.saved).toBeNull()
-      })
-    },
-  )
+      expect(r.saved).toBeNull()
+    })
+  })
 
   describe('deleting (REQ-3.6, REQ-3.16)', () => {
     it('removes the roadmap and returns to the empty state', () => {
@@ -361,27 +353,15 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
     it('starts empty, shows the generated plans, then the saved roadmap', () => {
       const r = useRoadmapStore()
 
-      expect([
-        r.showEmpty,
-        r.showSaved,
-        r.generated,
-      ]).toEqual([true, false, false])
+      expect([r.showEmpty, r.showSaved, r.generated]).toEqual([true, false, false])
 
       r.generate()
 
-      expect([
-        r.showEmpty,
-        r.showSaved,
-        r.generated,
-      ]).toEqual([false, false, true])
+      expect([r.showEmpty, r.showSaved, r.generated]).toEqual([false, false, true])
 
       r.save('Rule-Based Plan')
 
-      expect([
-        r.showEmpty,
-        r.showSaved,
-        r.generated,
-      ]).toEqual([false, true, false])
+      expect([r.showEmpty, r.showSaved, r.generated]).toEqual([false, true, false])
     })
 
     it('a new target level in the profile starts the page over but keeps the saved roadmap', async () => {
