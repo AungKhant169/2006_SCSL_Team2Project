@@ -4,12 +4,15 @@ from core.authenticator import Requester
 from core.roadmap_ai import AIRoadmapGenerator
 from core.roadmap_rules import RuleRoadmapGenerator
 from models.roadmap import Roadmap
+from models.school_record import SchoolInfo
 from schemas.roadmap import (
     CreateRoadmapRequest,
     CreateRoadmapResponse,
     RoadmapEdit,
     RoadmapResponse,
     RoadmapSave,
+    AIRoadmapResponse,
+    RoadmapSchool
 )
 
 router = APIRouter(prefix="/roadmap", tags=["roadmap"])
@@ -21,9 +24,14 @@ def to_response(roadmap: Roadmap) -> RoadmapResponse:
     )
 
 
-@router.post("/generate-ai-roadmap", response_model=CreateRoadmapResponse)
+@router.post("/generate-ai-roadmap", response_model=AIRoadmapResponse)
 def generate_ai_roadmap(data: CreateRoadmapRequest, user: Requester):
-    return CreateRoadmapResponse(choices=AIRoadmapGenerator.generate(user, data))
+    choices = AIRoadmapGenerator.generate(user, data)
+    schools = []
+    for school_id in choices:
+        if school := SchoolInfo.get_by_id(school_id):
+            schools.append(RoadmapSchool.model_validate(school))
+    return AIRoadmapResponse(choices=choices, schools=schools)
 
 
 @router.post("/generate-rule-roadmap", response_model=CreateRoadmapResponse)
