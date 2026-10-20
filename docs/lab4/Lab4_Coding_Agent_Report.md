@@ -5,7 +5,7 @@ Exercise date: 20 October 2026 (Asia/Shanghai)
 Assistant used for both exercises recorded below: Codex
 Starting commit: `d2a95f40af0d0c576e2ea9dd7c68615d02285199`
 
-Repository validation update: This report records the original exercise at the starting commit above. Before publication, main was synchronised to ff68f9b, which adds roadmap_rules.py and changes the AI response to include school details. The updated frontend passed 620 tests, type checking, formatting, and production build; the backend passed 23 tests, Ruff linting, and formatting. Live external services and Docker image builds were not tested locally.
+Repository scope update: This report records the original exercise at the starting commit above. The local branch was subsequently synchronised to team commit ff68f9b, which adds roadmap_rules.py and school details to the AI response. Only the Lab 4 profile implementation, tests, and documentation are retained as our changes. Backend files and repository-wide configuration remain as supplied by the team.
 
 ## 3.3.2 Reconstructing the Selected Control Class
 

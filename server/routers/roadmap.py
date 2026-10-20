@@ -6,13 +6,13 @@ from core.roadmap_rules import RuleRoadmapGenerator
 from models.roadmap import Roadmap
 from models.school_record import SchoolInfo
 from schemas.roadmap import (
-    AIRoadmapResponse,
     CreateRoadmapRequest,
     CreateRoadmapResponse,
     RoadmapEdit,
     RoadmapResponse,
     RoadmapSave,
-    RoadmapSchool,
+    AIRoadmapResponse,
+    RoadmapSchool
 )
 
 router = APIRouter(prefix="/roadmap", tags=["roadmap"])

@@ -34,7 +34,6 @@ class RoadmapResponse(BaseModel):
     source: Source
     choices: list[int]
 
-
 class RoadmapSchool(SchoolInfoSummary):
     # SchoolInfoSummary already has name, address, postal code, zone, level and type.
     id: int

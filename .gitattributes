@@ -1,2 +1,0 @@
-# Keep frontend source compatible with Prettier on Windows and Linux.
-client/src/** text=auto eol=lf
