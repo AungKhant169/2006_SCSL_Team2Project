@@ -25,9 +25,9 @@ See:
 
 ### 1.3 Cyclomatic Complexity
 
-The control flow graph contains three decision/branch points:
+The control flow graph contains three decision or branch points:
 
-1. AI request succeeds or raises an exception;
+1. the AI request succeeds or raises an exception;
 2. `run != aiRun` after a successful response;
 3. `run != aiRun` after an exception.
 

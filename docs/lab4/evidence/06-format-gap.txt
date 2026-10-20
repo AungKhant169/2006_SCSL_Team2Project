@@ -1,0 +1,207 @@
+> client@0.0.0 test
+
+> vitest run profileValidation.spec.ts
+
+
+
+
+
+ RUN  v5.0.3 C:/Users/14656/OneDrive/Desktop/2006_SCSL_Team2Project/client
+
+
+
+ ❯ src/utils/__tests__/profileValidation.spec.ts (63 tests | 10 failed) 10ms
+
+   ❯ numeric text formats (Lab 4 reconstruction follow-up) (10)
+
+     × rejects non-digit PSLE text "8e0" even when Number() produces an integer 3ms
+
+     × rejects non-digit PSLE text "0x8" even when Number() produces an integer 0ms
+
+     × rejects non-digit PSLE text "+8" even when Number() produces an integer 0ms
+
+     × rejects non-digit PSLE text "8.0" even when Number() produces an integer 0ms
+
+     × rejects non-standard GPA text "3e0" 0ms
+
+     × rejects non-standard GPA text "0x3" 0ms
+
+     × rejects non-standard GPA text "+3" 0ms
+
+     × rejects non-standard GPA text ".5" 0ms
+
+     × rejects non-standard GPA text "3." 0ms
+
+     × preserves the ELR2B2 error message 1ms
+
+npm.cmd :
+
+At line:2 character: 1
+
++ npm.cmd test -- profileValidation.spec.ts 2>&1 | Tee-Object -FilePath ...
+
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
+
+    + FullyQualifiedErrorId : NativeCommandError
+
+
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-digit PSLE text "8e0" even when Number() produces an integer
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-digit PSLE text "0x8" even when Number() produces an integer
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-digit PSLE text "+8" even when Number() produces an integer
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-digit PSLE text "8.0" even when Number() produces an integer
+
+AssertionError: expected '' to match /PSLE AL/
+
+
+
+- Expected:
+
+/PSLE AL/
+
+
+
++ Received:
+
+""
+
+
+
+ ❯ src/utils/__tests__/profileValidation.spec.ts:261:33
+
+    259|     'rejects non-digit PSLE text %j even when Number() produces an int…
+
+    260|     (scoreA) => {
+
+    261|       expect(check({ scoreA })).toMatch(/PSLE AL/)
+
+       |                                 ^
+
+    262|     },
+
+    263|   )
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-standard GPA text "3e0"
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-standard GPA text "0x3"
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-standard GPA text "+3"
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-standard GPA text ".5"
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > rejects
+
+non-standard GPA text "3."
+
+AssertionError: expected '' to match /GPA/
+
+
+
+- Expected:
+
+/GPA/
+
+
+
++ Received:
+
+""
+
+
+
+ ❯ src/utils/__tests__/profileValidation.spec.ts:268:59
+
+    266|     'rejects non-standard GPA text %j',
+
+    267|     (scoreA) => {
+
+    268|       expect(check({ level: 'uni', scoreA, scoreB: '' })).toMatch(/GPA…
+
+       |                                                           ^
+
+    269|     },
+
+    270|   )
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+
+
+ FAIL  src/utils/__tests__/profileValidation.spec.ts > numeric text formats (Lab 4 reconstruction follow-up) > preserve
+
+s the ELR2B2 error message
+
+AssertionError: expected 'Invalid academic score! ELR2B2 must b…' to be 'Invalid academic score! ELR2B2 must b…' // Obj
+
+ect.is equality
+
+
+
+Expected: "Invalid academic score! ELR2B2 must be a whole number."
+
+Received: "Invalid academic score! ELR2B2 must be a non-negative whole number."
+
+
+
+ ❯ src/utils/__tests__/profileValidation.spec.ts:273:68
+
+    271|
+
+    272|   it('preserves the ELR2B2 error message', () => {
+
+    273|     expect(check({ level: 'postsec', scoreA: '', scoreB: 'abc' })).toB…
+
+       |                                                                    ^
+
+    274|       'Invalid academic score! ELR2B2 must be a whole number.',
+
+    275|     )
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+
+
+
+
+ Test Files  1 failed (1)
+
+      Tests  10 failed | 53 passed (63)
+
+   Start at  22:37:43
+
+   Duration  664ms (environment 89%, transform 6%, tests 2%, import 1%, setup 1%, worker 1%)

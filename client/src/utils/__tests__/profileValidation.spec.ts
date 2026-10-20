@@ -253,3 +253,22 @@ describe('describeScore', () => {
     expect(describeScore('uni', '   ')).toBe('No score on file')
   })
 })
+
+describe('numeric text formats (Lab 4 reconstruction follow-up)', () => {
+  it.each(['8e0', '0x8', '+8', '8.0'])(
+    'rejects non-digit PSLE text %j even when Number() produces an integer',
+    (scoreA) => {
+      expect(check({ scoreA })).toMatch(/PSLE AL/)
+    },
+  )
+
+  it.each(['3e0', '0x3', '+3', '.5', '3.'])('rejects non-standard GPA text %j', (scoreA) => {
+    expect(check({ level: 'uni', scoreA, scoreB: '' })).toMatch(/GPA/)
+  })
+
+  it('preserves the ELR2B2 error message', () => {
+    expect(check({ level: 'postsec', scoreA: '', scoreB: 'abc' })).toBe(
+      'Invalid academic score! ELR2B2 must be a whole number.',
+    )
+  })
+})

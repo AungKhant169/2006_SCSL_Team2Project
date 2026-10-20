@@ -8,63 +8,58 @@ export interface ProfileFields {
   postal: string
 }
 
-const INVALID = 'Invalid academic score!'
+const invalidScore = (message: string) => `Invalid academic score! ${message}`
 
-const isBlank = (value: string) => value.trim() === ''
-const isWholeNumber = (value: string) => /^\d+$/.test(value.trim())
-const isDecimal = (value: string) => /^\d+(\.\d+)?$/.test(value.trim())
-const inRange = (value: string, min: number, max: number) =>
-  Number(value) >= min && Number(value) <= max
+function inRange(value: string, min: number, max: number, integer = false): boolean {
+  const format = integer ? /^\d+$/ : /^\d+(\.\d+)?$/
+  if (!format.test(value.trim())) return false
+  const number = Number(value)
+  return (
+    Number.isFinite(number) &&
+    number >= min &&
+    number <= max &&
+    (!integer || Number.isInteger(number))
+  )
+}
 
-/**
- * Validates the academic parameters and postal code against the scoring frameworks (REQ-2.8,
- * REQ-2.10, BR-3, BR-4). Returns the inline message to show, or an empty string when valid.
- * A postal code problem takes priority over a score problem.
- */
+/** Returns the first form error, or an empty string when the profile can be saved. */
 export function validateProfile({ level, scoreA, scoreB, postal }: ProfileFields): string {
   if (!isValidPostalCode(postal)) return POSTAL_CODE_ERROR
 
+  const first = scoreA.trim()
+  const second = scoreB.trim()
+
   switch (level) {
     case 'secondary':
-      if (!isWholeNumber(scoreA) || !inRange(scoreA, 4, 32)) {
-        return `${INVALID} PSLE AL must be a whole number from 4 to 32.`
-      }
-      break
+      return inRange(first, 4, 32, true)
+        ? ''
+        : invalidScore('PSLE AL must be a whole number from 4 to 32.')
     case 'postsec':
-      if (isBlank(scoreA) && isBlank(scoreB)) {
-        return `${INVALID} Enter an L1R5 or ELR2B2 aggregate.`
-      }
-      if (!isBlank(scoreA) && (!isWholeNumber(scoreA) || !inRange(scoreA, 2, 54))) {
-        return `${INVALID} L1R5 must be a whole number from 2 to 54.`
-      }
-      if (!isBlank(scoreB) && !isWholeNumber(scoreB)) {
-        return `${INVALID} ELR2B2 must be a whole number.`
-      }
-      break
+      if (!first && !second) return invalidScore('Enter an L1R5 or ELR2B2 aggregate.')
+      if (first && !inRange(first, 2, 54, true))
+        return invalidScore('L1R5 must be a whole number from 2 to 54.')
+      if (second && !inRange(second, 0, Infinity, true))
+        return invalidScore('ELR2B2 must be a whole number.')
+      return ''
     case 'uni':
-      if (isBlank(scoreA) && isBlank(scoreB)) {
-        return `${INVALID} Enter a polytechnic GPA or A-Level rank points.`
-      }
-      if (!isBlank(scoreA) && (!isDecimal(scoreA) || !inRange(scoreA, 0, 4))) {
-        return `${INVALID} GPA must be between 0.00 and 4.00.`
-      }
-      if (!isBlank(scoreB) && (!isDecimal(scoreB) || !inRange(scoreB, 0, 90))) {
-        return `${INVALID} Rank points must be between 0 and 90.`
-      }
-      break
+      if (!first && !second) return invalidScore('Enter a polytechnic GPA or A-Level rank points.')
+      if (first && !inRange(first, 0, 4)) return invalidScore('GPA must be between 0.00 and 4.00.')
+      if (second && !inRange(second, 0, 90))
+        return invalidScore('Rank points must be between 0 and 90.')
+      return ''
     default:
-      break
+      return ''
   }
-  return ''
 }
 
-/** One-line description of the score on file for a level, used as the roadmap's pre-selection caption. */
+/** Labels the primary academic result in the roadmap summary. */
 export function describeScore(level: TierId, scoreA: string): string {
-  const prefix: Partial<Record<TierId, string>> = {
+  const score = scoreA.trim()
+  const labels: Partial<Record<TierId, string>> = {
     secondary: 'PSLE AL',
     postsec: 'L1R5',
     uni: 'Poly GPA',
   }
-  const label = prefix[level]
-  return label && scoreA.trim() ? `${label} ${scoreA.trim()}` : 'No score on file'
+  const label = labels[level]
+  return label && score ? `${label} ${score}` : 'No score on file'
 }

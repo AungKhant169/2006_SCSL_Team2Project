@@ -7,84 +7,74 @@ import { isValidPostalCode, sanitizePostalInput } from '@/utils/postalCode'
 import { validateProfile } from '@/utils/profileValidation'
 import { DEFAULT_POSTAL, useDirectoryStore } from './directory'
 
-/** Demo profile the design starts with until the backend stores one per account. */
-const DEFAULTS = {
-  level: 'secondary' as TierId,
-  primaryResult: 'None' as PrimaryResult,
-  scoreA: '8',
-  scoreB: '',
-  postal: DEFAULT_POSTAL,
-}
-
-/** Academic parameters and residential postal code of the signed-in student (UC-2.4). */
+/** Student profile controller (UC-2.4): validates form state and updates the distance anchor. */
 export const useProfileStore = defineStore('profile', () => {
-  const level = ref<TierId>(DEFAULTS.level)
-  const primaryResult = ref<PrimaryResult>(DEFAULTS.primaryResult)
-  const scoreA = ref(DEFAULTS.scoreA)
-  const scoreB = ref(DEFAULTS.scoreB)
-  const postal = ref(DEFAULTS.postal)
+  const level = ref<TierId>('secondary')
+  const scoreA = ref('8')
+  const scoreB = ref('')
+  const postal = ref(DEFAULT_POSTAL)
+  const primaryResult = ref<PrimaryResult>('None')
   const error = ref('')
   const status = ref('')
 
-  const postalValid = computed(() => isValidPostalCode(postal.value))
   const levelInfo = computed(() => getLevel(level.value))
+  const postalValid = computed(() => isValidPostalCode(postal.value))
 
-  // Editing a field invalidates any earlier validation result or "saved" confirmation.
-  watch([scoreA, scoreB], () => ((error.value = ''), (status.value = '')), { flush: 'sync' })
-  watch(postal, () => (status.value = ''), { flush: 'sync' })
-
-  /** Picking a different target level clears the academic fields that no longer apply. */
-  function setLevel(id: TierId) {
-    level.value = id
-    scoreA.value = ''
-    scoreB.value = ''
+  function clearMessages() {
     error.value = ''
     status.value = ''
+  }
+
+  watch([scoreA, scoreB], clearMessages, { flush: 'sync' })
+  watch(postal, () => (status.value = ''), { flush: 'sync' })
+
+  /** Changing the transition clears academic results that belong to the previous one. */
+  function setLevel(next: TierId) {
+    level.value = next
+    scoreA.value = ''
+    scoreB.value = ''
+    clearMessages()
   }
 
   function setPostal(value: string) {
     postal.value = sanitizePostalInput(value)
   }
 
-  /** Validates and stores the profile; the postal code becomes the directory's reference point. */
+  /** Only a valid form may change the directory's residential postal code. */
   function save(): boolean {
-    const message = validateProfile({
+    clearMessages()
+    error.value = validateProfile({
       level: level.value,
       scoreA: scoreA.value,
       scoreB: scoreB.value,
       postal: postal.value,
     })
-    if (message) {
-      error.value = message
-      status.value = ''
-      return false
-    }
-    error.value = ''
-    status.value = 'Profile saved'
+    if (error.value) return false
     useDirectoryStore().setPostal(postal.value)
+    status.value = 'Profile saved'
     return true
   }
 
+  /** Restores the demo defaults when the account session ends. */
   function reset() {
-    level.value = DEFAULTS.level
-    primaryResult.value = DEFAULTS.primaryResult
-    scoreA.value = DEFAULTS.scoreA
-    scoreB.value = DEFAULTS.scoreB
-    postal.value = DEFAULTS.postal
-    error.value = ''
-    status.value = ''
+    level.value = 'secondary'
+    scoreA.value = '8'
+    scoreB.value = ''
+    postal.value = DEFAULT_POSTAL
+    primaryResult.value = 'None'
+    clearMessages()
   }
 
   return {
     level,
-    primaryResult,
     scoreA,
     scoreB,
     postal,
+    primaryResult,
     error,
     status,
-    postalValid,
     levelInfo,
+    postalValid,
     setLevel,
     setPostal,
     save,
