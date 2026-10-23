@@ -5,7 +5,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.exceptions import HttpError, http_error_handler
-from routers import roadmap_router, school_info_router, user_router
+from routers import (
+    bookmark_router,
+    review_router,
+    roadmap_router,
+    school_info_router,
+    user_router,
+)
 
 load_dotenv()
 
@@ -24,6 +30,8 @@ app.add_middleware(
 app.include_router(user_router)
 app.include_router(roadmap_router)
 app.include_router(school_info_router)
+app.include_router(review_router)
+app.include_router(bookmark_router)
 app.exception_handler(HttpError)(http_error_handler)
 
 
