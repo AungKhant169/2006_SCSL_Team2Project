@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from models.base import Base, engine
-from models.user import User
+from models.user import Role, User
 
 # A mock HTTP client for the FastAPI server that does not require a running FastAPI instance.
 client = TestClient(app)
@@ -51,3 +51,10 @@ def authenticated() -> Authentication:
     assert (response := client.post("/user/register", json=USER)).status_code == 200
     assert (user := User.get_by_key(username=USER["username"])) is not None
     return Authentication(user, response.json())
+
+
+@pytest.fixture
+def admin(authenticated: Authentication) -> Authentication:
+    """Promote the dummy user to an administrator. The role is read on every request, so its tokens stay valid."""
+    assert (user := User.update(authenticated.user.id, role=Role.ADMIN)) is not None
+    return Authentication(user, authenticated.tokens)
