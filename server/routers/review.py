@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, status
 
 from core.authenticator import Requester
