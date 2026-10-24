@@ -23,11 +23,11 @@ describe('SchoolLogo (REQ-1.7)', () => {
 
   it('falls back to the acronym for a school without a badge', () => {
     const wrapper = mount(SchoolLogo, {
-      props: props('admiralty primary', 'Admiralty Primary School', 'AP'),
+      props: props('unlisted school', 'Unlisted School', 'US'),
     })
     expect(wrapper.find('img').exists()).toBe(false)
-    expect(wrapper.text()).toBe('AP')
-    expect(wrapper.get('span').attributes('aria-label')).toBe('Admiralty Primary School badge')
+    expect(wrapper.text()).toBe('US')
+    expect(wrapper.get('span').attributes('aria-label')).toBe('Unlisted School badge')
   })
 
   it.each([
