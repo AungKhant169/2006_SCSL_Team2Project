@@ -1,7 +1,12 @@
+from datetime import timedelta
+
 import pytest
 from fastapi import status
+from sqlalchemy import select
 
-from models.user import UserError
+from models.base import SessionLocal, engine, utc_now
+from models.refresh_token import REFRESH_TOKEN_LIFETIME, RefreshToken
+from models.user import User, UserError
 from tests.conftest import USER, client
 
 
@@ -34,6 +39,48 @@ class TestRefresh:
         client.post("/user/refresh", json=authenticated.tokens)
         response = client.post("/user/refresh", json=authenticated.tokens)
         assert error(response) == UserError.REFRESH_TOKEN_INVALID
+
+    def test_unknown(self, authenticated):
+        tokens = {**authenticated.tokens, "refresh_token": "never-issued"}
+        response = client.post("/user/refresh", json=tokens)
+        assert error(response) == UserError.REFRESH_TOKEN_INVALID
+
+    def test_renewed_tokens_work(self, authenticated):
+        renewed = client.post("/user/refresh", json=authenticated.tokens).json()
+        assert identity(renewed["access_token"]).status_code == status.HTTP_200_OK
+        assert (
+            client.post("/user/refresh", json=renewed).status_code == status.HTTP_200_OK
+        )
+
+    def test_survives_server_state_loss(self, authenticated):
+        # A restarted server has no memory of earlier requests; only the database remains.
+        engine.dispose()
+        response = client.post("/user/refresh", json=authenticated.tokens)
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_stores_only_a_digest(self, authenticated):
+        with SessionLocal() as session:
+            stored = session.scalars(select(RefreshToken.token_hash)).all()
+        assert stored
+        assert authenticated.tokens["refresh_token"] not in stored
+
+    def test_expired(self, authenticated, monkeypatch):
+        later = utc_now() + REFRESH_TOKEN_LIFETIME + timedelta(seconds=1)
+        monkeypatch.setattr("models.refresh_token.utc_now", lambda: later)
+        response = client.post("/user/refresh", json=authenticated.tokens)
+        assert error(response) == UserError.REFRESH_TOKEN_INVALID
+
+    def test_expired_tokens_are_discarded(self, authenticated, monkeypatch):
+        later = utc_now() + REFRESH_TOKEN_LIFETIME + timedelta(seconds=1)
+        monkeypatch.setattr("models.refresh_token.utc_now", lambda: later)
+        RefreshToken.issue(authenticated.user.id)
+        with SessionLocal() as session:
+            assert len(session.scalars(select(RefreshToken)).all()) == 1
+
+    def test_deleted_user(self, authenticated):
+        User.delete(authenticated.user.id)
+        response = client.post("/user/refresh", json=authenticated.tokens)
+        assert error(response) == UserError.USER_NOT_FOUND
 
 
 class TestRegister:

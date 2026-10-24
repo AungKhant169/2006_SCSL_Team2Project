@@ -1,6 +1,5 @@
 import os
 import re
-import secrets
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 from typing import Self
@@ -15,6 +14,7 @@ from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from core.exceptions import HttpError
 from models.base import Base, Persistable
+from models.refresh_token import RefreshToken
 
 load_dotenv()
 SECRET_KEY = os.environ["SECRET_KEY"]
@@ -29,11 +29,6 @@ def always_admin_usernames() -> set[str]:
     """Usernames in ADMIN_USERNAMES (.env, comma separated) are admins whatever their role."""
     names = os.environ.get("ADMIN_USERNAMES", "")
     return {n.strip().lower() for n in names.split(",") if n.strip()}
-
-
-# This is required to automatically refresh JWT tokens on expiry.
-# The tokens does not persist across application restarts.
-refresh_tokens: dict[str, int] = {}
 
 
 class Role(StrEnum):
@@ -96,9 +91,7 @@ class User(Base, Persistable):
         return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
     def _create_refresh_token(self) -> str:
-        token = secrets.token_urlsafe(32)
-        refresh_tokens[token] = self.id
-        return token
+        return RefreshToken.issue(self.id)
 
     def create_tokens(self) -> tuple[str, str]:
         return self._create_access_token(), self._create_refresh_token()
@@ -137,7 +130,7 @@ class User(Base, Persistable):
 
     @classmethod
     def refresh(cls, refresh_token: str) -> tuple[str, str]:
-        if not (user_id := refresh_tokens.pop(refresh_token, None)):
+        if (user_id := RefreshToken.consume(refresh_token)) is None:
             raise UserError.REFRESH_TOKEN_INVALID
         if not (user := cls.get_by_id(user_id)):
             raise UserError.USER_NOT_FOUND
@@ -161,4 +154,4 @@ class User(Base, Persistable):
 
     @classmethod
     def logout(cls, refresh_token: str) -> None:
-        refresh_tokens.pop(refresh_token, None)
+        RefreshToken.revoke(refresh_token)
