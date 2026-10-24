@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useUiStore } from '../ui'
 
@@ -36,6 +36,46 @@ describe('ui store', () => {
       ui.setNotice('plain')
       ui.onNavigate()
       expect(ui.notice).toBe('')
+    })
+  })
+
+  describe('toast', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('shows a message and hides it by itself after a few seconds', () => {
+      const ui = useUiStore()
+      ui.showToast('Profile saved successfully')
+      expect(ui.toast).toBe('Profile saved successfully')
+      vi.advanceTimersByTime(3999)
+      expect(ui.toast).toBe('Profile saved successfully')
+      vi.advanceTimersByTime(1)
+      expect(ui.toast).toBe('')
+    })
+
+    it('outlives navigation, unlike the banner notice', () => {
+      const ui = useUiStore()
+      ui.showToast('Profile saved successfully')
+      ui.onNavigate()
+      expect(ui.toast).toBe('Profile saved successfully')
+    })
+
+    it('can be dismissed early', () => {
+      const ui = useUiStore()
+      ui.showToast('Profile saved successfully')
+      ui.dismissToast()
+      expect(ui.toast).toBe('')
+    })
+
+    it('a newer toast replaces the old one and gets the full time', () => {
+      const ui = useUiStore()
+      ui.showToast('first')
+      vi.advanceTimersByTime(3000)
+      ui.showToast('second')
+      vi.advanceTimersByTime(3000)
+      expect(ui.toast).toBe('second')
+      vi.advanceTimersByTime(1000)
+      expect(ui.toast).toBe('')
     })
   })
 

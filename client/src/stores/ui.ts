@@ -10,11 +10,15 @@ interface OpenModal {
   body?: string
 }
 
-/** Cross-cutting UI state: the banner notice under the header and the confirmation dialog. */
+const TOAST_DURATION_MS = 4000
+
+/** Cross-cutting UI state: the banner notice under the header, the toast and the confirmation dialog. */
 export const useUiStore = defineStore('ui', () => {
   const notice = ref('')
+  const toast = ref('')
   const modal = ref<OpenModal | null>(null)
   let keepNoticeOnce = false
+  let toastTimer: ReturnType<typeof setTimeout> | undefined
 
   /** Shows a notice on the current page. It is dismissed by the next navigation. */
   function setNotice(message: string) {
@@ -39,6 +43,18 @@ export const useUiStore = defineStore('ui', () => {
     else notice.value = ''
   }
 
+  /** Shows a short confirmation that disappears by itself. Unlike the notice, it outlives navigation. */
+  function showToast(message: string, duration = TOAST_DURATION_MS) {
+    clearTimeout(toastTimer)
+    toast.value = message
+    toastTimer = setTimeout(dismissToast, duration)
+  }
+
+  function dismissToast() {
+    clearTimeout(toastTimer)
+    toast.value = ''
+  }
+
   function openModal(id: ModalId, onConfirm?: () => void, body?: string) {
     modal.value = { id, onConfirm, body }
   }
@@ -61,12 +77,15 @@ export const useUiStore = defineStore('ui', () => {
 
   return {
     notice,
+    toast,
     modal,
     modalDefinition,
     setNotice,
     flashNotice,
     clearNotice,
     onNavigate,
+    showToast,
+    dismissToast,
     openModal,
     closeModal,
     confirmModal,

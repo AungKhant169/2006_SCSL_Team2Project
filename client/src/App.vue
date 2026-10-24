@@ -2,6 +2,7 @@
 import AppHeader from '@/components/layout/AppHeader.vue'
 import ModalHost from '@/components/layout/ModalHost.vue'
 import NoticeBanner from '@/components/layout/NoticeBanner.vue'
+import ToastHost from '@/components/layout/ToastHost.vue'
 </script>
 
 <template>
@@ -17,4 +18,5 @@ import NoticeBanner from '@/components/layout/NoticeBanner.vue'
     </div>
   </div>
   <ModalHost />
+  <ToastHost />
 </template>
