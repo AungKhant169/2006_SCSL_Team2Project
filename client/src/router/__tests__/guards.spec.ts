@@ -1,14 +1,14 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useUiStore } from '@/stores/ui'
-import { createTestRouter, signInAs, stubAuthApi } from '@/test/helpers'
+import { stubApi } from '@/test/fakeApi'
+import { createTestRouter, signInAs } from '@/test/helpers'
 
 describe('route guards', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    stubAuthApi()
+    stubApi()
   })
-  afterEach(() => vi.unstubAllGlobals())
 
   describe('pages that need an account (REQ-2.17, BR-2)', () => {
     it.each([
@@ -44,7 +44,7 @@ describe('route guards', () => {
   describe('public pages', () => {
     it('lets guests open the directory, school profiles and the login page', async () => {
       const router = createTestRouter()
-      for (const path of ['/', '/schools/2', '/login']) {
+      for (const path of ['/', '/schools/rosyth', '/login']) {
         await router.push(path)
         expect(router.currentRoute.value.path).toBe(path)
       }

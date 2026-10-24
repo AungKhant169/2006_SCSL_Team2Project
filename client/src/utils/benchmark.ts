@@ -1,34 +1,28 @@
-import type { BenchmarkPoint, BenchmarkSpec, School } from '@/types/school'
-
-/** PSLE Achievement Level aggregates run from 4 (best) to 32. */
-const PSLE_AL_BEST = 4
+import type { BenchmarkSpec, School } from '@/types/school'
 
 export function formatBenchmark(spec: BenchmarkSpec, value: number): string {
   const { format } = spec
   switch (format.kind) {
-    case 'ratio':
-      return `${value.toFixed(1)} : 1`
-    case 'alRange':
-      return `AL ${PSLE_AL_BEST} – ${value}`
-    case 'cutoff':
-      return `${format.scale} ≤ ${value}`
-    case 'gpaRange':
-      return `${value.toFixed(2)} – ${format.upper.toFixed(2)}`
+    case 'places':
+      return `${value} places`
+    case 'tScore':
+      return `T-score ≥ ${value}`
   }
 }
 
 /** Width (0–100) of a history bar. Inverse scales fill more as the cut-off gets lower. */
 export function benchmarkBarPercent(spec: BenchmarkSpec, value: number): number {
-  const ratio = (value / spec.max) * 100
+  const ratio = Math.min(100, (value / spec.max) * 100)
   return Math.round(spec.inverse ? 100 - ratio : ratio)
 }
 
-export function latestBenchmark(school: School): BenchmarkPoint {
-  const latest = school.history[school.history.length - 1]
-  if (!latest) throw new Error(`School ${school.id} has no benchmark history`)
-  return latest
+/** The school's most recent benchmark figure, or undefined when the dataset has none. */
+export function latestBenchmark(school: School) {
+  return school.history[school.history.length - 1]
 }
 
+/** The latest figure ready to show, or an empty string when there is none. */
 export function formatLatestBenchmark(school: School): string {
-  return formatBenchmark(school.benchmark, latestBenchmark(school).value)
+  const latest = latestBenchmark(school)
+  return school.benchmark && latest ? formatBenchmark(school.benchmark, latest.value) : ''
 }

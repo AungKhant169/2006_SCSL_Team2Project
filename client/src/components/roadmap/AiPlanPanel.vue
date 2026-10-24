@@ -46,11 +46,18 @@ const roadmap = useRoadmapStore()
 
     <template v-else-if="roadmap.aiStatus === 'ready'">
       <p class="m-0 text-[13px] text-muted">
-        Alternative ordering weighted towards benchmark fit and programme spread rather than
-        distance alone.
+        An alternative ordering from an AI model, weighing your score, location and what each school
+        offers.
       </p>
       <PlanNodeList :nodes="roadmap.aiPlan" :from="getLevel(roadmap.stage).from" tone="ai" />
-      <BaseButton variant="ai" class="self-start" @click="$emit('save')">Save Roadmap</BaseButton>
+      <BaseButton
+        variant="ai"
+        class="self-start"
+        :disabled="roadmap.aiPlan.length === 0"
+        @click="$emit('save')"
+      >
+        Save Roadmap
+      </BaseButton>
     </template>
   </SectionCard>
 </template>

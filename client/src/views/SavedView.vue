@@ -6,9 +6,16 @@ import LinkButton from '@/components/ui/LinkButton.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import { useBookmarksStore } from '@/stores/bookmarks'
 import { useDirectoryStore } from '@/stores/directory'
+import { useLocationStore } from '@/stores/location'
 
 const bookmarks = useBookmarksStore()
 const directory = useDirectoryStore()
+const location = useLocationStore()
+
+/** The bookmarks with their distance from the directory's reference postal code. */
+const saved = computed(() =>
+  bookmarks.schools.map((school) => location.withDistance(school, directory.postal)),
+)
 
 const subtitle = computed(() =>
   directory.hasPostal
@@ -24,16 +31,11 @@ const subtitle = computed(() =>
     </PageHeader>
 
     <ul
-      v-if="bookmarks.schools.length > 0"
+      v-if="saved.length > 0"
       class="m-0 grid list-none grid-cols-[repeat(auto-fill,minmax(min(260px,100%),1fr))] gap-3.5 p-0"
     >
-      <li v-for="school in bookmarks.schools" :key="school.id">
-        <SavedSchoolCard
-          :school="school"
-          :has-postal="directory.hasPostal"
-          class="h-full"
-          @remove="bookmarks.remove(school.id)"
-        />
+      <li v-for="school in saved" :key="school.id">
+        <SavedSchoolCard :school="school" class="h-full" @remove="bookmarks.remove(school.id)" />
       </li>
     </ul>
 

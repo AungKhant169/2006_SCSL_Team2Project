@@ -1,22 +1,44 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
-import { generateAiPlan } from '@/services/roadmapAiService'
 import { useProfileStore } from '@/stores/profile'
 import { useRoadmapStore } from '@/stores/roadmap'
 import { useUiStore } from '@/stores/ui'
+import { stubApi } from '@/test/fakeApi'
+import type { FakeApi } from '@/test/fakeApi'
 import { mountWithApp } from '@/test/helpers'
 import RoadmapView from '../RoadmapView.vue'
 
-vi.mock('@/services/roadmapAiService', () => ({ generateAiPlan: vi.fn() }))
-const aiPlan = vi.mocked(generateAiPlan)
-
-const mountRoadmap = () =>
-  mountWithApp(RoadmapView, { route: '/roadmap', signedInAs: 'planner2026' })
+/**
+ * The roadmap page of a student whose stored profile targets S1 posting (AL 8, postal 556000).
+ * The fake server ranks secondary schools by distance as St. Gabriel's, Raffles, Cedar Girls'
+ * for the rule-based plan, and by name as Bukit Panjang, Cedar Girls', Raffles for the AI plan.
+ */
+async function mountRoadmap(configure: (api: FakeApi) => void = () => {}) {
+  const api = stubApi()
+  api.profiles['planner2026'] = {
+    level: 'secondary',
+    score_a: 8,
+    score_b: null,
+    postal: '556000',
+    primary_result: 'None',
+  }
+  configure(api)
+  const mounted = await mountWithApp(RoadmapView, {
+    route: '/roadmap',
+    signedInAs: 'planner2026',
+    api,
+  })
+  await flushPromises()
+  return mounted
+}
 
 const button = (w: VueWrapper, label: string) =>
   w.findAll('button').find((b) => b.text() === label)!
-const click = (w: VueWrapper, label: string) => button(w, label).trigger('click')
+const click = async (w: VueWrapper, label: string) => {
+  await button(w, label).trigger('click')
+  await flushPromises()
+}
 const stageTile = (w: VueWrapper, label: string) =>
   w.findAll('button[aria-pressed]').find((b) => b.text().includes(label))!
 const headings = (w: VueWrapper) => w.findAll('h2, h3').map((h) => h.text())
@@ -25,32 +47,11 @@ const schools = (panel: ReturnType<VueWrapper['get']>) =>
 const panel = (w: VueWrapper, title: string) =>
   w.findAll('section').find((s) => s.find('h2')?.text() === title)!
 
-/** A promise the test settles by hand so the AI loading state can be observed. */
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason?: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}
-
 async function generate(w: VueWrapper) {
-  await w
-    .findAll('button')
-    .find((b) => b.text() === 'Generate Roadmap')!
-    .trigger('click')
-  await flushPromises()
+  await click(w, 'Generate Roadmap')
 }
 
 describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
-  beforeEach(() => {
-    aiPlan.mockReset()
-    aiPlan.mockResolvedValue([6, 5, 8, 7])
-  })
-  afterEach(() => vi.unstubAllGlobals())
-
   describe('stage selection and empty state', () => {
     it('opens with no roadmap saved and a single call to action (REQ-3.16)', async () => {
       const { wrapper } = await mountRoadmap()
@@ -83,11 +84,25 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       await flushPromises()
       expect(wrapper.text()).toContain('No score on file')
     })
+
+    it('shows the roadmap the account saved earlier', async () => {
+      const { wrapper } = await mountRoadmap((api) => {
+        api.roadmaps['planner2026'] = {
+          stage: 'secondary',
+          source: 'AI-Generated Plan',
+          choices: [6, 5],
+        }
+      })
+      const saved = panel(wrapper, 'Saved roadmap')
+      expect(saved.text()).toContain('Primary → Secondary · AI-Generated Plan')
+      expect(schools(saved)).toEqual(["Cedar Girls' Secondary School", 'Raffles Institution'])
+      expect(wrapper.text()).not.toContain('No roadmap saved yet')
+    })
   })
 
   describe('generating (REQ-3.1, REQ-3.12)', () => {
     it('is blocked without a valid postal code, offering a way to fix it', async () => {
-      const { wrapper, router } = await mountRoadmap()
+      const { wrapper, router, api } = await mountRoadmap()
       useProfileStore().setPostal('12')
       await generate(wrapper)
       const ui = useUiStore()
@@ -97,7 +112,7 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
         'Please enter your postal code in your profile before generating a roadmap.',
       )
       expect(headings(wrapper)).not.toContain('Rule-Based Plan')
-      expect(aiPlan).not.toHaveBeenCalled()
+      expect(api.callsTo('POST /roadmap/generate-ai-roadmap')).toHaveLength(0)
 
       ui.confirmModal()
       await flushPromises()
@@ -121,29 +136,39 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       ])
     })
 
-    it('rule-based plan lists the three nearest eligible schools straight away', async () => {
-      const gate = deferred<number[]>()
-      aiPlan.mockReturnValue(gate.promise)
+    it('rule-based plan lists the three nearest eligible schools', async () => {
       const { wrapper } = await mountRoadmap()
       await generate(wrapper)
       const rule = panel(wrapper, 'Rule-Based Plan')
       expect(schools(rule)).toEqual([
         "St. Gabriel's Secondary School",
-        "Cedar Girls' Secondary School",
         'Raffles Institution',
+        "Cedar Girls' Secondary School",
       ])
       expect(rule.text()).toContain('Starting from')
       expect(rule.text()).toContain(
         'Primary school (current) — currently enrolled, per your profile',
       )
-      expect(rule.text()).toContain('PSLE AL range: AL 4 – 15 · 1.1 km from 556000')
+      expect(rule.text()).toMatch(/PSLE T-score cut-off: T-score ≥ 205 · \d\.\d km from 556000/)
       expect(rule.text()).toContain('Applies the Primary → Secondary rule set')
     })
 
+    it('rule-based plan shows its own loading state, and the AI plan is not held up by it', async () => {
+      const { wrapper, api } = await mountRoadmap()
+      const release = api.hold('POST /roadmap/generate-rule-roadmap')
+      await generate(wrapper)
+      const rule = panel(wrapper, 'Rule-Based Plan')
+      expect(rule.find('[role="status"]').exists()).toBe(true)
+      expect(rule.text()).not.toContain('Save Roadmap')
+      expect(schools(panel(wrapper, 'AI-Generated Plan'))).toHaveLength(3)
+      release()
+      await flushPromises()
+      expect(schools(panel(wrapper, 'Rule-Based Plan'))).toHaveLength(3)
+    })
+
     it('AI plan shows its own loading state, then the plan (REQ-3.7, QUAL-6)', async () => {
-      const gate = deferred<number[]>()
-      aiPlan.mockReturnValue(gate.promise)
-      const { wrapper } = await mountRoadmap()
+      const { wrapper, api } = await mountRoadmap()
+      const release = api.hold('POST /roadmap/generate-ai-roadmap')
       await generate(wrapper)
       const ai = () => panel(wrapper, 'AI-Generated Plan')
       expect(ai().find('[role="status"]').exists()).toBe(true)
@@ -152,36 +177,38 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       // The rule-based plan is already usable while the AI panel loads.
       expect(panel(wrapper, 'Rule-Based Plan').text()).toContain('Save Roadmap')
 
-      gate.resolve([6, 5, 8, 7])
+      release()
       await flushPromises()
       expect(ai().find('[role="status"]').exists()).toBe(false)
       expect(schools(ai())).toEqual([
+        'Bukit Panjang Govt. High School',
         "Cedar Girls' Secondary School",
         'Raffles Institution',
-        "St. Gabriel's Secondary School",
       ])
-      expect(ai().text()).toContain('Alternative ordering weighted towards benchmark fit')
+      expect(ai().text()).toContain('An alternative ordering from an AI model')
     })
 
     it('uses the stage-specific pool for another stage (REQ-3.2)', async () => {
       const { wrapper } = await mountRoadmap()
-      await stageTile(wrapper, 'Autonomous University').trigger('click')
+      await stageTile(wrapper, 'JC / Polytechnic / ITE').trigger('click')
       await generate(wrapper)
       expect(schools(panel(wrapper, 'Rule-Based Plan'))).toEqual([
-        'Kaplan Higher Education (Private)',
-        'Singapore Management University',
-        'National University of Singapore',
+        'Raffles Institution',
+        'Eunoia Junior College',
+        'Temasek Junior College',
       ])
-      expect(panel(wrapper, 'Rule-Based Plan').text()).toContain('Post-secondary (current)')
+      expect(panel(wrapper, 'Rule-Based Plan').text()).toContain('Secondary school (current)')
     })
 
     it('says so when the chosen stage has no institutions yet', async () => {
       const { wrapper } = await mountRoadmap()
-      await stageTile(wrapper, 'Preschool placement').trigger('click')
+      await stageTile(wrapper, 'Autonomous University').trigger('click')
       await generate(wrapper)
       expect(panel(wrapper, 'Rule-Based Plan').text()).toContain(
         'No institutions are available for this stage yet.',
       )
+      // There is nothing to save.
+      expect(panel(wrapper, 'Rule-Based Plan').get('button').attributes('disabled')).toBeDefined()
     })
 
     it('changing the stage discards a generated plan', async () => {
@@ -193,16 +220,17 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
   })
 
-  describe('AI failure stays inside the AI panel (REQ-3.8, REQ-3.9, QUAL-7)', () => {
+  describe('failures stay inside their own panel (REQ-3.8, REQ-3.9, QUAL-7)', () => {
     async function failedAi() {
-      aiPlan.mockRejectedValueOnce(new Error('boom'))
-      const mounted = await mountRoadmap()
+      const mounted = await mountRoadmap((api) => {
+        api.ai = 'error'
+      })
       await generate(mounted.wrapper)
-      return mounted.wrapper
+      return mounted
     }
 
     it('shows the prescribed message and a retry control in the AI panel only', async () => {
-      const wrapper = await failedAi()
+      const { wrapper } = await failedAi()
       const ai = panel(wrapper, 'AI-Generated Plan')
       expect(ai.get('[role="alert"]').text()).toContain(
         'Unable to generate AI recommendation at this time. Please try again.',
@@ -214,26 +242,45 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
 
     it('Retry re-runs only the AI request, without reloading the rule-based plan', async () => {
-      const wrapper = await failedAi()
+      const { wrapper, api } = await failedAi()
       const ruleBefore = panel(wrapper, 'Rule-Based Plan').html()
+      api.ai = 'ok'
       await click(wrapper, 'Retry AI Generation')
-      await flushPromises()
-      expect(aiPlan).toHaveBeenCalledTimes(2)
+      expect(api.callsTo('POST /roadmap/generate-ai-roadmap')).toHaveLength(2)
+      expect(api.callsTo('POST /roadmap/generate-rule-roadmap')).toHaveLength(1)
       expect(schools(panel(wrapper, 'AI-Generated Plan'))).toHaveLength(3)
       expect(panel(wrapper, 'Rule-Based Plan').html()).toBe(ruleBefore)
     })
 
     it('the rule-based plan can still be saved while the AI plan has failed', async () => {
-      const wrapper = await failedAi()
+      const { wrapper } = await failedAi()
       await click(wrapper, 'Save Roadmap')
       expect(wrapper.text()).toContain('Saved roadmap')
       expect(wrapper.text()).toContain('Primary → Secondary · Rule-Based Plan')
+    })
+
+    it('a rule-based failure shows its own retry control and leaves the AI plan alone', async () => {
+      const { wrapper, api } = await mountRoadmap((server) => {
+        server.override('POST /roadmap/generate-rule-roadmap', () => {
+          throw new TypeError('Failed to fetch')
+        })
+      })
+      await generate(wrapper)
+      const rule = panel(wrapper, 'Rule-Based Plan')
+      expect(rule.get('[role="alert"]').text()).toContain(
+        'Unable to generate the rule-based plan at this time. Please try again.',
+      )
+      expect(schools(panel(wrapper, 'AI-Generated Plan'))).toHaveLength(3)
+
+      api.restore('POST /roadmap/generate-rule-roadmap')
+      await click(wrapper, 'Retry')
+      expect(schools(panel(wrapper, 'Rule-Based Plan'))).toHaveLength(3)
     })
   })
 
   describe('saving (REQ-3.4, REQ-3.10, REQ-3.11)', () => {
     it('saves the rule-based plan and shows it as the saved roadmap with a confirmation', async () => {
-      const { wrapper } = await mountRoadmap()
+      const { wrapper, api } = await mountRoadmap()
       await generate(wrapper)
       await panel(wrapper, 'Rule-Based Plan').get('button').trigger('click')
       await flushPromises()
@@ -241,8 +288,8 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       expect(saved.text()).toContain('Primary → Secondary · Rule-Based Plan')
       expect(schools(saved)).toEqual([
         "St. Gabriel's Secondary School",
-        "Cedar Girls' Secondary School",
         'Raffles Institution',
+        "Cedar Girls' Secondary School",
       ])
       expect(saved.findAll('button').map((b) => b.text())).toEqual([
         'Edit Roadmap',
@@ -251,15 +298,34 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       expect(useUiStore().notice).toBe('Roadmap saved to your profile.')
       expect(headings(wrapper)).not.toContain('Rule-Based Plan')
       expect(wrapper.text()).not.toContain('No roadmap saved yet')
+      expect(api.roadmaps['planner2026']).toEqual({
+        stage: 'secondary',
+        source: 'Rule-Based Plan',
+        choices: [8, 5, 6],
+      })
     })
 
     it('saves the AI-generated plan', async () => {
       const { wrapper } = await mountRoadmap()
       await generate(wrapper)
       await panel(wrapper, 'AI-Generated Plan').get('button').trigger('click')
+      await flushPromises()
       const saved = panel(wrapper, 'Saved roadmap')
       expect(saved.text()).toContain('AI-Generated Plan')
-      expect(schools(saved)[0]).toBe("Cedar Girls' Secondary School")
+      expect(schools(saved)[0]).toBe('Bukit Panjang Govt. High School')
+    })
+
+    it('tells the student when the roadmap could not be saved, and keeps the plans', async () => {
+      const { wrapper, api } = await mountRoadmap()
+      await generate(wrapper)
+      api.override('PUT /roadmap', () => {
+        throw new TypeError('Failed to fetch')
+      })
+      await panel(wrapper, 'Rule-Based Plan').get('button').trigger('click')
+      await flushPromises()
+      expect(useUiStore().notice).toMatch(/Unable to complete your request/)
+      expect(headings(wrapper)).toContain('Rule-Based Plan')
+      expect(useRoadmapStore().saved).toBeNull()
     })
 
     it('asks before overwriting an existing roadmap', async () => {
@@ -276,7 +342,7 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
 
     it('replaces the stored roadmap once confirmed', async () => {
-      const { wrapper } = await mountRoadmap()
+      const { wrapper, api } = await mountRoadmap()
       await generate(wrapper)
       await click(wrapper, 'Save Roadmap')
       await generate(wrapper)
@@ -285,10 +351,11 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       await flushPromises()
       expect(panel(wrapper, 'Saved roadmap').text()).toContain('AI-Generated Plan')
       expect(useUiStore().notice).toBe('Roadmap saved to your profile.')
+      expect(api.roadmaps['planner2026']?.source).toBe('AI-Generated Plan')
     })
 
     it('keeps the old roadmap when the overwrite is cancelled', async () => {
-      const { wrapper } = await mountRoadmap()
+      const { wrapper, api } = await mountRoadmap()
       await generate(wrapper)
       await click(wrapper, 'Save Roadmap')
       await generate(wrapper)
@@ -296,6 +363,7 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       useUiStore().closeModal()
       await flushPromises()
       expect(useRoadmapStore().saved?.source).toBe('Rule-Based Plan')
+      expect(api.roadmaps['planner2026']?.source).toBe('Rule-Based Plan')
       expect(headings(wrapper)).toContain('Rule-Based Plan')
     })
   })
@@ -305,12 +373,11 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       const mounted = await mountRoadmap()
       await generate(mounted.wrapper)
       await click(mounted.wrapper, 'Save Roadmap')
-      await flushPromises()
-      return mounted.wrapper
+      return mounted
     }
 
     it('swaps each choice for a dropdown of eligible institutions', async () => {
-      const wrapper = await withSaved()
+      const { wrapper } = await withSaved()
       await click(wrapper, 'Edit Roadmap')
       const selects = wrapper.findAll('select')
       expect(selects).toHaveLength(3)
@@ -320,9 +387,9 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
         '3rd choice',
       ])
       expect(selects[0]!.findAll('option').map((o) => o.text())).toEqual([
-        'Raffles Institution',
+        'Bukit Panjang Govt. High School',
         "Cedar Girls' Secondary School",
-        'Bukit Panjang Government High School',
+        'Raffles Institution',
         "St. Gabriel's Secondary School",
       ])
       expect(selects[0]!.element.selectedOptions[0]!.text).toBe("St. Gabriel's Secondary School")
@@ -331,20 +398,32 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
 
     it('Save Changes stores the new choices and confirms', async () => {
-      const wrapper = await withSaved()
+      const { wrapper, api } = await withSaved()
       await click(wrapper, 'Edit Roadmap')
       await wrapper.findAll('select')[0]!.setValue('7')
       await wrapper.get('form').trigger('submit')
       await flushPromises()
-      expect(schools(panel(wrapper, 'Saved roadmap'))[0]).toBe(
-        'Bukit Panjang Government High School',
-      )
+      expect(schools(panel(wrapper, 'Saved roadmap'))[0]).toBe('Bukit Panjang Govt. High School')
       expect(wrapper.find('select').exists()).toBe(false)
       expect(useUiStore().notice).toBe('Roadmap updated.')
+      expect(api.roadmaps['planner2026']?.choices).toEqual([7, 5, 6])
+    })
+
+    it('tells the student when the changes could not be saved, and keeps the editor open', async () => {
+      const { wrapper, api } = await withSaved()
+      await click(wrapper, 'Edit Roadmap')
+      await wrapper.findAll('select')[0]!.setValue('7')
+      api.override('PATCH /roadmap', () => {
+        throw new TypeError('Failed to fetch')
+      })
+      await wrapper.get('form').trigger('submit')
+      await flushPromises()
+      expect(useUiStore().notice).toMatch(/Unable to complete your request/)
+      expect(wrapper.find('select').exists()).toBe(true)
     })
 
     it('Cancel restores the stored version', async () => {
-      const wrapper = await withSaved()
+      const { wrapper } = await withSaved()
       await click(wrapper, 'Edit Roadmap')
       await wrapper.findAll('select')[0]!.setValue('7')
       await click(wrapper, 'Cancel')
@@ -358,12 +437,11 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       const mounted = await mountRoadmap()
       await generate(mounted.wrapper)
       await click(mounted.wrapper, 'Save Roadmap')
-      await flushPromises()
-      return mounted.wrapper
+      return mounted
     }
 
     it('asks for confirmation first', async () => {
-      const wrapper = await withSaved()
+      const { wrapper } = await withSaved()
       await click(wrapper, 'Delete Roadmap')
       const ui = useUiStore()
       expect(ui.modal?.id).toBe('delRoadmap')
@@ -372,21 +450,34 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
 
     it('removes the roadmap on confirm and returns to the empty state', async () => {
-      const wrapper = await withSaved()
+      const { wrapper, api } = await withSaved()
       await click(wrapper, 'Delete Roadmap')
       useUiStore().confirmModal()
       await flushPromises()
       expect(headings(wrapper)).not.toContain('Saved roadmap')
       expect(wrapper.text()).toContain('No roadmap saved yet')
       expect(useUiStore().notice).toBe('Saved roadmap deleted.')
+      expect(api.roadmaps['planner2026']).toBeUndefined()
     })
 
     it('keeps the roadmap when the dialog is cancelled', async () => {
-      const wrapper = await withSaved()
+      const { wrapper } = await withSaved()
       await click(wrapper, 'Delete Roadmap')
       useUiStore().closeModal()
       await flushPromises()
       expect(headings(wrapper)).toContain('Saved roadmap')
+    })
+
+    it('keeps the roadmap and says why when the server refuses', async () => {
+      const { wrapper, api } = await withSaved()
+      api.override('DELETE /roadmap', () => {
+        throw new TypeError('Failed to fetch')
+      })
+      await click(wrapper, 'Delete Roadmap')
+      useUiStore().confirmModal()
+      await flushPromises()
+      expect(headings(wrapper)).toContain('Saved roadmap')
+      expect(useUiStore().notice).toMatch(/Unable to complete your request/)
     })
   })
 })

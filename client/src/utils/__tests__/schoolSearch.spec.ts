@@ -1,41 +1,46 @@
 import { describe, expect, it } from 'vitest'
-import { SCHOOLS } from '@/data/schools'
+import { makeSchool } from '@/test/fixtures'
+import type { School } from '@/types/school'
 import { paginate, searchSchools } from '../schoolSearch'
 import type { SchoolQuery } from '../schoolSearch'
 
+const SCHOOLS: School[] = [
+  makeSchool({
+    id: 1,
+    name: 'Nanyang Primary School',
+    acronym: 'NP',
+    type: 'Government-Aided',
+    distanceKm: 4.6,
+  }),
+  makeSchool({ id: 2, name: 'Rosyth School', acronym: 'RS', distanceKm: 1.4 }),
+  makeSchool({
+    id: 3,
+    name: 'Tao Nan School',
+    acronym: 'TNS',
+    type: 'Government-Aided',
+    distanceKm: 9.8,
+  }),
+  makeSchool({ id: 4, name: 'Zhonghua Primary School', acronym: 'ZP', distanceKm: 0.8 }),
+  makeSchool({ id: 5, name: 'Far Away School', acronym: 'FAS', distanceKm: null }),
+]
+
 const query = (overrides: Partial<SchoolQuery> = {}): SchoolQuery => ({
-  tier: 'primary',
   term: '',
-  gov: 'All',
-  field: 'All',
-  distance: 'any',
+  schoolType: '',
+  maxKm: Infinity,
   sort: 'az',
   ...overrides,
 })
 const names = (q: Partial<SchoolQuery>) => searchSchools(SCHOOLS, query(q)).map((s) => s.name)
 
 describe('searchSchools', () => {
-  it('returns only schools in the selected tier (REQ-1.2)', () => {
-    expect(names({ tier: 'primary' })).toHaveLength(4)
-    expect(names({ tier: 'secondary' })).toHaveLength(4)
-    expect(names({ tier: 'postsec' })).toHaveLength(5)
-    expect(names({ tier: 'uni' })).toHaveLength(4)
-  })
-
   describe('keyword (REQ-1.1)', () => {
     it('matches the official name', () => {
       expect(names({ term: 'rosyth' })).toEqual(['Rosyth School'])
     })
 
     it('matches the acronym', () => {
-      expect(names({ tier: 'uni', term: 'nus' })).toEqual(['National University of Singapore'])
-    })
-
-    it('matches course titles', () => {
-      expect(names({ tier: 'postsec', term: 'cybersecurity' })).toEqual(['Ngee Ann Polytechnic'])
-      expect(names({ tier: 'uni', term: 'bachelor of computing' })).toEqual([
-        'National University of Singapore',
-      ])
+      expect(names({ term: 'tns' })).toEqual(['Tao Nan School'])
     })
 
     it('yields no results when nothing matches', () => {
@@ -43,58 +48,57 @@ describe('searchSchools', () => {
     })
   })
 
-  describe('governance (REQ-1.3)', () => {
-    it('Private only keeps private institutions', () => {
-      expect(names({ tier: 'postsec', gov: 'Private' })).toEqual(['Eastbridge Academy (Private)'])
+  describe('school type (REQ-1.3)', () => {
+    it('keeps only the chosen governance type', () => {
+      expect(names({ schoolType: 'Government-Aided' })).toEqual([
+        'Nanyang Primary School',
+        'Tao Nan School',
+      ])
     })
 
-    it('Public/Government keeps everything that is not private', () => {
-      const result = names({ tier: 'postsec', gov: 'Public/Government' })
-      expect(result).not.toContain('Eastbridge Academy (Private)')
-      expect(result).toHaveLength(4)
-    })
-  })
-
-  describe('field of study (REQ-1.4)', () => {
-    it('keeps institutions offering the field', () => {
-      const healthcare = names({ tier: 'postsec', field: 'Healthcare' })
-      expect(healthcare).toEqual(['Ngee Ann Polytechnic', 'Singapore Polytechnic'])
-    })
-
-    it('does not filter tiers that have no field data', () => {
-      expect(names({ tier: 'primary', field: 'STEM' })).toHaveLength(4)
+    it('an empty type keeps every school', () => {
+      expect(names({ schoolType: '' })).toHaveLength(5)
     })
   })
 
   describe('distance (REQ-1.5)', () => {
     it('keeps schools within the radius (inclusive)', () => {
-      expect(names({ distance: '1' })).toEqual(['Zhonghua Primary School'])
-      expect(names({ distance: '2' })).toEqual(['Rosyth School', 'Zhonghua Primary School'])
-      expect(names({ distance: '5' })).toHaveLength(3)
+      expect(names({ maxKm: 1 })).toEqual(['Zhonghua Primary School'])
+      expect(names({ maxKm: 1.4 })).toEqual(['Rosyth School', 'Zhonghua Primary School'])
+      expect(names({ maxKm: 5 })).toHaveLength(3)
+    })
+
+    it('drops schools whose distance is unknown once a radius is set', () => {
+      expect(names({ maxKm: 100 })).not.toContain('Far Away School')
+      expect(names({ maxKm: Infinity })).toContain('Far Away School')
     })
 
     it('can produce an empty result', () => {
-      expect(names({ tier: 'uni', distance: '1' })).toEqual([])
+      expect(names({ maxKm: 0.1 })).toEqual([])
     })
   })
 
   describe('sorting (REQ-1.6)', () => {
     it('sorts A–Z and Z–A', () => {
-      expect(names({ sort: 'az' })[0]).toBe('Nanyang Primary School')
+      expect(names({ sort: 'az' })[0]).toBe('Far Away School')
       expect(names({ sort: 'za' })[0]).toBe('Zhonghua Primary School')
     })
 
-    it('sorts by distance, nearest first', () => {
+    it('sorts by distance, nearest first, with unlocated schools last', () => {
       expect(searchSchools(SCHOOLS, query({ sort: 'dist' })).map((s) => s.distanceKm)).toEqual([
-        0.8, 1.4, 4.6, 9.8,
+        0.8,
+        1.4,
+        4.6,
+        9.8,
+        null,
       ])
     })
   })
 
   it('combines filters', () => {
-    expect(
-      names({ tier: 'uni', gov: 'Public/Government', field: 'Healthcare', term: 'med' }),
-    ).toEqual(['National University of Singapore'])
+    expect(names({ schoolType: 'Government-Aided', maxKm: 5, term: 'nan' })).toEqual([
+      'Nanyang Primary School',
+    ])
   })
 
   it('does not mutate the source list', () => {

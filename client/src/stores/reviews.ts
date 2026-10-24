@@ -1,57 +1,78 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { SEED_REVIEWS } from '@/data/reviews'
+import { ApiError, GENERIC_ERROR } from '@/services/http'
+import * as reviewService from '@/services/reviewService'
 import type { Review } from '@/types/review'
 import { BLANK_REVIEW_ERROR, sanitizeReviewText } from '@/utils/reviewText'
 
-/** School reviews (UC-4.1 to UC-4.4). One review per account per school (BR-6). */
-export const useReviewsStore = defineStore('reviews', () => {
-  const reviews = ref<Review[]>(SEED_REVIEWS.map((r) => ({ ...r })))
-  let nextId = Math.max(0, ...SEED_REVIEWS.map((r) => r.id)) + 1
+const messageOf = (error: unknown) => (error instanceof ApiError ? error.message : GENERIC_ERROR)
 
-  /** Reviews for a school, newest first. */
+/** School reviews (UC-4.1 to UC-4.4), kept on the server. One review per account per school (BR-6). */
+export const useReviewsStore = defineStore('reviews', () => {
+  /** Reviews already fetched, by school. */
+  const bySchool = ref<Record<number, Review[]>>({})
+
+  /** Reviews for a school, newest first. Empty until they have been loaded. */
   function forSchool(schoolId: number): Review[] {
-    return reviews.value
-      .filter((r) => r.schoolId === schoolId)
+    return (bySchool.value[schoolId] ?? [])
+      .slice()
       .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
   }
 
   function ownReview(schoolId: number, username: string): Review | undefined {
-    return reviews.value.find((r) => r.schoolId === schoolId && r.username === username)
+    return forSchool(schoolId).find((r) => r.username === username)
+  }
+
+  /** Fetches a school's reviews. Returns an error message, or an empty string on success. */
+  async function load(schoolId: number): Promise<string> {
+    try {
+      bySchool.value[schoolId] = await reviewService.listReviews(schoolId)
+      return ''
+    } catch (error) {
+      return messageOf(error)
+    }
+  }
+
+  function replace(review: Review) {
+    const others = (bySchool.value[review.schoolId] ?? []).filter((r) => r.id !== review.id)
+    bySchool.value[review.schoolId] = [...others, review]
   }
 
   /** Stores a new review. Returns an inline error message, or an empty string on success. */
-  function submit(schoolId: number, username: string, rawText: string): string {
+  async function submit(schoolId: number, username: string, rawText: string): Promise<string> {
     const text = sanitizeReviewText(rawText)
     if (!text) return BLANK_REVIEW_ERROR
     if (ownReview(schoolId, username)) return 'You have already reviewed this school.'
-    reviews.value.push({
-      id: nextId++,
-      schoolId,
-      username,
-      createdAt: new Date().toISOString(),
-      text,
-    })
-    return ''
+    try {
+      replace(await reviewService.submitReview(schoolId, text))
+      return ''
+    } catch (error) {
+      return messageOf(error)
+    }
   }
 
   /** Updates the author's own review. Returns an inline error message, or '' on success. */
-  function edit(reviewId: number, username: string, rawText: string): string {
+  async function edit(reviewId: number, rawText: string): Promise<string> {
     const text = sanitizeReviewText(rawText)
     if (!text) return BLANK_REVIEW_ERROR
-    const review = reviews.value.find((r) => r.id === reviewId && r.username === username)
-    if (!review) return 'You can only edit your own review.'
-    review.text = text
-    review.updatedAt = new Date().toISOString()
-    return ''
+    try {
+      replace(await reviewService.editReview(reviewId, text))
+      return ''
+    } catch (error) {
+      return messageOf(error)
+    }
   }
 
-  /** Deletes the author's own review. Returns false when it does not exist or is not theirs. */
-  function remove(reviewId: number, username: string): boolean {
-    const before = reviews.value.length
-    reviews.value = reviews.value.filter((r) => !(r.id === reviewId && r.username === username))
-    return reviews.value.length < before
+  /** Deletes the author's own review. Returns an error message, or '' on success. */
+  async function remove(schoolId: number, reviewId: number): Promise<string> {
+    try {
+      await reviewService.deleteReview(reviewId)
+      bySchool.value[schoolId] = (bySchool.value[schoolId] ?? []).filter((r) => r.id !== reviewId)
+      return ''
+    } catch (error) {
+      return messageOf(error)
+    }
   }
 
-  return { reviews, forSchool, ownReview, submit, edit, remove }
+  return { bySchool, forSchool, ownReview, load, submit, edit, remove }
 })

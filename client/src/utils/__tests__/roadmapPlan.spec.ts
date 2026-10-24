@@ -1,85 +1,49 @@
 import { describe, expect, it } from 'vitest'
-import { schoolsInTier } from '@/data/schools'
-import {
-  benchmarkOrder,
-  eligibleSchools,
-  PLAN_LENGTH,
-  ruleBasedOrder,
-  savedPlanNodes,
-  toPlanNodes,
-} from '../roadmapPlan'
+import { makeSchool } from '@/test/fixtures'
+import type { School } from '@/types/school'
+import { planNodes, PLAN_LENGTH } from '../roadmapPlan'
 
-describe('roadmap ordering', () => {
-  it('rule-based plan puts the nearest institution first', () => {
-    const order = ruleBasedOrder(schoolsInTier('primary'))
-    expect(order.map((s) => s.distanceKm)).toEqual([0.8, 1.4, 4.6, 9.8])
-  })
-
-  it('AI plan favours the most selective benchmark, independent of distance', () => {
-    // Primary: higher Phase 2C ratio = more competitive.
-    expect(benchmarkOrder(schoolsInTier('primary'))[0]?.acronym).toBe('NYPS')
-    // Secondary: a lower PSLE AL cut-off = more selective.
-    expect(benchmarkOrder(schoolsInTier('secondary'))[0]?.acronym).toBe('RI')
-  })
-
-  it('does not mutate the pool it orders', () => {
-    const pool = schoolsInTier('secondary')
-    const before = pool.map((s) => s.id)
-    ruleBasedOrder(pool)
-    benchmarkOrder(pool)
-    expect(pool.map((s) => s.id)).toEqual(before)
-  })
-
-  it('the two plans can differ for the same stage', () => {
-    const pool = schoolsInTier('secondary')
-    expect(ruleBasedOrder(pool)[0]).not.toBe(benchmarkOrder(pool)[0])
-  })
+const secondary = makeSchool({
+  id: 6,
+  name: "Cedar Girls' Secondary School",
+  tier: 'secondary',
+  benchmark: { format: { kind: 'tScore' }, max: 300 },
+  history: [{ year: '2017', value: 250 }],
+  distanceKm: 1.14,
 })
+const poly = makeSchool({ id: 9, name: 'Temasek Junior College', tier: 'postsec' })
 
-describe('eligibleSchools', () => {
-  it('is the pool of institutions in the target tier', () => {
-    expect(eligibleSchools('uni')).toHaveLength(4)
+const known = (...schools: School[]) => Object.fromEntries(schools.map((s) => [s.id, s]))
+
+describe('planNodes', () => {
+  it('lists numbered choices with ordinal labels, in the order given', () => {
+    const nodes = planNodes([6, 9], known(secondary, poly), 'secondary', '556000')
+    expect(nodes.map((n) => n.step)).toEqual([1, 2])
+    expect(nodes.map((n) => n.label)).toEqual(['1st choice', '2nd choice'])
+    expect(nodes.map((n) => n.schoolName)).toEqual(["Cedar Girls' Secondary School", poly.name])
   })
 
-  it('is empty for preschool, which has no institution records yet', () => {
-    expect(eligibleSchools('preschool')).toEqual([])
-  })
-})
-
-describe('toPlanNodes', () => {
-  const nodes = toPlanNodes(ruleBasedOrder(schoolsInTier('secondary')), 'secondary', '556000')
-
-  it('lists at most three numbered choices with ordinal labels', () => {
-    expect(nodes).toHaveLength(PLAN_LENGTH)
-    expect(nodes.map((n) => n.step)).toEqual([1, 2, 3])
-    expect(nodes.map((n) => n.label)).toEqual(['1st choice', '2nd choice', '3rd choice'])
+  it('describes the benchmark and distance from the postal code', () => {
+    const [node] = planNodes([6], known(secondary), 'secondary', '556000')
+    expect(node?.detail).toBe('PSLE T-score cut-off: T-score ≥ 250 · 1.1 km from 556000')
   })
 
-  it('describes the benchmark and distance from the profile postal code', () => {
-    expect(nodes[0]).toMatchObject({
-      schoolName: "St. Gabriel's Secondary School",
-      detail: 'PSLE AL range: AL 4 – 15 · 1.1 km from 556000',
-    })
+  it('leaves out a benchmark the school has none of', () => {
+    const [node] = planNodes([9], known({ ...poly, distanceKm: 2 }), 'postsec', '556000')
+    expect(node?.detail).toBe('2.0 km from 556000')
   })
 
-  it('returns fewer nodes when the pool is small', () => {
-    expect(toPlanNodes(schoolsInTier('primary').slice(0, 2), 'primary', '556000')).toHaveLength(2)
-  })
-})
-
-describe('savedPlanNodes', () => {
-  it('resolves saved school ids in order', () => {
-    const nodes = savedPlanNodes([8, 6], 'secondary', '556000')
-    expect(nodes.map((n) => n.schoolName)).toEqual([
-      "St. Gabriel's Secondary School",
-      "Cedar Girls' Secondary School",
-    ])
+  it('says when the distance is not known', () => {
+    const [node] = planNodes([9], known(poly), 'postsec', '556000')
+    expect(node?.detail).toBe('Distance not available')
   })
 
   it('tolerates a school that no longer exists', () => {
-    expect(savedPlanNodes([9999], 'secondary', '556000')[0]).toMatchObject({
-      schoolName: 'Not available',
-      detail: 'Not available',
-    })
+    const [node] = planNodes([9999], known(secondary), 'secondary', '556000')
+    expect(node).toMatchObject({ schoolName: 'Not available', detail: 'Not available' })
+  })
+
+  it('a plan is three choices long', () => {
+    expect(PLAN_LENGTH).toBe(3)
   })
 })

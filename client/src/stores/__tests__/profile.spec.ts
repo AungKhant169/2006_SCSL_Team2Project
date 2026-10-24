@@ -1,16 +1,57 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { stubApi } from '@/test/fakeApi'
+import type { FakeApi } from '@/test/fakeApi'
+import { signInAs } from '@/test/helpers'
 import { useDirectoryStore } from '../directory'
 import { useProfileStore } from '../profile'
 
 describe('profile store (UC-2.4)', () => {
-  beforeEach(() => setActivePinia(createPinia()))
+  let api: FakeApi
 
-  it('starts with the demo profile', () => {
+  beforeEach(async () => {
+    setActivePinia(createPinia())
+    api = stubApi()
+  })
+
+  it('starts with an empty profile aiming at secondary school', () => {
     const p = useProfileStore()
-    expect([p.level, p.scoreA, p.scoreB, p.postal]).toEqual(['secondary', '8', '', '556000'])
-    expect(p.postalValid).toBe(true)
+    expect([p.level, p.scoreA, p.scoreB, p.postal]).toEqual(['secondary', '', '', ''])
+    expect(p.postalValid).toBe(false)
     expect(p.levelInfo.label).toBe('S1 Posting')
+  })
+
+  describe('load', () => {
+    it('fills the form from the stored profile', async () => {
+      api.profiles['planner2026'] = {
+        level: 'postsec',
+        score_a: 12,
+        score_b: 9,
+        postal: '119077',
+        primary_result: 'None',
+      }
+      const p = useProfileStore()
+      await signInAs('planner2026')
+      expect([p.level, p.scoreA, p.scoreB, p.postal]).toEqual(['postsec', '12', '9', '119077'])
+      expect(p.postalValid).toBe(true)
+      expect(p.error).toBe('')
+    })
+
+    it('leaves a new account’s form empty', async () => {
+      const p = useProfileStore()
+      await signInAs('planner2026')
+      expect([p.level, p.scoreA, p.postal]).toEqual(['secondary', '', ''])
+    })
+
+    it('says so when the profile cannot be read', async () => {
+      api.override('GET /profile', () => {
+        throw new TypeError('Failed to fetch')
+      })
+      const p = useProfileStore()
+      await p.load()
+      expect(p.error).toMatch(/Unable to complete your request/)
+    })
   })
 
   describe('target education level (REQ-2.6, REQ-2.7)', () => {
@@ -31,50 +72,96 @@ describe('profile store (UC-2.4)', () => {
   })
 
   describe('save', () => {
-    it('stores a valid profile, confirms it and makes the postal code the distance anchor', () => {
+    beforeEach(async () => {
+      await signInAs('planner2026')
+    })
+
+    it('stores a valid profile, confirms it and makes the postal code the distance anchor', async () => {
       const p = useProfileStore()
       const directory = useDirectoryStore()
       p.setPostal('119077')
       p.scoreA = '12'
-      expect(p.save()).toBe(true)
+      expect(await p.save()).toBe(true)
       expect(p.status).toBe('Profile saved')
       expect(p.error).toBe('')
       expect(directory.postal).toBe('119077')
+      expect(api.profiles['planner2026']).toEqual({
+        level: 'secondary',
+        score_a: 12,
+        score_b: null,
+        postal: '119077',
+        primary_result: 'None',
+      })
     })
 
-    it('blocks an out-of-range score with an inline message', () => {
+    it('blocks an out-of-range score with an inline message and sends nothing', async () => {
       const p = useProfileStore()
+      p.setPostal('556000')
       p.scoreA = '35'
-      expect(p.save()).toBe(false)
+      expect(await p.save()).toBe(false)
       expect(p.error).toBe('Invalid academic score! PSLE AL must be a whole number from 4 to 32.')
       expect(p.status).toBe('')
+      expect(api.callsTo('PUT /profile')).toHaveLength(0)
     })
 
-    it('blocks an invalid postal code and leaves the directory anchor alone', () => {
+    it('blocks an invalid postal code and leaves the directory anchor alone', async () => {
       const p = useProfileStore()
       const directory = useDirectoryStore()
+      p.scoreA = '8'
       p.setPostal('12345')
-      expect(p.save()).toBe(false)
+      expect(await p.save()).toBe(false)
       expect(p.error).toBe('Please enter a valid 6-digit Singapore postal code.')
       expect(directory.postal).toBe('556000')
     })
 
-    it('editing a score afterwards clears the previous result', () => {
+    it('shows the server’s message when it refuses the profile', async () => {
       const p = useProfileStore()
+      const directory = useDirectoryStore()
+      p.setPostal('556000')
+      p.scoreA = '8'
+      api.override('PUT /profile', () =>
+        Response.json(
+          { detail: 'Please enter a valid 6-digit Singapore postal code.' },
+          { status: 422 },
+        ),
+      )
+      expect(await p.save()).toBe(false)
+      expect(p.error).toBe('Please enter a valid 6-digit Singapore postal code.')
+      expect(p.status).toBe('')
+      expect(directory.postal).toBe('556000')
+    })
+
+    it('is busy only while the request is in flight', async () => {
+      const p = useProfileStore()
+      p.setPostal('556000')
+      p.scoreA = '8'
+      const release = api.hold('PUT /profile')
+      const saving = p.save()
+      expect(p.saving).toBe(true)
+      release()
+      await saving
+      expect(p.saving).toBe(false)
+    })
+
+    it('editing a score afterwards clears the previous result', async () => {
+      const p = useProfileStore()
+      p.setPostal('556000')
       p.scoreA = '99'
-      p.save()
+      await p.save()
       expect(p.error).not.toBe('')
       p.scoreA = '10'
       expect(p.error).toBe('')
-      p.save()
+      await p.save()
       expect(p.status).toBe('Profile saved')
       p.scoreA = '11'
       expect(p.status).toBe('')
     })
 
-    it('editing the postal code clears the saved confirmation', () => {
+    it('editing the postal code clears the saved confirmation', async () => {
       const p = useProfileStore()
-      p.save()
+      p.setPostal('556000')
+      p.scoreA = '8'
+      await p.save()
       p.setPostal('556001')
       expect(p.status).toBe('')
     })
@@ -86,17 +173,13 @@ describe('profile store (UC-2.4)', () => {
     expect(p.postal).toBe('123456')
   })
 
-  it('reset restores the demo profile', () => {
+  it('reset empties the profile', async () => {
     const p = useProfileStore()
     p.setLevel('uni')
     p.setPostal('119077')
     p.primaryResult = 'Kindergarten completion'
     p.reset()
-    expect([p.level, p.scoreA, p.postal, p.primaryResult]).toEqual([
-      'secondary',
-      '8',
-      '556000',
-      'None',
-    ])
+    expect([p.level, p.scoreA, p.postal, p.primaryResult]).toEqual(['secondary', '', '', 'None'])
+    await flushPromises()
   })
 })

@@ -18,4 +18,5 @@ export interface PlanNode {
   detail: string
 }
 
-export type AiStatus = 'idle' | 'loading' | 'ready' | 'error'
+/** Where a plan is in being fetched from the server. */
+export type PlanStatus = 'idle' | 'loading' | 'ready' | 'error'

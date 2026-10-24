@@ -3,7 +3,8 @@ import { computed } from 'vue'
 
 const props = withDefaults(
   defineProps<{
-    schoolId: number
+    /** The school's key; its logo file is that key with dashes for spaces (e.g. rosyth.png). */
+    schoolKey: string
     name: string
     acronym: string
     size?: 'sm' | 'md' | 'lg'
@@ -11,11 +12,12 @@ const props = withDefaults(
   { size: 'md' },
 )
 
-// Logos are named after the school id (e.g. 2.png). Schools without a file show their acronym.
+// Schools without a logo file show their acronym instead.
 const logos = import.meta.glob<string>('@/assets/logos/*.png', { eager: true, import: 'default' })
 
 const src = computed(() => {
-  const match = Object.entries(logos).find(([path]) => path.endsWith(`/${props.schoolId}.png`))
+  const file = `${props.schoolKey.trim().replace(/\s+/g, '-')}.png`
+  const match = Object.entries(logos).find(([path]) => path.endsWith(`/${file}`))
   return match?.[1]
 })
 

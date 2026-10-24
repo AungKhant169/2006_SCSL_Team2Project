@@ -1,17 +1,31 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { useDirectoryStore } from '@/stores/directory'
 import { useProfileStore } from '@/stores/profile'
+import { stubApi } from '@/test/fakeApi'
 import { mountWithApp } from '@/test/helpers'
 import ProfileView from '../ProfileView.vue'
 
-const mountProfile = () =>
-  mountWithApp(ProfileView, { route: '/profile', signedInAs: 'planner2026' })
-const save = (w: VueWrapper) =>
-  w
+/** The profile page of a student whose stored profile targets S1 posting with an AL score of 8. */
+const mountProfile = () => {
+  const api = stubApi()
+  api.profiles['planner2026'] = {
+    level: 'secondary',
+    score_a: 8,
+    score_b: null,
+    postal: '556000',
+    primary_result: 'None',
+  }
+  return mountWithApp(ProfileView, { route: '/profile', signedInAs: 'planner2026', api })
+}
+const save = async (w: VueWrapper) => {
+  await w
     .findAll('button')
     .find((b) => b.text() === 'Save profile')!
     .trigger('click')
+  await flushPromises()
+}
 const postal = (w: VueWrapper) =>
   w.get<HTMLInputElement>('input[aria-label="Residential postal code"]')
 const level = (w: VueWrapper, label: string) =>
@@ -19,8 +33,6 @@ const level = (w: VueWrapper, label: string) =>
 const alertText = (w: VueWrapper) => w.find('[role="alert"]').text()
 
 describe('ProfileView (UC-2.4)', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   it('shows the three profile sections in order', async () => {
     const { wrapper } = await mountProfile()
     expect(wrapper.get('h1').text()).toBe('My profile')
@@ -34,10 +46,18 @@ describe('ProfileView (UC-2.4)', () => {
 
   describe('saving', () => {
     it('stores a valid profile and confirms it', async () => {
-      const { wrapper } = await mountProfile()
+      const { wrapper, api } = await mountProfile()
+      await wrapper.get('input[placeholder="4 – 32"]').setValue('12')
       await save(wrapper)
       expect(wrapper.get('[role="status"]').text()).toBe('Profile saved')
       expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(api.profiles['planner2026']).toMatchObject({ level: 'secondary', score_a: 12 })
+    })
+
+    it('shows the stored profile when the page opens', async () => {
+      const { wrapper } = await mountProfile()
+      expect(wrapper.get<HTMLInputElement>('input[placeholder="4 – 32"]').element.value).toBe('8')
+      expect(postal(wrapper).element.value).toBe('556000')
     })
 
     it('makes the postal code the default for every distance calculation (REQ-2.11)', async () => {

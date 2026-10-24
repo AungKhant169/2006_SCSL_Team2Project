@@ -4,20 +4,28 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import FormField from '@/components/ui/FormField.vue'
-import { DISTANCE_OPTIONS, FIELD_OPTIONS, GOVERNANCE_OPTIONS } from '@/data/education'
+import { DISTANCE_OPTIONS } from '@/data/education'
 import { useAuthStore } from '@/stores/auth'
 import { useDirectoryStore } from '@/stores/directory'
 
 const directory = useDirectoryStore()
 const auth = useAuthStore()
 
-const governanceOptions = GOVERNANCE_OPTIONS.map((value) => ({ value, label: value }))
+/** The governance types the tier's schools actually have, so no option leads to an empty list. */
+const typeOptions = computed(() => [
+  { value: '', label: 'All types' },
+  ...directory.schoolTypes.map((value) => ({ value, label: value })),
+])
 
 const postalHint = computed(() => {
-  if (!directory.hasPostal) return 'Please enter a valid 6-digit Singapore postal code.'
-  return auth.loggedIn
-    ? 'Using your saved residential postal code.'
-    : 'Reference postal code for distances.'
+  if (directory.hasPostal) {
+    return auth.loggedIn
+      ? 'Using your saved residential postal code.'
+      : 'Reference postal code for distances.'
+  }
+  return directory.postalUnknown
+    ? 'This postal code could not be located.'
+    : 'Please enter a valid 6-digit Singapore postal code.'
 })
 </script>
 
@@ -36,22 +44,12 @@ const postalHint = computed(() => {
           v-model="directory.query"
           :aria-describedby="describedBy"
           :invalid="invalid"
-          placeholder="Name, acronym or course (min. 2 characters)"
+          placeholder="School name or acronym (min. 2 characters)"
         />
       </FormField>
 
-      <FormField v-slot="{ id }" label="Governance" caps class="flex-[1_1_160px]">
-        <BaseSelect :id="id" v-model="directory.gov" :options="governanceOptions" />
-      </FormField>
-
-      <FormField
-        v-if="directory.isTertiary"
-        v-slot="{ id }"
-        label="Field of study"
-        caps
-        class="flex-[1_1_160px]"
-      >
-        <BaseSelect :id="id" v-model="directory.field" :options="FIELD_OPTIONS" />
+      <FormField v-slot="{ id }" label="School type" caps class="flex-[1_1_160px]">
+        <BaseSelect :id="id" v-model="directory.schoolType" :options="typeOptions" />
       </FormField>
 
       <div class="field flex-[1_1_220px]">

@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import DatasetUpdatePanel from '@/components/admin/DatasetUpdatePanel.vue'
 import AlertMessage from '@/components/ui/AlertMessage.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import { useAdminStore } from '@/stores/admin'
 
 const admin = useAdminStore()
+
+onMounted(() => admin.load())
 </script>
 
 <template>

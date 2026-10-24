@@ -3,18 +3,20 @@ import { computed } from 'vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 import { getTier } from '@/data/education'
 import type { School } from '@/types/school'
-import { benchmarkBarPercent, formatBenchmark, latestBenchmark } from '@/utils/benchmark'
+import { benchmarkBarPercent, formatBenchmark } from '@/utils/benchmark'
 
 const props = defineProps<{ school: School }>()
 
-const rows = computed(() =>
-  props.school.history.map((point) => ({
+const rows = computed(() => {
+  const { benchmark, history } = props.school
+  if (!benchmark) return []
+  return history.map((point) => ({
     year: point.year,
-    value: formatBenchmark(props.school.benchmark, point.value),
-    percent: benchmarkBarPercent(props.school.benchmark, point.value),
-  })),
-)
-const latest = computed(() => latestBenchmark(props.school))
+    value: formatBenchmark(benchmark, point.value),
+    percent: benchmarkBarPercent(benchmark, point.value),
+  }))
+})
+const latest = computed(() => props.school.history.at(-1))
 </script>
 
 <template>
@@ -28,7 +30,7 @@ const latest = computed(() => latestBenchmark(props.school))
       <li
         v-for="row in rows"
         :key="row.year"
-        class="grid grid-cols-[48px_1fr_110px] items-center gap-3 text-[13px]"
+        class="grid grid-cols-[56px_1fr_110px] items-center gap-3 text-[13px]"
       >
         <span class="text-muted">{{ row.year }}</span>
         <div class="h-2.5 overflow-hidden rounded-[5px] bg-chip" aria-hidden="true">
@@ -38,7 +40,7 @@ const latest = computed(() => latestBenchmark(props.school))
       </li>
     </ul>
     <div
-      v-if="rows.length > 0"
+      v-if="rows.length > 0 && latest"
       class="flex justify-between border-t border-line-soft pt-3 text-[13px]"
     >
       <span class="text-muted">Latest ({{ latest.year }})</span>

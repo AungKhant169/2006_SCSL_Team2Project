@@ -14,9 +14,9 @@ export const TIERS: Tier[] = [
   {
     id: 'primary',
     label: 'Primary',
-    benchmarkLabel: 'P1 Phase 2C ratio',
+    benchmarkLabel: 'Places taken (Phase 2B)',
     benchmarkDescription:
-      'Applicants per vacancy at Phase 2C. Ratios above 1.0 indicate balloting.',
+      'Places taken up to Phase 2B of P1 Registration, the latest figure in the dataset.',
     courseHeading: 'Programmes',
     courseColumn: 'Programme',
     feeUnit: ' per month',
@@ -24,9 +24,9 @@ export const TIERS: Tier[] = [
   {
     id: 'secondary',
     label: 'Secondary',
-    benchmarkLabel: 'PSLE AL range',
+    benchmarkLabel: 'PSLE T-score cut-off',
     benchmarkDescription:
-      'PSLE Achievement Level aggregate of the last student posted (lower is more selective).',
+      'PSLE T-score of the last student posted in 2017 (higher is more selective). The dataset predates the AL scoring system.',
     courseHeading: 'Subject combinations',
     courseColumn: 'Track / combination',
     feeUnit: ' per month',
@@ -114,18 +114,6 @@ export const CITIZENSHIPS: { id: CitizenshipId; label: string; shortLabel: strin
   { id: 'pr', label: 'Permanent Resident', shortLabel: 'Permanent Resident' },
   { id: 'intl', label: 'International Student', shortLabel: 'International' },
 ]
-
-export const GOVERNANCE_OPTIONS = ['All', 'Public/Government', 'Private'] as const
-export type GovernanceFilter = (typeof GOVERNANCE_OPTIONS)[number]
-
-export const FIELD_OPTIONS = [
-  { value: 'All', label: 'All fields' },
-  { value: 'STEM', label: 'STEM' },
-  { value: 'Business', label: 'Business' },
-  { value: 'Healthcare', label: 'Healthcare' },
-  { value: 'Arts', label: 'Arts & Humanities' },
-] as const
-export type FieldFilter = (typeof FIELD_OPTIONS)[number]['value']
 
 export const DISTANCE_OPTIONS = [
   { value: 'any', label: 'Any distance' },

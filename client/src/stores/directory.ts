@@ -1,37 +1,66 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import type { DistanceFilter, FieldFilter, GovernanceFilter, SortOrder } from '@/data/education'
-import { SCHOOLS } from '@/data/schools'
-import type { DirectoryTierId } from '@/types/school'
-import { isValidPostalCode, sanitizePostalInput } from '@/utils/postalCode'
+import type { DistanceFilter, SortOrder } from '@/data/education'
+import { fetchSchoolsOfTier } from '@/services/schoolService'
+import type { DirectoryTierId, School } from '@/types/school'
+import { sanitizePostalInput } from '@/utils/postalCode'
 import { paginate, searchSchools } from '@/utils/schoolSearch'
 import { parseSearchQuery } from '@/utils/searchQuery'
+import { useLocationStore } from './location'
 
 export const DEFAULT_POSTAL = '556000'
 
+export type DirectoryStatus = 'loading' | 'ready' | 'error'
+
 /** Search, filter, sort and pagination state of the school directory (UC-1.1). */
 export const useDirectoryStore = defineStore('directory', () => {
+  const location = useLocationStore()
+
   const tier = ref<DirectoryTierId>('primary')
   const query = ref('')
-  const gov = ref<GovernanceFilter>('All')
-  const field = ref<FieldFilter>('All')
+  /** Governance type to keep, e.g. "Government-Aided"; empty keeps every type. */
+  const schoolType = ref('')
   const distance = ref<DistanceFilter>('any')
   const sort = ref<SortOrder>('az')
   const page = ref(1)
   /** Reference postal code that distances are measured from. */
   const postal = ref(DEFAULT_POSTAL)
 
+  /** Every school of a tier, fetched once; the search itself runs on this list. */
+  const catalogue = ref<Partial<Record<DirectoryTierId, School[]>>>({})
+  const failed = ref<Partial<Record<DirectoryTierId, boolean>>>({})
+  const requests = new Map<DirectoryTierId, Promise<School[]>>()
+
   const parsedQuery = computed(() => parseSearchQuery(query.value))
   const queryError = computed(() => parsedQuery.value.error)
-  const hasPostal = computed(() => isValidPostalCode(postal.value))
+  /** Distances can be shown once the server has placed the postal code. */
+  const hasPostal = computed(() => location.originOf(postal.value) !== null)
+  /** A complete postal code the server could not place, as opposed to one still being typed. */
+  const postalUnknown = computed(() => location.isUnplaced(postal.value))
+
+  const current = computed(() => catalogue.value[tier.value])
+  const status = computed<DirectoryStatus>(() => {
+    if (current.value) return 'ready'
+    return failed.value[tier.value] ? 'error' : 'loading'
+  })
+
+  /** True when the dataset has no school at all in the tier, whatever the filters. */
+  const tierEmpty = computed(() => status.value === 'ready' && current.value?.length === 0)
+
+  /** The tier's schools with their distance from the reference postal code. */
+  const schools = computed(() =>
+    (current.value ?? []).map((school) => location.withDistance(school, postal.value)),
+  )
+  /** Governance types present in the tier, for the filter. */
+  const schoolTypes = computed(() =>
+    [...new Set(schools.value.map((s) => s.type))].filter(Boolean).sort(),
+  )
 
   const matches = computed(() =>
-    searchSchools(SCHOOLS, {
-      tier: tier.value,
+    searchSchools(schools.value, {
       term: parsedQuery.value.term,
-      gov: gov.value,
-      field: field.value,
-      distance: distance.value,
+      schoolType: schoolType.value,
+      maxKm: hasPostal.value && distance.value !== 'any' ? Number(distance.value) : Infinity,
       sort: sort.value,
     }),
   )
@@ -39,13 +68,53 @@ export const useDirectoryStore = defineStore('directory', () => {
   const results = computed(() => paged.value.items)
   const currentPage = computed(() => paged.value.page)
   const pageCount = computed(() => paged.value.pageCount)
-  const isTertiary = computed(() => tier.value === 'postsec' || tier.value === 'uni')
 
-  // Any change to the criteria returns to the first page; switching tier drops the field filter.
-  watch([query, gov, field, distance, sort, postal, tier], () => (page.value = 1), {
+  /** Fetches a tier's schools unless they are already here. Shared by concurrent callers. */
+  function loadTier(id: DirectoryTierId): Promise<School[]> {
+    const cached = catalogue.value[id]
+    if (cached) return Promise.resolve(cached)
+    let request = requests.get(id)
+    if (!request) {
+      failed.value[id] = false
+      request = fetchSchoolsOfTier(id)
+        .then((list) => {
+          catalogue.value[id] = list
+          return list
+        })
+        .catch(() => {
+          failed.value[id] = true
+          return []
+        })
+        .finally(() => requests.delete(id))
+      requests.set(id, request)
+    }
+    return request
+  }
+
+  /** Loads the tier being browsed. */
+  function load() {
+    return loadTier(tier.value)
+  }
+
+  /** Forgets the fetched schools, e.g. after an administrator replaced the dataset. */
+  function clearCatalogue() {
+    catalogue.value = {}
+    failed.value = {}
+  }
+
+  // Any change to the criteria returns to the first page; the tier's schools load on demand.
+  watch([query, schoolType, distance, sort, postal, tier], () => (page.value = 1), {
     flush: 'sync',
   })
-  watch(tier, () => (field.value = 'All'), { flush: 'sync' })
+  watch(
+    tier,
+    () => {
+      schoolType.value = ''
+      void load()
+    },
+    { flush: 'sync' },
+  )
+  watch(postal, (value) => void location.locate(value), { immediate: true })
 
   function setPostal(value: string) {
     postal.value = sanitizePostalInput(value)
@@ -54,8 +123,7 @@ export const useDirectoryStore = defineStore('directory', () => {
   /** Restores every search input to its default and reloads the full list (REQ-1.15). */
   function resetFilters() {
     query.value = ''
-    gov.value = 'All'
-    field.value = 'All'
+    schoolType.value = ''
     distance.value = 'any'
     sort.value = 'az'
     page.value = 1
@@ -72,18 +140,23 @@ export const useDirectoryStore = defineStore('directory', () => {
   return {
     tier,
     query,
-    gov,
-    field,
+    schoolType,
     distance,
     sort,
     postal,
+    status,
     queryError,
     hasPostal,
+    postalUnknown,
+    tierEmpty,
+    schoolTypes,
     matches,
     results,
     currentPage,
     pageCount,
-    isTertiary,
+    load,
+    loadTier,
+    clearCatalogue,
     setPostal,
     resetFilters,
     previousPage,

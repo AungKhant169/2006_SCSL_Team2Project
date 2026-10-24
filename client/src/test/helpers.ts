@@ -4,9 +4,10 @@ import { createMemoryHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { vi } from 'vitest'
 import { createAppRouter, routes } from '@/router'
 import { useAuthStore } from '@/stores/auth'
+import { stubApi } from './fakeApi'
+import type { FakeApi } from './fakeApi'
 
 const Blank = defineComponent({ render: () => h('div') })
 
@@ -27,18 +28,21 @@ interface MountOptions {
   routes?: RouteRecordRaw[]
   props?: Record<string, unknown>
   attachTo?: HTMLElement
-  /** Signs this user in (against the stubbed auth API) before mounting. Use 'admin' for the Admin role. */
+  /** Signs this user in (against the fake API) before mounting. Use 'admin' for the Admin role. */
   signedInAs?: string
+  /** The fake server to talk to. Pass one to set up its data first; defaults to a fresh one. */
+  api?: FakeApi
 }
 
-/** Mounts a component with a fresh Pinia and a guarded router, resolved to `route`. */
+/**
+ * Mounts a component with a fresh Pinia and a guarded router, resolved to `route`, against a fake
+ * PathSG server (returned as `api`).
+ */
 export async function mountWithApp(component: Component, options: MountOptions = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
-  if (options.signedInAs) {
-    stubAuthApi()
-    await signInAs(options.signedInAs)
-  }
+  const api = options.api ?? stubApi()
+  if (options.signedInAs) await signInAs(options.signedInAs)
   const router = createTestRouter(options.routes)
   await router.push(options.route ?? '/')
   await router.isReady()
@@ -47,40 +51,10 @@ export async function mountWithApp(component: Component, options: MountOptions =
     attachTo: options.attachTo,
     global: { plugins: [pinia, router] },
   })
-  return { wrapper, router, pinia }
+  return { wrapper, router, pinia, api }
 }
 
-export function jsonResponse(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  })
-}
-
-/**
- * Replaces `fetch` with a fake PathSG auth API. Any username/password is accepted unless a
- * handler overrides it. Returns the mock so tests can assert on the requests made.
- */
-export function stubAuthApi(overrides: Partial<Record<string, () => Response>> = {}) {
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-    const path = new URL(String(input), 'http://localhost').pathname
-    const override = overrides[path]
-    if (override) return override()
-    if (path === '/user/login' || path === '/user/register') {
-      return jsonResponse({
-        access_token: 'access',
-        refresh_token: 'refresh',
-        token_type: 'bearer',
-      })
-    }
-    if (path === '/user/logout') return new Response(null, { status: 204 })
-    return jsonResponse({ detail: 'Not found' }, 404)
-  })
-  vi.stubGlobal('fetch', fetchMock)
-  return fetchMock
-}
-
-/** Logs the given user in through the real auth store (against the stubbed API). */
+/** Logs the given user in through the real auth store (against the fake API). */
 export async function signInAs(username: string) {
-  await useAuthStore().login(username, 'abcd123!')
+  return useAuthStore().login(username, 'abcd123!')
 }

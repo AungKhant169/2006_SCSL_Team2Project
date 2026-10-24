@@ -1,21 +1,29 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
-import { mountWithApp, signInAs, stubAuthApi } from '@/test/helpers'
+import { stubApi } from '@/test/fakeApi'
+import { mountWithApp, signInAs } from '@/test/helpers'
 import DirectoryView from '../DirectoryView.vue'
 
-const mountDirectory = () => mountWithApp(DirectoryView)
+/** The directory with the primary tier loaded and the default postal code located. */
+async function mountDirectory() {
+  const mounted = await mountWithApp(DirectoryView)
+  await flushPromises()
+  return mounted
+}
 
 const names = (wrapper: VueWrapper) => wrapper.findAll('article a').map((a) => a.text())
 const countText = (wrapper: VueWrapper) =>
   wrapper.get('[data-testid="result-count"]').text().replace(/\s+/g, ' ')
-const keyword = (wrapper: VueWrapper) => wrapper.get('input[placeholder^="Name, acronym"]')
+const keyword = (wrapper: VueWrapper) => wrapper.get('input[placeholder^="School name"]')
 const tierButton = (wrapper: VueWrapper, label: string) =>
   wrapper.findAll('[aria-label="Education tier"] button').find((b) => b.text() === label)!
+async function chooseTier(wrapper: VueWrapper, label: string) {
+  await tierButton(wrapper, label).trigger('click')
+  await flushPromises()
+}
 
 describe('DirectoryView (UC-1.1)', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   describe('landing view', () => {
     it('shows the directory heading and a four-way tier switch (REQ-1.2)', async () => {
       const { wrapper } = await mountDirectory()
@@ -47,6 +55,43 @@ describe('DirectoryView (UC-1.1)', () => {
       expect(wrapper.text()).toContain('Page 1 of 1 · 10 per page')
     })
 
+    it('asks the server for the tier’s schools', async () => {
+      const { api } = await mountDirectory()
+      expect(api.callsTo('GET /school-api')[0]?.query.get('stage')).toBe('primary')
+    })
+
+    it('shows a loading state until the schools arrive', async () => {
+      const api = stubApi()
+      const release = api.hold('GET /school-api')
+      const { wrapper } = await mountWithApp(DirectoryView, { api })
+      expect(wrapper.get('[role="status"]').text()).toContain('Loading schools')
+      expect(wrapper.findAll('article')).toHaveLength(0)
+      release()
+      await flushPromises()
+      expect(wrapper.findAll('article')).toHaveLength(4)
+      expect(wrapper.find('[role="status"]').exists()).toBe(false)
+    })
+
+    it('says when the schools cannot be loaded and offers to try again', async () => {
+      const api = stubApi()
+      api.override('GET /school-api', () => {
+        throw new TypeError('Failed to fetch')
+      })
+      const { wrapper } = await mountWithApp(DirectoryView, { api })
+      await flushPromises()
+      expect(wrapper.get('[role="alert"]').text()).toBe(
+        'Unable to load the Primary schools at this time. Please try again.',
+      )
+      api.restore('GET /school-api')
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Try again')!
+        .trigger('click')
+      await flushPromises()
+      expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+      expect(names(wrapper)).toHaveLength(4)
+    })
+
     it('uses the singular noun for a single result', async () => {
       const { wrapper } = await mountDirectory()
       await keyword(wrapper).setValue('rosyth')
@@ -56,20 +101,27 @@ describe('DirectoryView (UC-1.1)', () => {
 
   describe('tier selection', () => {
     it.each([
-      ['Secondary', 4, ['Bukit Panjang Government High School']],
-      ['Post-Secondary', 5, ['Eastbridge Academy (Private)']],
-      ['University', 4, ['National University of Singapore']],
+      ['Secondary', 4, ['Raffles Institution', "Cedar Girls' Secondary School"]],
+      ['Post-Secondary', 3, ['Temasek Junior College', 'Raffles Institution']],
     ])('%s shows its own schools', async (label, count, expected) => {
       const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, label).trigger('click')
+      await chooseTier(wrapper, label)
       expect(names(wrapper)).toHaveLength(count)
       expect(names(wrapper)).toEqual(expect.arrayContaining(expected))
       expect(countText(wrapper)).toBe(`${count} schools · ${label}`)
     })
 
+    it('says so when the dataset has no school in the tier', async () => {
+      const { wrapper } = await mountDirectory()
+      await chooseTier(wrapper, 'University')
+      expect(wrapper.get('h3').text()).toBe('No University schools yet')
+      expect(wrapper.findAll('article')).toHaveLength(0)
+      expect(wrapper.find('[data-testid="result-count"]').exists()).toBe(false)
+    })
+
     it('only one tier is selected at a time', async () => {
       const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, 'University').trigger('click')
+      await chooseTier(wrapper, 'University')
       const pressed = wrapper
         .findAll('[aria-label="Education tier"] button')
         .filter((b) => b.attributes('aria-pressed') === 'true')
@@ -78,22 +130,30 @@ describe('DirectoryView (UC-1.1)', () => {
 
     it('shows the tier’s own benchmark on each card', async () => {
       const { wrapper } = await mountDirectory()
-      expect(wrapper.text()).toContain('P1 Phase 2C ratio')
-      await tierButton(wrapper, 'Secondary').trigger('click')
-      expect(wrapper.text()).toContain('PSLE AL range')
+      expect(wrapper.text()).toContain('Places taken (Phase 2B)')
+      expect(wrapper.text()).toContain('120 places')
+      await chooseTier(wrapper, 'Secondary')
+      expect(wrapper.text()).toContain('PSLE T-score cut-off')
+      expect(wrapper.text()).toContain('T-score ≥ 260')
+    })
+
+    it('does not fetch a tier twice', async () => {
+      const { wrapper, api } = await mountDirectory()
+      await chooseTier(wrapper, 'Secondary')
+      await chooseTier(wrapper, 'Primary')
+      await chooseTier(wrapper, 'Secondary')
+      expect(api.callsTo('GET /school-api')).toHaveLength(2)
     })
   })
 
   describe('search and filters', () => {
-    it('narrows results by keyword, by name, acronym and course (REQ-1.1)', async () => {
+    it('narrows results by keyword, by name and acronym (REQ-1.1)', async () => {
       const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, 'University').trigger('click')
-      await keyword(wrapper).setValue('nanyang')
-      expect(names(wrapper)).toEqual(['Nanyang Technological University'])
-      await keyword(wrapper).setValue('smu')
-      expect(names(wrapper)).toEqual(['Singapore Management University'])
-      await keyword(wrapper).setValue('sociology')
-      expect(names(wrapper)).toEqual(['National University of Singapore'])
+      await chooseTier(wrapper, 'Post-Secondary')
+      await keyword(wrapper).setValue('temasek')
+      expect(names(wrapper)).toEqual(['Temasek Junior College'])
+      await keyword(wrapper).setValue('ejc')
+      expect(names(wrapper)).toEqual(['Eunoia Junior College'])
     })
 
     it('does not search below two characters and explains why', async () => {
@@ -103,18 +163,10 @@ describe('DirectoryView (UC-1.1)', () => {
       expect(names(wrapper)).toHaveLength(4)
     })
 
-    it('filters by governance (REQ-1.3)', async () => {
+    it('filters by school type (REQ-1.3)', async () => {
       const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, 'Post-Secondary').trigger('click')
-      await wrapper.get('select').setValue('Private')
-      expect(names(wrapper)).toEqual(['Eastbridge Academy (Private)'])
-    })
-
-    it('filters tertiary institutions by field of study (REQ-1.4)', async () => {
-      const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, 'Post-Secondary').trigger('click')
-      await wrapper.findAll('select')[1]!.setValue('Healthcare')
-      expect(names(wrapper)).toEqual(['Ngee Ann Polytechnic', 'Singapore Polytechnic'])
+      await wrapper.get('select').setValue('Government-Aided')
+      expect(names(wrapper)).toEqual(['Nanyang Primary School', 'Tao Nan School'])
     })
 
     it('filters by distance from the postal code (REQ-1.5)', async () => {
@@ -132,18 +184,17 @@ describe('DirectoryView (UC-1.1)', () => {
       expect(names(wrapper)).toEqual([
         'Zhonghua Primary School',
         'Rosyth School',
-        'Nanyang Primary School',
         'Tao Nan School',
+        'Nanyang Primary School',
       ])
     })
 
-    it('drops the field filter when the tier changes', async () => {
+    it('drops the school type when the tier changes', async () => {
       const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, 'University').trigger('click')
-      await wrapper.findAll('select')[1]!.setValue('Healthcare')
-      expect(names(wrapper)).toHaveLength(1)
-      await tierButton(wrapper, 'Post-Secondary').trigger('click')
-      expect(names(wrapper)).toHaveLength(5)
+      await wrapper.get('select').setValue('Government-Aided')
+      expect(names(wrapper)).toHaveLength(2)
+      await chooseTier(wrapper, 'Secondary')
+      expect(names(wrapper)).toHaveLength(4)
     })
   })
 
@@ -191,8 +242,8 @@ describe('DirectoryView (UC-1.1)', () => {
 
     it('can be caused by a filter combination as well as a keyword', async () => {
       const { wrapper } = await mountDirectory()
-      await tierButton(wrapper, 'University').trigger('click')
       await wrapper.get('select[aria-label="Distance"]').setValue('1')
+      await wrapper.get('select').setValue('Government-Aided')
       expect(wrapper.get('h3').text()).toBe('No Schools Found')
     })
   })
@@ -205,19 +256,25 @@ describe('DirectoryView (UC-1.1)', () => {
         .find((a) => a.text() === 'Rosyth School')!
         .trigger('click')
       await flushPromises()
-      expect(router.currentRoute.value.fullPath).toBe('/schools/2')
+      expect(router.currentRoute.value.fullPath).toBe('/schools/rosyth')
     })
   })
 
   describe('bookmark control (UC-2.5)', () => {
-    it('is absent for guests and present on every card once signed in', async () => {
-      const { wrapper } = await mountDirectory()
-      const bookmarkButtons = () => wrapper.findAll('article button')
-      expect(bookmarkButtons()).toHaveLength(0)
-      stubAuthApi()
+    async function mountSignedIn() {
+      const api = stubApi()
+      api.bookmark('planner2026', 2)
+      const mounted = await mountWithApp(DirectoryView, { api })
       await signInAs('planner2026')
       await flushPromises()
-      expect(bookmarkButtons().map((b) => b.text())).toEqual([
+      return mounted
+    }
+
+    it('is absent for guests and present on every card once signed in', async () => {
+      const { wrapper } = await mountDirectory()
+      expect(wrapper.findAll('article button')).toHaveLength(0)
+      const member = await mountSignedIn()
+      expect(member.wrapper.findAll('article button').map((b) => b.text())).toEqual([
         '☆ Save',
         '★ Saved',
         '☆ Save',
@@ -226,23 +283,31 @@ describe('DirectoryView (UC-1.1)', () => {
     })
 
     it('bookmarking from a card does not open the school', async () => {
-      const { wrapper, router } = await mountDirectory()
-      stubAuthApi()
-      await signInAs('planner2026')
-      await flushPromises()
+      const { wrapper, router, api } = await mountSignedIn()
       await wrapper.findAll('article button')[0]!.trigger('click')
+      await flushPromises()
       expect(wrapper.findAll('article button')[0]!.text()).toBe('★ Saved')
       expect(router.currentRoute.value.fullPath).toBe('/')
+      expect(api.bookmarks['planner2026']).toEqual([2, 1])
     })
   })
 
   describe('distance display', () => {
     it('shows kilometres from the reference postal code, or a prompt without one', async () => {
       const { wrapper } = await mountDirectory()
-      expect(wrapper.text()).toContain('0.8 km')
+      expect(wrapper.text()).toMatch(/0\.\d km/)
+      expect(wrapper.text()).not.toContain('Add postal code')
       await wrapper.get('input[aria-label="Postal code"]').setValue('12')
-      expect(wrapper.text()).not.toContain('0.8 km')
+      expect(wrapper.text()).not.toMatch(/0\.\d km/)
       expect(wrapper.text()).toContain('Add postal code')
+    })
+
+    it('measures from a different postal code once it is located', async () => {
+      const { wrapper } = await mountDirectory()
+      await wrapper.get('input[aria-label="Postal code"]').setValue('600000')
+      await flushPromises()
+      expect(wrapper.text()).not.toMatch(/0\.\d km/)
+      expect(wrapper.text()).toMatch(/\d{2}\.\d km/)
     })
   })
 })

@@ -1,9 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { useAuthStore } from '@/stores/auth'
 import { useUiStore } from '@/stores/ui'
-import { jsonResponse, mountWithApp, stubAuthApi } from '@/test/helpers'
+import { jsonResponse, stubApi } from '@/test/fakeApi'
+import type { FakeApi } from '@/test/fakeApi'
+import { mountWithApp } from '@/test/helpers'
 import LoginView from '../LoginView.vue'
 
 const username = (w: VueWrapper) => w.get<HTMLInputElement>('input[autocomplete="username"]')
@@ -18,15 +20,15 @@ async function fill(w: VueWrapper, user: string, pass: string) {
   await password(w).setValue(pass)
 }
 
-async function mountLogin(overrides: Parameters<typeof stubAuthApi>[0] = {}) {
-  const fetchMock = stubAuthApi(overrides)
-  const mounted = await mountWithApp(LoginView, { route: '/login' })
-  return { ...mounted, fetchMock }
+/** The login page against a fake server, which `configure` may first change. */
+async function mountLogin(configure: (api: FakeApi) => void = () => {}) {
+  const api = stubApi()
+  configure(api)
+  const mounted = await mountWithApp(LoginView, { route: '/login', api })
+  return { ...mounted, fetchMock: api.fetch }
 }
 
 describe('LoginView (UC-2.1, UC-2.2)', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   describe('login form', () => {
     it('opens on the Log in tab asking only for a username and password (REQ-2.5, SEC-1)', async () => {
       const { wrapper } = await mountLogin()
@@ -61,13 +63,11 @@ describe('LoginView (UC-2.1, UC-2.2)', () => {
     })
 
     it('signs in and lands on the profile page', async () => {
-      const { wrapper, router, fetchMock } = await mountLogin()
+      const { wrapper, router, api } = await mountLogin()
       await fill(wrapper, 'planner2026', 'abcd123!')
       await wrapper.get('form').trigger('submit')
       await flushPromises()
-      const [url, init] = fetchMock.mock.calls[0]! as unknown as [string, RequestInit]
-      expect(url).toContain('/user/login')
-      expect(JSON.parse(String(init.body))).toEqual({
+      expect(api.callsTo('POST /user/login')[0]?.body).toEqual({
         username: 'planner2026',
         password: 'abcd123!',
       })
@@ -86,10 +86,11 @@ describe('LoginView (UC-2.1, UC-2.2)', () => {
     })
 
     it('shows the server’s message for wrong credentials and stays on the page', async () => {
-      const { wrapper, router } = await mountLogin({
-        '/user/login': () =>
+      const { wrapper, router } = await mountLogin((api) =>
+        api.override('POST /user/login', () =>
           jsonResponse({ detail: 'The password entered is incorrect. Please try again.' }, 401),
-      })
+        ),
+      )
       await fill(wrapper, 'planner2026', 'wrongpass1!')
       await wrapper.get('form').trigger('submit')
       await flushPromises()
@@ -118,20 +119,8 @@ describe('LoginView (UC-2.1, UC-2.2)', () => {
     })
 
     it('locks the button while the request is in flight', async () => {
-      let release!: () => void
-      const { wrapper } = await mountLogin()
-      vi.stubGlobal(
-        'fetch',
-        vi.fn(
-          () =>
-            new Promise<Response>((resolve) => {
-              release = () =>
-                resolve(
-                  jsonResponse({ access_token: 'a', refresh_token: 'r', token_type: 'bearer' }),
-                )
-            }),
-        ),
-      )
+      const { wrapper, api } = await mountLogin()
+      const release = api.hold('POST /user/login')
       await fill(wrapper, 'planner2026', 'abcd123!')
       await wrapper.get('form').trigger('submit')
       expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
@@ -209,13 +198,14 @@ describe('LoginView (UC-2.1, UC-2.2)', () => {
     })
 
     it('refuses a username that is already taken (REQ-2.15)', async () => {
-      const mounted = await mountLogin({
-        '/user/register': () =>
+      const mounted = await mountLogin((api) =>
+        api.override('POST /user/register', () =>
           jsonResponse(
             { detail: 'This username is already taken. Please choose a different username.' },
             409,
           ),
-      })
+        ),
+      )
       await tab(mounted.wrapper, 'Create account').trigger('click')
       await fill(mounted.wrapper, 'admin', 'abcd123!')
       await mounted.wrapper.get('form').trigger('submit')

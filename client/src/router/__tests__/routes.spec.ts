@@ -1,8 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryHistory } from 'vue-router'
 import { createPinia, setActivePinia } from 'pinia'
 import { createAppRouter, routes } from '@/router'
-import { signInAs, stubAuthApi } from '@/test/helpers'
+import { stubApi } from '@/test/fakeApi'
+import { signInAs } from '@/test/helpers'
 
 /** Exercises the real route table (lazy views, params, redirects) rather than stubs. */
 const realRouter = () => createAppRouter(createMemoryHistory(), routes)
@@ -10,9 +11,8 @@ const realRouter = () => createAppRouter(createMemoryHistory(), routes)
 describe('route table', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    stubAuthApi()
+    stubApi()
   })
-  afterEach(() => vi.unstubAllGlobals())
 
   it('names every page of the app', () => {
     const names = routes.map((r) => r.name).filter(Boolean)
@@ -28,13 +28,21 @@ describe('route table', () => {
     }
   })
 
-  it('passes the school id from the URL to the profile page as a prop', async () => {
+  it('passes the school key from the URL to the profile page as a prop', async () => {
     const router = realRouter()
-    await router.push('/schools/14')
+    await router.push('/schools/rosyth')
     const record = router.currentRoute.value.matched[0]!
     expect(router.currentRoute.value.name).toBe('school')
-    expect(router.resolve({ name: 'school', params: { id: 14 } }).href).toBe('/schools/14')
+    expect(router.currentRoute.value.params.schoolKey).toBe('rosyth')
     expect(record.props.default).toBe(true)
+  })
+
+  it('escapes the spaces in a school key and reads them back', async () => {
+    const router = realRouter()
+    const href = router.resolve({ name: 'school', params: { schoolKey: 'nanyang primary' } }).href
+    expect(href).toBe('/schools/nanyang%20primary')
+    await router.push(href)
+    expect(router.currentRoute.value.params.schoolKey).toBe('nanyang primary')
   })
 
   it('sends unknown addresses to the directory', async () => {

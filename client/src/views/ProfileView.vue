@@ -24,7 +24,9 @@ const profile = useProfileStore()
       <span v-if="profile.status" class="text-[13px] font-semibold text-success" role="status">
         {{ profile.status }}
       </span>
-      <BaseButton size="lg" class="text-sm" @click="profile.save()">Save profile</BaseButton>
+      <BaseButton size="lg" class="text-sm" :disabled="profile.saving" @click="profile.save()">
+        Save profile
+      </BaseButton>
     </div>
   </div>
 </template>

@@ -1,49 +1,36 @@
 import { getTier } from '@/data/education'
-import { getSchool, schoolsInTier } from '@/data/schools'
 import type { PlanNode } from '@/types/roadmap'
 import type { School, TierId } from '@/types/school'
-import { formatLatestBenchmark, latestBenchmark } from './benchmark'
+import { formatLatestBenchmark } from './benchmark'
 import { choiceLabel } from './format'
 
 /** Number of choices a generated roadmap lists. */
 export const PLAN_LENGTH = 3
 
-/** Rule-based ordering: nearest institutions to the reference postal code first. */
-export function ruleBasedOrder(pool: School[]): School[] {
-  return pool.slice().sort((a, b) => a.distanceKm - b.distanceKm)
-}
-
-/** AI-style ordering: most selective benchmark first, ignoring distance. */
-export function benchmarkOrder(pool: School[]): School[] {
-  const latest = (s: School) => latestBenchmark(s).value
-  return pool
-    .slice()
-    .sort((a, b) => (a.benchmark.inverse ? latest(a) - latest(b) : latest(b) - latest(a)))
-}
-
-/** Institutions that can appear in a roadmap for the given target stage. */
-export function eligibleSchools(stage: TierId): School[] {
-  return schoolsInTier(stage)
-}
-
 function describe(school: School, stage: TierId, postal: string): string {
-  const tier = getTier(stage)
-  return `${tier.benchmarkLabel}: ${formatLatestBenchmark(school)} · ${school.distanceKm.toFixed(1)} km from ${postal}`
+  const parts: string[] = []
+  const benchmark = formatLatestBenchmark(school)
+  if (benchmark) parts.push(`${getTier(stage).benchmarkLabel}: ${benchmark}`)
+  parts.push(
+    school.distanceKm === null
+      ? 'Distance not available'
+      : `${school.distanceKm.toFixed(1)} km from ${postal}`,
+  )
+  return parts.join(' · ')
 }
 
-export function toPlanNodes(order: School[], stage: TierId, postal: string): PlanNode[] {
-  return order.slice(0, PLAN_LENGTH).map((school, i) => ({
-    step: i + 1,
-    label: choiceLabel(i),
-    schoolName: school.name,
-    detail: describe(school, stage, postal),
-  }))
-}
-
-/** Rebuilds display nodes for a saved roadmap, tolerating choices that no longer exist. */
-export function savedPlanNodes(choices: number[], stage: TierId, postal: string): PlanNode[] {
+/**
+ * Display nodes for school ids in preference order. A choice whose school is not in `schools`
+ * (the school no longer exists) shows as not available.
+ */
+export function planNodes(
+  choices: number[],
+  schools: Record<number, School>,
+  stage: TierId,
+  postal: string,
+): PlanNode[] {
   return choices.map((id, i) => {
-    const school = getSchool(id)
+    const school = schools[id]
     return {
       step: i + 1,
       label: choiceLabel(i),

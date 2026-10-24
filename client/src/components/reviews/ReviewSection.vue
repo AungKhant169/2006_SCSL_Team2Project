@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import AlertMessage from '@/components/ui/AlertMessage.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -19,6 +20,9 @@ const router = useRouter()
 const draft = ref('')
 const editing = ref(false)
 const error = ref('')
+const saving = ref(false)
+const loading = ref(true)
+const loadError = ref('')
 
 const schoolReviews = computed(() => reviews.forSchool(props.schoolId))
 const own = computed(() =>
@@ -26,7 +30,14 @@ const own = computed(() =>
 )
 const others = computed(() => schoolReviews.value.filter((r) => r.id !== own.value?.id))
 /** One review per account: the composer only shows until the student has posted (BR-6). */
-const showComposer = computed(() => auth.loggedIn && (!own.value || editing.value))
+const showComposer = computed(
+  () => auth.loggedIn && !loading.value && (!own.value || editing.value),
+)
+
+onMounted(async () => {
+  loadError.value = await reviews.load(props.schoolId)
+  loading.value = false
+})
 
 function resetComposer() {
   draft.value = ''
@@ -34,13 +45,19 @@ function resetComposer() {
   error.value = ''
 }
 
-function submit() {
-  const message =
-    editing.value && own.value
-      ? reviews.edit(own.value.id, auth.username, draft.value)
-      : reviews.submit(props.schoolId, auth.username, draft.value)
-  if (message) error.value = message
-  else resetComposer()
+async function submit() {
+  if (saving.value) return
+  saving.value = true
+  try {
+    const message =
+      editing.value && own.value
+        ? await reviews.edit(own.value.id, draft.value)
+        : await reviews.submit(props.schoolId, auth.username, draft.value)
+    if (message) error.value = message
+    else resetComposer()
+  } finally {
+    saving.value = false
+  }
 }
 
 function startEdit() {
@@ -53,9 +70,10 @@ function startEdit() {
 function askDelete() {
   const review = own.value
   if (!review) return
-  ui.openModal('delReview', () => {
-    reviews.remove(review.id, auth.username)
-    resetComposer()
+  ui.openModal('delReview', async () => {
+    const message = await reviews.remove(props.schoolId, review.id)
+    if (message) ui.setNotice(message)
+    else resetComposer()
   })
 }
 
@@ -84,6 +102,8 @@ function askToLogIn() {
       <BaseButton @click="askToLogIn">Write a review</BaseButton>
     </div>
 
+    <AlertMessage v-if="loadError">{{ loadError }}</AlertMessage>
+
     <ReviewComposer
       v-if="showComposer"
       v-model="draft"
@@ -104,7 +124,7 @@ function askToLogIn() {
     </ul>
 
     <div
-      v-if="schoolReviews.length === 0"
+      v-if="!loading && !loadError && schoolReviews.length === 0"
       class="rounded-[10px] border border-dashed border-control p-7 text-center text-sm text-muted"
     >
       No reviews yet

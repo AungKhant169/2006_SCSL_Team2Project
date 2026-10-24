@@ -26,7 +26,7 @@ export function pluralize(count: number, singular: string, plural = `${singular}
   return count === 1 ? singular : plural
 }
 
-/** Distance caption such as "4.6 km", or a prompt when no reference postal code is set. */
-export function formatDistance(km: number, hasPostal: boolean): string {
-  return hasPostal ? `${km.toFixed(1)} km` : 'Add postal code'
+/** Distance caption such as "4.6 km", or a prompt when no reference postal code is located. */
+export function formatDistance(km: number | null): string {
+  return km === null ? 'Add postal code' : `${km.toFixed(1)} km`
 }

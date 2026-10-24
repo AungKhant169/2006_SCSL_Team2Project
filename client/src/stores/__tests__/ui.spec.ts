@@ -66,6 +66,18 @@ describe('ui store', () => {
       expect(ui.modal).toBeNull()
     })
 
+    it('can replace the dialog’s text with a message from the server', () => {
+      const ui = useUiStore()
+      ui.openModal('parse', undefined, 'Unable to read the file.')
+      expect(ui.modalDefinition).toMatchObject({
+        title: 'Database Update Failed',
+        body: 'Unable to read the file.',
+        tone: 'danger',
+      })
+      ui.openModal('parse')
+      expect(ui.modalDefinition?.body).toMatch(/Unable to process dataset format/)
+    })
+
     it('confirming a dialog opened without a callback just closes it', () => {
       const ui = useUiStore()
       ui.openModal('timeout')

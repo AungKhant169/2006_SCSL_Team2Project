@@ -1,16 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { routes } from '@/router'
-import { generateAiPlan } from '@/services/roadmapAiService'
-import { mountWithApp, stubAuthApi } from '@/test/helpers'
+import { stubApi } from '@/test/fakeApi'
+import type { FakeApi } from '@/test/fakeApi'
+import { mountWithApp } from '@/test/helpers'
 import App from '../App.vue'
-
-vi.mock('@/services/roadmapAiService', () => ({ generateAiPlan: vi.fn() }))
 
 /*
  * End-to-end journeys through the whole shell: real routes (lazy views), header, banner,
- * dialogs and stores, driven only through what a user can click and type.
+ * dialogs and stores, driven only through what a user can click and type, against a fake
+ * PathSG server.
  */
 
 let mounted: VueWrapper | undefined
@@ -20,9 +20,23 @@ async function settle() {
   await flushPromises()
 }
 
+/** Starts the app on a fake server that already holds two reviews and the planner's two bookmarks. */
 async function launch(route = '/') {
-  stubAuthApi()
-  const app = await mountWithApp(App, { routes, route, attachTo: document.body })
+  const api: FakeApi = stubApi()
+  api.addReview({
+    school_id: 2,
+    username: 'eastsideparent',
+    text: 'Strong Chinese programme.',
+    created_at: '2026-09-09T21:14:00+00:00',
+  })
+  api.addReview({
+    school_id: 2,
+    username: 'kaiyi88',
+    text: 'Teachers respond quickly.',
+    created_at: '2026-09-02T07:40:00+00:00',
+  })
+  for (const user of ['planner2026', 'admin']) api.bookmark(user, 2, 9)
+  const app = await mountWithApp(App, { routes, route, attachTo: document.body, api })
   mounted = app.wrapper as VueWrapper
   await settle()
   return app
@@ -65,37 +79,36 @@ async function logIn(username: string) {
   await submitForm()
 }
 
+const KEYWORD = 'input[placeholder^="School name"]'
+
 const navLabels = () =>
   Array.from(document.body.querySelectorAll('header nav > *')).map((el) =>
     el.textContent!.replace(/\s+/g, ' ').trim(),
   )
 
 describe('PathSG app journeys', () => {
-  beforeEach(() => {
-    vi.mocked(generateAiPlan).mockReset()
-    vi.mocked(generateAiPlan).mockResolvedValue([5, 6, 7, 8])
-  })
   afterEach(() => {
     mounted?.unmount()
     mounted = undefined
-    vi.unstubAllGlobals()
   })
 
   it('opens on the school directory', async () => {
     const { router } = await launch()
     expect(router.currentRoute.value.name).toBe('directory')
     expect(text()).toContain('School Directory')
+    expect(text()).toContain('4 schools · Primary')
     expect(navLabels()).toEqual(['Directory', 'Roadmap', 'Log in'])
   })
 
   describe('guest', () => {
     it('searches, opens a school and reads its profile and reviews', async () => {
       const { router } = await launch()
-      await type('input[placeholder^="Name, acronym"]', 'rosyth')
+      await type(KEYWORD, 'rosyth')
       expect(text()).toContain('1 school · Primary')
       await click('article a', 'Rosyth School')
-      expect(router.currentRoute.value.fullPath).toBe('/schools/2')
+      expect(router.currentRoute.value.fullPath).toBe('/schools/rosyth')
       expect(find('h1').textContent).toBe('Rosyth School')
+      expect(text()).toContain('Science in Action')
       expect(text()).toContain('Reviews (2)')
       expect(text()).toContain('eastsideparent')
       // Guests get no bookmark control on the profile.
@@ -104,11 +117,18 @@ describe('PathSG app journeys', () => {
 
     it('goes back to the directory with the search intact', async () => {
       await launch()
-      await type('input[placeholder^="Name, acronym"]', 'rosyth')
+      await type(KEYWORD, 'rosyth')
       await click('article a', 'Rosyth School')
       await click('a', '← Back to directory')
-      expect(find<HTMLInputElement>('input[placeholder^="Name, acronym"]').value).toBe('rosyth')
+      expect(find<HTMLInputElement>(KEYWORD).value).toBe('rosyth')
       expect(text()).toContain('1 school · Primary')
+    })
+
+    it('browses another tier', async () => {
+      await launch()
+      await click('[aria-label="Education tier"] button', 'Secondary')
+      expect(text()).toContain('4 schools · Secondary')
+      expect(text()).toContain('Raffles Institution')
     })
 
     it('is sent to log in from protected pages, with the reason shown', async () => {
@@ -121,7 +141,7 @@ describe('PathSG app journeys', () => {
     })
 
     it('Write a review asks them to log in, then leads to the login page', async () => {
-      const { router } = await launch('/schools/2')
+      const { router } = await launch('/schools/rosyth')
       await click('button', 'Write a review')
       expect(dialog()!.textContent).toContain(
         'Please log in or create an account to post a review.',
@@ -132,6 +152,11 @@ describe('PathSG app journeys', () => {
         'Log in or create an account to post a review.',
       )
       expect(dialog()).toBeNull()
+    })
+
+    it('reports a school that does not exist', async () => {
+      await launch('/schools/nowhere')
+      expect(text()).toContain('School not found')
     })
   })
 
@@ -155,6 +180,22 @@ describe('PathSG app journeys', () => {
       expect(router.currentRoute.value.name).toBe('admin')
       expect(navLabels()).toContain('Admin panel')
       expect(find('h1').textContent).toBe('Admin panel')
+      expect(text()).toContain('2,418')
+    })
+
+    it('shows an error and stays on the login page when the server refuses', async () => {
+      const { router, api } = await launch()
+      api.override(
+        'POST /user/login',
+        () =>
+          new Response(JSON.stringify({ detail: 'The password entered is incorrect.' }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+      )
+      await logIn('planner2026')
+      expect(router.currentRoute.value.name).toBe('login')
+      expect(text()).toContain('The password entered is incorrect.')
     })
 
     it('logging out returns to the directory and locks protected pages again', async () => {
@@ -171,13 +212,12 @@ describe('PathSG app journeys', () => {
 
   describe('signed-in student', () => {
     it('bookmarks a school from the directory and manages it on the Saved page', async () => {
-      await launch()
+      const { api } = await launch()
       await logIn('planner2026')
       await click('nav a', 'Directory')
-      const save = () => find<HTMLElement>('article button', '☆ Save')
-      save().click()
-      await settle()
+      await click('article button', '☆ Save')
       expect(navLabels()).toContain('Saved 3')
+      expect(api.bookmarks['planner2026']).toEqual([2, 9, 1])
 
       await click('nav a', 'Saved 3')
       expect(find('h1').textContent).toBe('Saved institutions')
@@ -186,21 +226,27 @@ describe('PathSG app journeys', () => {
       await click('button[aria-label="Remove Rosyth School"]')
       expect(document.body.querySelectorAll('main article')).toHaveLength(2)
       expect(navLabels()).toContain('Saved 2')
+      expect(api.bookmarks['planner2026']).toEqual([9, 1])
     })
 
-    it('updates the profile, then generates and saves a roadmap that persists across pages', async () => {
-      const { router } = await launch()
+    it('saves the profile, then generates and saves a roadmap that persists across pages', async () => {
+      const { router, api } = await launch()
       await logIn('planner2026')
+      await type('input[aria-label="Residential postal code"]', '556000')
+      await type('input[placeholder="4 – 32"]', '8')
       await click('button', 'Save profile')
       expect(find('[role="status"]').textContent).toContain('Profile saved')
+      expect(api.profiles['planner2026']).toMatchObject({ score_a: 8, postal: '556000' })
 
       await click('nav a', 'Roadmap')
       await click('button', 'Generate Roadmap')
       expect(text()).toContain('Rule-Based Plan')
       expect(text()).toContain("St. Gabriel's Secondary School")
       expect(text()).toContain('AI-Generated Plan')
+      expect(text()).toContain('Bukit Panjang Govt. High School')
       await click('section button', 'Save Roadmap')
       expect(find('[role="status"]').textContent).toContain('Roadmap saved to your profile.')
+      expect(api.roadmaps['planner2026']?.choices).toEqual([8, 5, 6])
 
       await click('nav a', 'Directory')
       await click('nav a', 'Roadmap')
@@ -209,10 +255,29 @@ describe('PathSG app journeys', () => {
       expect(text()).toContain('Primary → Secondary · Rule-Based Plan')
     })
 
+    it('finds their profile and roadmap again after logging back in', async () => {
+      await launch()
+      await logIn('planner2026')
+      await type('input[aria-label="Residential postal code"]', '556000')
+      await type('input[placeholder="4 – 32"]', '8')
+      await click('button', 'Save profile')
+      await click('nav a', 'Roadmap')
+      await click('button', 'Generate Roadmap')
+      await click('section button', 'Save Roadmap')
+      await click('header button', 'planner2026 · Log out')
+
+      await logIn('planner2026')
+      expect(find<HTMLInputElement>('input[aria-label="Residential postal code"]').value).toBe(
+        '556000',
+      )
+      expect(find<HTMLInputElement>('input[placeholder="4 – 32"]').value).toBe('8')
+      await click('nav a', 'Roadmap')
+      expect(text()).toContain('Saved roadmap')
+    })
+
     it('is told to complete their profile when generating a roadmap without a postal code', async () => {
       const { router } = await launch()
       await logIn('planner2026')
-      await type('input[aria-label="Residential postal code"]', '')
       await click('nav a', 'Roadmap')
       await click('button', 'Generate Roadmap')
       expect(dialog()!.textContent).toContain('Missing Profile Information')
@@ -253,6 +318,26 @@ describe('PathSG app journeys', () => {
       await settle()
       expect(router.currentRoute.value.name).toBe('directory')
       expect(find('[role="status"]').textContent).toContain('restricted to administrator')
+    })
+  })
+
+  describe('administrator', () => {
+    it('updates the school dataset from the admin panel', async () => {
+      const { api } = await launch()
+      await logIn('admin')
+      const picker = find<HTMLInputElement>('input[type="file"]')
+      Object.defineProperty(picker, 'files', {
+        value: [new File(['a,b'], 'moe.csv', { type: 'text/csv' })],
+        configurable: true,
+      })
+      picker.dispatchEvent(new Event('change', { bubbles: true }))
+      await settle()
+      await click('button', 'Update Dataset')
+      expect(find('[role="alert"]').textContent).toContain(
+        'Database updated successfully with the latest Singapore school data',
+      )
+      expect(text()).toContain('2,424')
+      expect(api.callsTo('POST /admin/dataset/update')).toHaveLength(1)
     })
   })
 

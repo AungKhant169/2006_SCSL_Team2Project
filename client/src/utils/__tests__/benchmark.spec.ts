@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getSchool } from '@/data/schools'
+import { makeSchool } from '@/test/fixtures'
 import type { BenchmarkSpec } from '@/types/school'
 import {
   benchmarkBarPercent,
@@ -8,50 +8,52 @@ import {
   latestBenchmark,
 } from '../benchmark'
 
+const PLACES: BenchmarkSpec = { format: { kind: 'places' }, max: 400 }
+const T_SCORE: BenchmarkSpec = { format: { kind: 'tScore' }, max: 300 }
+
 describe('formatBenchmark', () => {
-  it('renders the primary Phase 2C ratio', () => {
-    expect(formatBenchmark({ format: { kind: 'ratio' }, max: 4 }, 3)).toBe('3.0 : 1')
+  it('renders the primary places taken', () => {
+    expect(formatBenchmark(PLACES, 130)).toBe('130 places')
   })
 
-  it('renders PSLE AL ranges from the best score of 4', () => {
-    expect(formatBenchmark({ format: { kind: 'alRange' }, max: 32 }, 6)).toBe('AL 4 – 6')
-  })
-
-  it('renders JAE cut-offs with their scale', () => {
-    const l1r5: BenchmarkSpec = { format: { kind: 'cutoff', scale: 'L1R5' }, max: 20 }
-    const elr2b2: BenchmarkSpec = { format: { kind: 'cutoff', scale: 'ELR2B2' }, max: 30 }
-    expect(formatBenchmark(l1r5, 5)).toBe('L1R5 ≤ 5')
-    expect(formatBenchmark(elr2b2, 9)).toBe('ELR2B2 ≤ 9')
-  })
-
-  it('renders GPA bands to two decimals', () => {
-    expect(formatBenchmark({ format: { kind: 'gpaRange', upper: 4 }, max: 4 }, 3.9)).toBe(
-      '3.90 – 4.00',
-    )
+  it('renders a PSLE T-score cut-off as a minimum', () => {
+    expect(formatBenchmark(T_SCORE, 264)).toBe('T-score ≥ 264')
   })
 })
 
 describe('benchmarkBarPercent', () => {
   it('fills proportionally for normal scales', () => {
-    expect(benchmarkBarPercent({ format: { kind: 'ratio' }, max: 4 }, 3)).toBe(75)
+    expect(benchmarkBarPercent(T_SCORE, 225)).toBe(75)
+  })
+
+  it('never overflows the bar', () => {
+    expect(benchmarkBarPercent(PLACES, 520)).toBe(100)
   })
 
   it('fills more as the value drops for inverse scales (lower = more selective)', () => {
-    const spec: BenchmarkSpec = { format: { kind: 'alRange' }, max: 32, inverse: true }
-    expect(benchmarkBarPercent(spec, 8)).toBe(75)
-    expect(benchmarkBarPercent(spec, 6)).toBeGreaterThan(benchmarkBarPercent(spec, 16))
+    const spec: BenchmarkSpec = { ...T_SCORE, inverse: true }
+    expect(benchmarkBarPercent(spec, 75)).toBe(75)
+    expect(benchmarkBarPercent(spec, 60)).toBeGreaterThan(benchmarkBarPercent(spec, 160))
   })
 })
 
 describe('latest benchmark of a school', () => {
-  it('picks the most recent year', () => {
-    const rosyth = getSchool(2)!
-    expect(latestBenchmark(rosyth)).toEqual({ year: '2025', value: 2.4 })
-    expect(formatLatestBenchmark(rosyth)).toBe('2.4 : 1')
+  const school = makeSchool({
+    benchmark: T_SCORE,
+    history: [
+      { year: '2016', value: 250 },
+      { year: '2017', value: 260 },
+    ],
   })
 
-  it('formats university IGP bands with the school-specific upper bound', () => {
-    expect(formatLatestBenchmark(getSchool(14)!)).toBe('3.90 – 4.00')
-    expect(formatLatestBenchmark(getSchool(15)!)).toBe('3.75 – 3.98')
+  it('picks the most recent year', () => {
+    expect(latestBenchmark(school)).toEqual({ year: '2017', value: 260 })
+    expect(formatLatestBenchmark(school)).toBe('T-score ≥ 260')
+  })
+
+  it('is empty for a school the dataset has no figures for', () => {
+    const bare = makeSchool()
+    expect(latestBenchmark(bare)).toBeUndefined()
+    expect(formatLatestBenchmark(bare)).toBe('')
   })
 })

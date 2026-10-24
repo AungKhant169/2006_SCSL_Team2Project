@@ -1,15 +1,14 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { useBookmarksStore } from '@/stores/bookmarks'
-import { mountWithApp, signInAs, stubAuthApi } from '@/test/helpers'
+import { stubApi } from '@/test/fakeApi'
+import { mountWithApp, signInAs } from '@/test/helpers'
 import NavLinks from '../NavLinks.vue'
 
 const labels = (wrapper: Awaited<ReturnType<typeof mountWithApp>>['wrapper']) =>
   wrapper.findAll('a, button').map((el) => el.text().replace(/\s+/g, ' ').trim())
 
 describe('NavLinks', () => {
-  afterEach(() => vi.unstubAllGlobals())
-
   describe('guest', () => {
     it('sees Directory, Roadmap and Log in only (REQ-2.17)', async () => {
       const { wrapper } = await mountWithApp(NavLinks)
@@ -24,8 +23,9 @@ describe('NavLinks', () => {
 
   describe('signed-in student', () => {
     async function mountSignedIn(username = 'planner2026') {
-      stubAuthApi()
-      const mounted = await mountWithApp(NavLinks)
+      const api = stubApi()
+      api.bookmark(username, 2, 9)
+      const mounted = await mountWithApp(NavLinks, { api })
       await signInAs(username)
       await flushPromises()
       return mounted
@@ -49,7 +49,7 @@ describe('NavLinks', () => {
 
     it('keeps the Saved count in step with bookmarks', async () => {
       const { wrapper } = await mountSignedIn()
-      useBookmarksStore().add(14)
+      await useBookmarksStore().add(5)
       await flushPromises()
       expect(wrapper.get('[data-testid="saved-count"]').text()).toBe('3')
     })
@@ -66,7 +66,6 @@ describe('NavLinks', () => {
 
   describe('admin', () => {
     it('sees the Admin panel entry (REQ-5.7)', async () => {
-      stubAuthApi()
       const { wrapper } = await mountWithApp(NavLinks)
       await signInAs('admin')
       await flushPromises()
@@ -75,15 +74,16 @@ describe('NavLinks', () => {
   })
 
   it('highlights the entry for the current page only', async () => {
-    const { wrapper, router } = await mountWithApp(NavLinks)
+    const api = stubApi()
+    api.bookmark('planner2026', 2, 9)
+    const { wrapper, router } = await mountWithApp(NavLinks, { api })
     const active = () => wrapper.findAll('.nav-link-active').map((a) => a.text())
     expect(active()).toEqual(['Directory'])
-    stubAuthApi()
     await signInAs('planner2026')
     await router.push('/saved')
     await flushPromises()
     expect(active()).toEqual(['Saved 2'])
-    await router.push('/schools/2')
+    await router.push('/schools/rosyth')
     await flushPromises()
     expect(active()).toEqual([])
   })

@@ -21,6 +21,7 @@ const saved = computed(() => bookmarks.has(props.schoolId))
     :size="size"
     title="Bookmark"
     :aria-pressed="saved"
+    :disabled="bookmarks.isPending(schoolId)"
     @click.stop="bookmarks.toggle(schoolId)"
   >
     {{ saved ? '★ Saved' : '☆ Save' }}

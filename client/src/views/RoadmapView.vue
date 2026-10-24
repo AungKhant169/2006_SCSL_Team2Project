@@ -39,23 +39,23 @@ function generate() {
 
 /** Only one roadmap can be kept, so replacing it needs confirmation (REQ-3.11). */
 function save(source: PlanSource) {
-  const commit = () => {
-    roadmap.save(source)
-    ui.setNotice('Roadmap saved to your profile.')
+  const commit = async () => {
+    const failure = await roadmap.save(source)
+    ui.setNotice(failure || 'Roadmap saved to your profile.')
   }
   if (roadmap.hasSaved) ui.openModal('overwrite', commit)
-  else commit()
+  else void commit()
 }
 
-function saveEdits() {
-  roadmap.saveEdits()
-  ui.setNotice('Roadmap updated.')
+async function saveEdits() {
+  const failure = await roadmap.saveEdits()
+  ui.setNotice(failure || 'Roadmap updated.')
 }
 
 function askDelete() {
-  ui.openModal('delRoadmap', () => {
-    roadmap.remove()
-    ui.setNotice('Saved roadmap deleted.')
+  ui.openModal('delRoadmap', async () => {
+    const failure = await roadmap.remove()
+    ui.setNotice(failure || 'Saved roadmap deleted.')
   })
 }
 </script>

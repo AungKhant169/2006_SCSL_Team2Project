@@ -6,6 +6,8 @@ import type { ModalDefinition, ModalId } from '@/data/modals'
 interface OpenModal {
   id: ModalId
   onConfirm?: () => void
+  /** Replaces the dialog's standard text, e.g. with a message the server sent. */
+  body?: string
 }
 
 /** Cross-cutting UI state: the banner notice under the header and the confirmation dialog. */
@@ -37,8 +39,8 @@ export const useUiStore = defineStore('ui', () => {
     else notice.value = ''
   }
 
-  function openModal(id: ModalId, onConfirm?: () => void) {
-    modal.value = { id, onConfirm }
+  function openModal(id: ModalId, onConfirm?: () => void, body?: string) {
+    modal.value = { id, onConfirm, body }
   }
 
   function closeModal() {
@@ -52,7 +54,9 @@ export const useUiStore = defineStore('ui', () => {
   }
 
   const modalDefinition = computed<ModalDefinition | null>(() =>
-    modal.value ? MODALS[modal.value.id] : null,
+    modal.value
+      ? { ...MODALS[modal.value.id], ...(modal.value.body ? { body: modal.value.body } : {}) }
+      : null,
   )
 
   return {

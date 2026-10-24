@@ -9,7 +9,7 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/DirectoryView.vue'),
   },
   {
-    path: '/schools/:id',
+    path: '/schools/:schoolKey',
     name: 'school',
     component: () => import('@/views/SchoolDetailView.vue'),
     props: true,

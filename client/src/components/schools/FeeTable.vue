@@ -24,7 +24,7 @@ const citizenshipLabel = computed(() => CITIZENSHIPS.find((c) => c.id === citize
 
     <p class="m-0 text-[13px] text-muted">
       Fees shown for <b>{{ citizenshipLabel }}</b
-      >{{ tier.feeUnit }}. Itemised per course; figures are illustrative.
+      >{{ tier.feeUnit }}. Itemised per course.
     </p>
 
     <div class="overflow-hidden rounded-[10px] border border-line-soft">

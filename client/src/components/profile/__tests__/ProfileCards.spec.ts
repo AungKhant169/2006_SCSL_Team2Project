@@ -33,6 +33,8 @@ describe('PostalCodeCard (REQ-2.10, BR-4)', () => {
 
   it('confirms a valid code and flags a missing or incomplete one', async () => {
     const wrapper = mountCard()
+    expect(wrapper.text()).toContain('Required · 6 digits')
+    await input(wrapper).setValue('556000')
     expect(wrapper.text()).toContain('Valid Singapore postal code')
     await input(wrapper).setValue('1234')
     expect(wrapper.text()).toContain('Required · 6 digits')
@@ -55,7 +57,7 @@ describe('TargetLevelCard (REQ-2.6)', () => {
     setActivePinia(createPinia())
     const wrapper = mount(TargetLevelCard)
     const profile = useProfileStore()
-    expect(profile.scoreA).toBe('8')
+    profile.scoreA = '8'
     await wrapper.findAll('button')[4]!.trigger('click')
     expect(profile.level).toBe('uni')
     expect(profile.scoreA).toBe('')
@@ -129,8 +131,9 @@ describe('AcademicResultsCard (REQ-2.7, PERF-2)', () => {
   it('shows the profile’s validation error inline', async () => {
     const wrapper = await mountFor('secondary')
     const profile = useProfileStore()
+    profile.setPostal('556000')
     profile.scoreA = '35'
-    profile.save()
+    await profile.save()
     await wrapper.vm.$nextTick()
     expect(wrapper.get('[role="alert"]').text()).toBe(
       'Invalid academic score! PSLE AL must be a whole number from 4 to 32.',

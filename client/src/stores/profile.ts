@@ -1,21 +1,27 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { getLevel } from '@/data/education'
+import { ApiError, GENERIC_ERROR } from '@/services/http'
+import * as profileService from '@/services/profileService'
+import type { ProfileForm } from '@/services/profileService'
 import type { PrimaryResult } from '@/types/profile'
 import type { TierId } from '@/types/school'
 import { isValidPostalCode, sanitizePostalInput } from '@/utils/postalCode'
 import { validateProfile } from '@/utils/profileValidation'
-import { DEFAULT_POSTAL, useDirectoryStore } from './directory'
+import { useDirectoryStore } from './directory'
 
-/** Student profile controller (UC-2.4): validates form state and updates the distance anchor. */
+const DEFAULT_LEVEL: TierId = 'secondary'
+
+/** Student profile controller (UC-2.4): validates form state, stores it, and updates the distance anchor. */
 export const useProfileStore = defineStore('profile', () => {
-  const level = ref<TierId>('secondary')
-  const scoreA = ref('8')
+  const level = ref<TierId>(DEFAULT_LEVEL)
+  const scoreA = ref('')
   const scoreB = ref('')
-  const postal = ref(DEFAULT_POSTAL)
+  const postal = ref('')
   const primaryResult = ref<PrimaryResult>('None')
   const error = ref('')
   const status = ref('')
+  const saving = ref(false)
 
   const levelInfo = computed(() => getLevel(level.value))
   const postalValid = computed(() => isValidPostalCode(postal.value))
@@ -40,8 +46,26 @@ export const useProfileStore = defineStore('profile', () => {
     postal.value = sanitizePostalInput(value)
   }
 
-  /** Only a valid form may change the directory's residential postal code. */
-  function save(): boolean {
+  function apply(form: ProfileForm) {
+    level.value = form.level
+    scoreA.value = form.scoreA
+    scoreB.value = form.scoreB
+    postal.value = form.postal
+    primaryResult.value = form.primaryResult
+  }
+
+  /** Fills the form from the account's stored profile. Keeps the starting values if it cannot be read. */
+  async function load() {
+    try {
+      apply(await profileService.loadProfile())
+      clearMessages()
+    } catch (failure) {
+      error.value = failure instanceof ApiError ? failure.message : GENERIC_ERROR
+    }
+  }
+
+  /** Only a valid form may be stored, and change the directory's residential postal code. */
+  async function save(): Promise<boolean> {
     clearMessages()
     error.value = validateProfile({
       level: level.value,
@@ -50,17 +74,33 @@ export const useProfileStore = defineStore('profile', () => {
       postal: postal.value,
     })
     if (error.value) return false
+
+    saving.value = true
+    try {
+      await profileService.saveProfile({
+        level: level.value,
+        scoreA: scoreA.value,
+        scoreB: scoreB.value,
+        postal: postal.value,
+        primaryResult: primaryResult.value,
+      })
+    } catch (failure) {
+      error.value = failure instanceof ApiError ? failure.message : GENERIC_ERROR
+      return false
+    } finally {
+      saving.value = false
+    }
     useDirectoryStore().setPostal(postal.value)
     status.value = 'Profile saved'
     return true
   }
 
-  /** Restores the demo defaults when the account session ends. */
+  /** Back to the starting values when the account session ends. */
   function reset() {
-    level.value = 'secondary'
-    scoreA.value = '8'
+    level.value = DEFAULT_LEVEL
+    scoreA.value = ''
     scoreB.value = ''
-    postal.value = DEFAULT_POSTAL
+    postal.value = ''
     primaryResult.value = 'None'
     clearMessages()
   }
@@ -73,10 +113,12 @@ export const useProfileStore = defineStore('profile', () => {
     primaryResult,
     error,
     status,
+    saving,
     levelInfo,
     postalValid,
     setLevel,
     setPostal,
+    load,
     save,
     reset,
   }

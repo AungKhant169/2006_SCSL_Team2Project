@@ -50,12 +50,12 @@ describe('pluralize', () => {
 })
 
 describe('formatDistance', () => {
-  it('shows kilometres to one decimal when a postal code is known', () => {
-    expect(formatDistance(4.55, true)).toMatch(/^4\.[56] km$/)
-    expect(formatDistance(1, true)).toBe('1.0 km')
+  it('shows kilometres to one decimal when the distance is known', () => {
+    expect(formatDistance(4.55)).toMatch(/^4.[56] km$/)
+    expect(formatDistance(1)).toBe('1.0 km')
   })
 
   it('prompts for a postal code otherwise', () => {
-    expect(formatDistance(4.6, false)).toBe('Add postal code')
+    expect(formatDistance(null)).toBe('Add postal code')
   })
 })
