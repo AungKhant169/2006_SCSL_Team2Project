@@ -34,7 +34,7 @@ pulling them, use `docker compose up -d --build`.
 
 Data is kept in the `pathsg-data` volume (a SQLite file), so it survives `docker compose down`
 and upgrades. `docker compose down -v` deletes it. The server must run as a single instance:
-the database is SQLite and refresh tokens are held in memory.
+the database is SQLite and the school data update lock is held in memory.
 
 To serve over HTTPS, put a TLS-terminating proxy in front of the client container and set
 `PUBLIC_ORIGIN` to the public `https://` address.

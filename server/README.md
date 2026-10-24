@@ -124,8 +124,8 @@ each one's `id` as well as its `school_key`, so a client never needs a second lo
   least one digit and one special character. Passwords are stored as bcrypt hashes.
 - Access tokens are HS256 JWTs that expire after 5 minutes. Refresh tokens are random strings, and
   each is single-use: `/user/refresh` returns a new pair.
-- Refresh tokens are kept in process memory, so they are lost on restart and the server must run as a
-  single worker. Everyone then has to log in again.
+- Refresh tokens are kept in the database as SHA-256 digests and expire after 7 days, so a restart or
+  redeploy does not sign anyone out. Logging out, or using a token, deletes it.
 - A user's role is read from the database on every request, so promoting or demoting an account
   takes effect immediately, with no new token needed.
 

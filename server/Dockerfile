@@ -36,6 +36,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=2)" || exit 1
 
-# Apply database migrations, then serve. A single worker is required: refresh tokens are held in
-# process memory.
+# Apply database migrations, then serve. A single worker is required: the school data update lock
+# is held in process memory.
 CMD ["sh", "-c", "alembic upgrade head && python -m scripts.refresh_school_data --if-empty && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
