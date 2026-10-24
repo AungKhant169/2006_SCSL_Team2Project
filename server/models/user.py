@@ -2,6 +2,7 @@ import os
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+from enum import StrEnum
 from typing import Self
 
 import bcrypt
@@ -33,6 +34,11 @@ def always_admin_usernames() -> set[str]:
 # This is required to automatically refresh JWT tokens on expiry.
 # The tokens does not persist across application restarts.
 refresh_tokens: dict[str, int] = {}
+
+
+class Role(StrEnum):
+    USER = "user"
+    ADMIN = "admin"
 
 
 class UserError(HttpError):
@@ -68,6 +74,10 @@ class UserError(HttpError):
         status.HTTP_401_UNAUTHORIZED,
         "This account no longer exists. Please log in or create a new account.",
     )
+    ADMIN_REQUIRED = (
+        status.HTTP_403_FORBIDDEN,
+        "This action is restricted to administrator accounts.",
+    )
 
 
 class User(Base, Persistable):
@@ -75,8 +85,9 @@ class User(Base, Persistable):
 
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     password: Mapped[str] = mapped_column(String, nullable=False)
+    # Registration always creates plain users; administrators are promoted out of band.
     role: Mapped[str] = mapped_column(
-        String, default=ROLE_USER, server_default=ROLE_USER
+        String, nullable=False, default=Role.USER, server_default=Role.USER
     )
 
     def _create_access_token(self) -> str:

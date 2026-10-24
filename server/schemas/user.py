@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from models.user import Role
+
 
 class Credentials(BaseModel):
     username: str
@@ -9,7 +11,7 @@ class Credentials(BaseModel):
 class Identity(BaseModel):
     id: int
     username: str
-    role: str
+    role: Role
 
 
 class TokenRequest(BaseModel):

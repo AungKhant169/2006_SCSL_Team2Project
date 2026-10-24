@@ -1,6 +1,7 @@
 from fastapi import status
 
 from core.roadmap_ai import AIRoadmapGenerator, RoadmapAIError
+from models.school_record import SchoolInfo
 from models.user import UserError
 from tests.conftest import client
 
@@ -28,12 +29,22 @@ class TestGenerateAI:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_success(self, authenticated, monkeypatch):
+        first = SchoolInfo.create(school_key="first", school_name="First School")
+        second = SchoolInfo.create(school_key="second", school_name="Second School")
+        # The school details follow the order of the choices; unknown ids are skipped.
+        choices = [second.id, 999, first.id]
         monkeypatch.setattr(
-            AIRoadmapGenerator, "generate", lambda user, request: [6, 5, 8]
+            AIRoadmapGenerator, "generate", lambda user, request: choices
         )
         response = generate(authenticated)
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == {"choices": [6, 5, 8], "schools": []}
+        body = response.json()
+        assert body["choices"] == choices
+        assert [school["id"] for school in body["schools"]] == [second.id, first.id]
+        assert [school["school_name"] for school in body["schools"]] == [
+            "Second School",
+            "First School",
+        ]
 
     def test_ai_unavailable(self, authenticated, monkeypatch):
         def fail(user, request):

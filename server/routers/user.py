@@ -9,7 +9,7 @@ router = APIRouter(prefix="/user", tags=["user"])
 
 @router.get("/identity", response_model=Identity)
 def identity(user: Requester):
-    return Identity(id=user.id, username=user.username, role=user.effective_role)
+    return Identity(id=user.id, username=user.username, role=user.role)
 
 
 @router.post("/refresh", response_model=TokenResponse)

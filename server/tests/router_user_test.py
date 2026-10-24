@@ -15,6 +15,16 @@ def identity(access_token):
     return client.get("/user/identity", headers=headers)
 
 
+class TestIdentity:
+    def test_user_role(self, authenticated):
+        response = identity(authenticated.tokens["access_token"])
+        assert response.json()["role"] == "user"
+
+    def test_admin_role(self, admin):
+        response = identity(admin.tokens["access_token"])
+        assert response.json()["role"] == "admin"
+
+
 class TestRefresh:
     def test_success(self, authenticated):
         response = client.post("/user/refresh", json=authenticated.tokens)
