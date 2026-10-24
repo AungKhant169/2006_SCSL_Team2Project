@@ -164,10 +164,14 @@ class AIRoadmapGenerator:
         # The username is deliberately not sent to the AI: no personal identifiers should leave the system.
         prompt = cls._build_prompt(request, list(pool.values()))
 
+        # An empty key (docker compose passes one through) would only earn a 401 from OpenAI.
+        if not os.environ.get("OPENAI_API_KEY"):
+            raise RoadmapAIError.AI_UNAVAILABLE
+
         try:
             client = OpenAI(timeout=AI_TIMEOUT_SECONDS, max_retries=0)
             completion = client.chat.completions.create(
-                model=os.environ.get("OPENAI_MODEL", "gpt-5.5"),
+                model=os.environ.get("OPENAI_MODEL") or "gpt-5.5",
                 messages=[{"role": "user", "content": prompt}],
                 response_format=RESPONSE_FORMAT,
                 reasoning_effort="low",

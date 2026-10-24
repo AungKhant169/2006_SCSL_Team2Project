@@ -67,10 +67,25 @@ class TestGenerateAI:
                 create = lambda **request: completion
                 self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
 
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         monkeypatch.setattr(roadmap_ai, "OpenAI", FakeOpenAI)
         body = generate(authenticated).json()
         assert body["choices"] == [school.id]
         assert [s["id"] for s in body["schools"]] == [school.id]
+
+    def test_without_an_api_key_openai_is_not_called(self, authenticated, monkeypatch):
+        SchoolInfo.create(
+            school_key="first", school_name="First", mainlevel_code="SECONDARY (S1-S5)"
+        )
+
+        class NeverCalled:
+            def __init__(self, **options):
+                raise AssertionError("OpenAI must not be called without a key")
+
+        # docker compose passes an empty key through when none is configured.
+        monkeypatch.setenv("OPENAI_API_KEY", "")
+        monkeypatch.setattr(roadmap_ai, "OpenAI", NeverCalled)
+        assert error(generate(authenticated)) == RoadmapAIError.AI_UNAVAILABLE
 
     def test_ai_unavailable(self, authenticated, monkeypatch):
         def fail(user, request):
