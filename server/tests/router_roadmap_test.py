@@ -33,7 +33,7 @@ class TestGenerateAI:
         )
         response = generate(authenticated)
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() == {"choices": [6, 5, 8]}
+        assert response.json() == {"choices": [6, 5, 8], "schools": []}
 
     def test_ai_unavailable(self, authenticated, monkeypatch):
         def fail(user, request):
