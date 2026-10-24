@@ -162,7 +162,7 @@ left out).
   There is no rule-based plan for `uni`.
 - **AI** ([`core/roadmap_ai.py`](core/roadmap_ai.py)). Sends the candidate schools for the stage to
   OpenAI with a strict JSON schema, then keeps only valid, unique ids. The username is never sent.
-  It gives up after 10 seconds (504), and any other failure or unusable answer is a 503.
+  It gives up after 4 seconds (504), so it answers before the client's 5 second limit, and any other failure or unusable answer is a 503.
 - **Distance** ([`core/geolocation.py`](core/geolocation.py)) is approximate: the first two digits of
   the postal code select a postal district, and the distance is measured to that district's centre.
   `GET /location/{postal}` returns that centre, so a client can show the same distances.

@@ -15,7 +15,7 @@ from schemas.roadmap import CreateRoadmapRequest
 load_dotenv()
 
 # The client gives up after 5 seconds (PERF-7), so stop slightly earlier than that.
-AI_TIMEOUT_SECONDS = 10
+AI_TIMEOUT_SECONDS = 4
 
 # Strict JSON schema: the model must answer with {"choices": [<school id>, ...]}.
 RESPONSE_FORMAT = {
@@ -62,7 +62,7 @@ STAGE_CRITERIA = {
     "primary": [
         (
             "Distance matters a lot: choose schools close to the student's home. Estimate "
-            "nearness from the postal codes, addresses and zones (the first two digits of a "
+            "nearness from the postal codes and zones (the first two digits of a "
             "Singapore postal code identify the postal sector). The estimate can be rough."
         ),
         "Where possible, vary the choices by programme (for example gifted education).",
@@ -75,7 +75,7 @@ STAGE_CRITERIA = {
         ),
         (
             "Between schools that fit equally well, prefer the one nearer to the student's "
-            "home. Estimate nearness from the postal codes, addresses and zones; the "
+            "home. Estimate nearness from the postal codes and zones; the "
             "estimate can be rough."
         ),
     ],
@@ -123,7 +123,12 @@ class RoadmapAIError(HttpError):
 
 
 def _describe(school: SchoolInfo) -> dict:
-    """The few facts about a school that are useful to the AI."""
+    """The few facts about a school that are useful to the AI.
+
+    Every candidate is sent, so each extra field costs tokens for every school and slows the answer
+    down: the address (the postal code and zone already place the school), the programme titles, the
+    gender mix and the 2017 rank (the cut-off already says how selective the school is) are left out.
+    """
     flags = [
         label
         for label, value in (
@@ -141,15 +146,10 @@ def _describe(school: SchoolInfo) -> dict:
         "name": school.school_name,
         "level": school.mainlevel_code,
         "type": school.school_type,
-        "gender_mix": school.gendermix,
         "zone": school.zone,
         "postal_code": school.postal_code,
-        "address": school.address,
         "psle_2017_cutoff": school.psle_2017_cutoff,
-        "rank_2017": school.rank_2017,
         "programmes": flags,
-        "applied_learning": school.alp_title,
-        "learning_for_life": school.llp_title,
     }
     return {key: value for key, value in details.items() if value not in (None, "", [])}
 
@@ -203,7 +203,7 @@ class AIRoadmapGenerator:
             score="not provided" if score is None else score,
             postal=request.postal or "not provided",
             note=STAGE_NOTES[request.stage],
-            schools=json.dumps([_describe(s) for s in schools], indent=1),
+            schools=json.dumps([_describe(s) for s in schools], separators=(",", ":")),
             length=PLAN_LENGTH,
             criteria="\n".join(f"{n}. {text}" for n, text in enumerate(criteria, 1)),
         )

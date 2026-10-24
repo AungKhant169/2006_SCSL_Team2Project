@@ -8,6 +8,7 @@ from core.roadmap_ai import AIRoadmapGenerator, RoadmapAIError
 from models.base import SessionLocal
 from models.school_record import SchoolInfo, SchoolSubject
 from models.user import UserError
+from schemas.roadmap import CreateRoadmapRequest
 from tests.conftest import client
 
 PAYLOAD = {"stage": "secondary", "postal": "556000", "previous_academic_score": 8}
@@ -72,6 +73,49 @@ class TestGenerateAI:
         body = generate(authenticated).json()
         assert body["choices"] == [school.id]
         assert [s["id"] for s in body["schools"]] == [school.id]
+
+    def test_gives_up_before_the_client_does(self, authenticated, monkeypatch):
+        school = SchoolInfo.create(
+            school_key="first", school_name="First", mainlevel_code="SECONDARY (S1-S5)"
+        )
+        options = {}
+
+        class FakeOpenAI:
+            def __init__(self, **kwargs):
+                options.update(kwargs)
+                reply = json.dumps({"choices": [school.id]})
+                completion = SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content=reply))]
+                )
+                create = lambda **request: completion
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setattr(roadmap_ai, "OpenAI", FakeOpenAI)
+        generate(authenticated)
+        # The client aborts after 5 seconds (PERF-7); a longer wait only leaves it with a dropped request.
+        assert options["timeout"] < 5
+
+    def test_prompt_only_carries_what_the_choice_needs(self):
+        school = SchoolInfo.create(
+            school_key="first",
+            school_name="First",
+            mainlevel_code="SECONDARY (S1-S5)",
+            address="1 LONG ROAD",
+            postal_code="556000",
+            gendermix="Mixed",
+            rank_2017=7,
+            psle_2017_cutoff=250,
+            alp_title="Robotics",
+            llp_title="Service",
+        )
+        request = CreateRoadmapRequest(stage="secondary", postal="556000")
+        prompt = AIRoadmapGenerator._build_prompt(request, [school])
+        # Every candidate is sent, so the long free text is left out to keep the answer fast.
+        for left_out in ("1 LONG ROAD", "Robotics", "Service", "Mixed"):
+            assert left_out not in prompt
+        for kept in ("First", "556000", "250"):
+            assert kept in prompt
 
     def test_without_an_api_key_openai_is_not_called(self, authenticated, monkeypatch):
         SchoolInfo.create(
