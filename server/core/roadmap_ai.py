@@ -133,7 +133,8 @@ def _describe(school: SchoolInfo) -> dict:
             ("integrated programme", school.ip_ind),
             ("IB", school.ib),
         )
-        if (value or "").strip().lower() == "yes"
+        # The IB column holds Y or N, the others Yes or No.
+        if (value or "").strip().lower() in ("yes", "y")
     ]
     details = {
         "id": school.id,
