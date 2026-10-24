@@ -20,6 +20,7 @@ from core.school_cleaning import (
     read_csv_bytes,
 )
 from models.base import SessionLocal
+from models.dataset_update import DatasetUpdate
 from models.school_record import (
     SchoolBus,
     SchoolCca,
@@ -148,12 +149,17 @@ def _write_database(dataset: CleanDataset) -> dict:
             session.execute(delete(model))
             if rows:
                 session.execute(insert(model), rows)
+        added = len(new_keys - set(existing))
+        updated = len(new_keys & set(existing))
+        session.add(
+            DatasetUpdate(schools=len(dataset.schools), added=added, updated=updated)
+        )
         session.commit()
 
     return {
         "schools": len(dataset.schools),
-        "added": len(new_keys - set(existing)),
-        "updated": len(new_keys & set(existing)),
+        "added": added,
+        "updated": updated,
         # kept (other features may point at them) but no longer in the files
         "not_in_files": len(set(existing) - new_keys),
         "subjects": len(dataset.subjects),

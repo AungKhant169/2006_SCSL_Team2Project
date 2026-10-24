@@ -1,4 +1,6 @@
-from pydantic import BaseModel, ConfigDict, Field
+from datetime import datetime, timezone
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
 
 class SchoolFilter(BaseModel):
@@ -119,6 +121,18 @@ class SchoolPage(BaseModel):
     limit: int
     offset: int
     items: list[SchoolInfoSummary]
+
+
+class DatasetStatus(BaseModel):
+    records: int = Field(description="Schools in the database")
+    last_update: datetime | None = Field(
+        None, description="When the data was last loaded; empty if it never was"
+    )
+
+    @field_serializer("last_update")
+    def serialize_last_update(self, value: datetime | None) -> str | None:
+        # Stored as naive UTC; mark it so clients convert to their local time.
+        return None if value is None else value.replace(tzinfo=timezone.utc).isoformat()
 
 
 class SchoolUpdateResult(BaseModel):

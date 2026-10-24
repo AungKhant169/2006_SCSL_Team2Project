@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 
 from sqlalchemy import Integer, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
@@ -15,6 +16,11 @@ engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 class Base(DeclarativeBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+
+
+def utc_now() -> datetime:
+    """Timestamps are stored as naive UTC, since SQLite drops time zones."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class SessionLocal(Session):

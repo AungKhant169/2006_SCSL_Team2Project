@@ -1,11 +1,9 @@
-import logging
 from typing import Annotated
 
 from fastapi import APIRouter, File, Query, UploadFile
 
 from core.authenticator import Requester
-from core.school_cleaning import SchoolDataError
-from core.school_import import DatabaseUnavailableError, InvalidUploadError, refresh
+from core.dataset_update import SchoolDatasetUpdater
 from models.school_record import SchoolInfo, SchoolInfoError
 from schemas.school_payload import (
     SchoolFilter,
@@ -15,9 +13,6 @@ from schemas.school_payload import (
 )
 
 router = APIRouter(prefix="/school-api", tags=["school-api"])
-log = logging.getLogger(__name__)
-
-SUCCESS_MESSAGE = "Database updated successfully with the latest Singapore school data"
 
 
 @router.get("", response_model=SchoolPage)
@@ -39,26 +34,13 @@ def filter_options():
 def refresh_school_data(
     user: Requester, files: Annotated[list[UploadFile] | None, File()] = None
 ):
-    """Admin only. Upload one or more of the 7 raw CSV files (any file name: each is
-    recognised by its columns); files not uploaded are taken from the last upload.
-    Everything is cleaned and written in one transaction, or nothing is changed."""
+    """Admin only: the same update as POST /admin/dataset/update. Upload one or more of the
+    7 raw CSV files (any file name: each is recognised by its columns); files not uploaded
+    are taken from the last upload. Everything is cleaned and written in one transaction,
+    or nothing is changed. Unlike /admin/*, this also accepts the ADMIN_USERNAMES accounts."""
     if not user.is_admin:
         raise SchoolInfoError.NOT_ADMIN
-    files = files or []
-    if not files:
-        raise SchoolInfoError.NO_FILE
-    try:
-        uploads = {f.filename or f"file{i}": f.file.read() for i, f in enumerate(files)}
-        summary = refresh(uploads)
-    except InvalidUploadError as error:
-        log.warning("School update rejected: %s", error)
-        raise SchoolInfoError.INVALID_FILE
-    except SchoolDataError as error:
-        log.warning("School update failed: %s", error)
-        raise SchoolInfoError.UPDATE_FAILED
-    except DatabaseUnavailableError:
-        raise SchoolInfoError.DATABASE_UNREACHABLE
-    return {**summary, "message": SUCCESS_MESSAGE}
+    return SchoolDatasetUpdater.run(files or [])
 
 
 @router.get("/{school_key}", response_model=SchoolInfoDetail)

@@ -1,14 +1,16 @@
+import logging
 import threading
 
 from fastapi import UploadFile, status
-from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Session
 
+from core import school_import
 from core.exceptions import HttpError
-from models.base import SessionLocal
+from core.school_cleaning import SchoolDataError
+from core.school_import import DatabaseUnavailableError, InvalidUploadError
 
-# The SRS leaves the maximum file size TBD (REQ-5.8). The bundled schools dataset is about 1 MB.
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+log = logging.getLogger(__name__)
+
+SUCCESS_MESSAGE = "Database updated successfully with the latest Singapore school data"
 
 
 class DatasetUpdateError(HttpError):
@@ -32,66 +34,49 @@ class DatasetUpdateError(HttpError):
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "Database Update Failed: Unable to connect to local database. Please try again later.",
     )
-    # Remove once the pipeline below is implemented.
-    NOT_IMPLEMENTED = (
-        status.HTTP_501_NOT_IMPLEMENTED,
-        "The school database update has not been implemented yet.",
-    )
 
 
 class SchoolDatasetUpdater:
-    """Replaces the stored school records with the contents of an uploaded CSV file (UC-5.1)."""
+    """Replaces the stored school records with the contents of uploaded CSV files (UC-5.1).
+
+    The cleaning and the all-or-nothing write are in core/school_import.py (REQ-5.4, REQ-5.5).
+    """
 
     # Held for the whole run, so only one update can be in flight (REQ-5.2).
     _lock = threading.Lock()
 
     @classmethod
-    def run(cls, file: UploadFile | None) -> None:
-        content = cls.read_upload(file)
+    def run(cls, files: list[UploadFile]) -> dict:
+        """Load the files and return the summary of what changed."""
+        uploads = cls.read_uploads(files)
         if not cls._lock.acquire(blocking=False):
             raise DatasetUpdateError.ALREADY_RUNNING
         try:
-            records = cls.standardize_records(cls.parse_dataset(content))
-            # A single transaction: a failure anywhere leaves the existing records
-            # unchanged, because nothing is committed (REQ-5.5).
-            with SessionLocal() as session:
-                cls.bulk_write_records(session, records)
-                session.commit()
-        except OperationalError:
+            return {**school_import.refresh(uploads), "message": SUCCESS_MESSAGE}
+        except InvalidUploadError as error:
+            log.warning("School update rejected: %s", error)
+            raise DatasetUpdateError.INVALID_FILE
+        except SchoolDataError as error:
+            log.warning("School update failed: %s", error)
+            raise DatasetUpdateError.PARSE_FAILURE
+        except DatabaseUnavailableError:
             # The driver could not reach or use the database (REQ-5.10).
             raise DatasetUpdateError.DATABASE_UNAVAILABLE
         finally:
             cls._lock.release()
 
     @classmethod
-    def read_upload(cls, file: UploadFile | None) -> bytes:
-        """Return the file's contents once it is a non-empty .csv within the size limit (REQ-5.8)."""
-        if file is None or not file.filename:
+    def read_uploads(cls, files: list[UploadFile]) -> dict[str, bytes]:
+        """Return {file name: contents}. Each file must be a non-empty .csv within the size limit (REQ-5.8)."""
+        if not files or any(not f.filename for f in files):
             raise DatasetUpdateError.NO_FILE_SELECTED
-        # Read one byte past the limit, so an oversized file is rejected without loading all of it.
-        content = file.file.read(MAX_UPLOAD_BYTES + 1)
-        if (
-            not file.filename.lower().endswith(".csv")
-            or not content
-            or len(content) > MAX_UPLOAD_BYTES
-        ):
-            raise DatasetUpdateError.INVALID_FILE
-        return content
-
-    @classmethod
-    def parse_dataset(cls, content: bytes) -> list[dict]:
-        """Read the CSV rows. Raise PARSE_FAILURE on missing required columns or malformed rows (REQ-5.9)."""
-        raise DatasetUpdateError.NOT_IMPLEMENTED
-
-    @classmethod
-    def standardize_records(cls, rows: list[dict]) -> list[dict]:
-        """Map the rows onto SchoolInfo columns: trim text, handle empty values, convert numbers and split list fields (REQ-5.4).
-
-        clean_row in scripts/load_school_data.py already does most of this for the bundled JSON file.
-        """
-        raise DatasetUpdateError.NOT_IMPLEMENTED
-
-    @classmethod
-    def bulk_write_records(cls, session: Session, records: list[dict]) -> None:
-        """Add new schools and update existing ones, matched by school_key. Does not commit (REQ-5.5)."""
-        raise DatasetUpdateError.NOT_IMPLEMENTED
+        uploads = {}
+        for file in files:
+            # Read one byte past the limit, so an oversized file is rejected without loading all of it.
+            content = file.file.read(school_import.MAX_UPLOAD_BYTES + 1)
+            try:
+                school_import.validate_upload(file.filename, content)
+            except InvalidUploadError:
+                raise DatasetUpdateError.INVALID_FILE
+            uploads[file.filename] = content
+        return uploads

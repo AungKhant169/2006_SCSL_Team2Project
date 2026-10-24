@@ -15,23 +15,6 @@ class SchoolInfoError(HttpError):
         status.HTTP_403_FORBIDDEN,
         "Only an admin can update the school data.",
     )
-    # Messages below are the exact texts from the SRS (REQ-5.8, 5.9, 5.10).
-    NO_FILE = (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "Please select a CSV file before updating the database.",
-    )
-    INVALID_FILE = (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "Invalid file. Please upload a non-empty .csv file within the size limit.",
-    )
-    UPDATE_FAILED = (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "Database Update Failed: Unable to process dataset format. Please check source data and try again.",
-    )
-    DATABASE_UNREACHABLE = (
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        "Database Update Failed: Unable to connect to local database. Please try again later.",
-    )
 
 
 def _eq(column, value: str):
@@ -319,6 +302,11 @@ class SchoolInfo(Base, Persistable):
                 "moe_programmes": distinct(SchoolMoeProgramme.name),
                 "bus_numbers": distinct(SchoolBus.bus_no),
             }
+
+    @classmethod
+    def count(cls) -> int:
+        with SessionLocal() as db:
+            return db.scalar(select(func.count()).select_from(cls)) or 0
 
     @classmethod
     def get_or_404(cls, school_key: str):

@@ -1,5 +1,5 @@
 import re
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import status
 from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint, select
@@ -7,17 +7,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from core.exceptions import HttpError
-from models.base import Base, Persistable, SessionLocal
+from models.base import Base, Persistable, SessionLocal, utc_now
 from models.school_record import SchoolInfo, SchoolInfoError
 from models.user import User
 
 MAX_REVIEW_WORDS = 200
 TAG_PATTERN = re.compile(r"<[^>]*>")
-
-
-def utc_now() -> datetime:
-    """Timestamps are stored as naive UTC, since SQLite drops time zones."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class ReviewError(HttpError):
