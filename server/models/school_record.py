@@ -1,6 +1,6 @@
 from fastapi import status
-from sqlalchemy import JSON, Float, Integer, String, select
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import Float, ForeignKey, Integer, String, and_, func, or_, select
+from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
 
 from core.exceptions import HttpError
 from models.base import Base, Persistable, SessionLocal
@@ -11,6 +11,32 @@ class SchoolInfoError(HttpError):
         status.HTTP_404_NOT_FOUND,
         "This school could not be found.",
     )
+    NOT_ADMIN = (
+        status.HTTP_403_FORBIDDEN,
+        "Only an admin can update the school data.",
+    )
+    # Messages below are the exact texts from the SRS (REQ-5.8, 5.9, 5.10).
+    NO_FILE = (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "Please select a CSV file before updating the database.",
+    )
+    INVALID_FILE = (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "Invalid file. Please upload a non-empty .csv file within the size limit.",
+    )
+    UPDATE_FAILED = (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "Database Update Failed: Unable to process dataset format. Please check source data and try again.",
+    )
+    DATABASE_UNREACHABLE = (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "Database Update Failed: Unable to connect to local database. Please try again later.",
+    )
+
+
+def _eq(column, value: str):
+    """Case-insensitive, space-insensitive 'equals'."""
+    return func.lower(func.trim(column)) == value.strip().lower()
 
 
 class SchoolInfo(Base, Persistable):
@@ -34,8 +60,8 @@ class SchoolInfo(Base, Persistable):
     bus_desc: Mapped[str | None] = mapped_column(String(300))
     latitude: Mapped[float | None] = mapped_column(Float)
     longitude: Mapped[float | None] = mapped_column(Float)
-    area: Mapped[str | None] = mapped_column(String(50))
-    zone: Mapped[str | None] = mapped_column(String(50))
+    area: Mapped[str | None] = mapped_column(String(50), index=True)
+    zone: Mapped[str | None] = mapped_column(String(50), index=True)
 
     # staff
     principal_name: Mapped[str | None] = mapped_column(String(100))
@@ -69,14 +95,6 @@ class SchoolInfo(Base, Persistable):
     alp_title: Mapped[str | None] = mapped_column(String(200))
     llp_domain1: Mapped[str | None] = mapped_column(String(100))
     llp_title: Mapped[str | None] = mapped_column(String(200))
-    moe_programmes: Mapped[list[str]] = mapped_column(JSON, default=list)
-    moe_programmes_count: Mapped[int | None] = mapped_column(Integer)
-
-    # lists + counts
-    cca_list: Mapped[list[str]] = mapped_column(JSON, default=list)
-    cca_count: Mapped[int | None] = mapped_column(Integer)
-    subjects_list: Mapped[list[str]] = mapped_column(JSON, default=list)
-    subjects_count: Mapped[int | None] = mapped_column(Integer)
 
     # ranking / admissions
     rank_2017: Mapped[int | None] = mapped_column(Integer)
@@ -84,22 +102,276 @@ class SchoolInfo(Base, Persistable):
     olevel_track: Mapped[int | None] = mapped_column(Integer)
     places_taken_phase2b: Mapped[int | None] = mapped_column(Integer)
 
+    # one row per subject / CCA / MOE programme / bus (classes below)
+    subjects: Mapped[list["SchoolSubject"]] = relationship(cascade="all, delete-orphan")
+    ccas: Mapped[list["SchoolCca"]] = relationship(cascade="all, delete-orphan")
+    moe_programme_rows: Mapped[list["SchoolMoeProgramme"]] = relationship(
+        cascade="all, delete-orphan"
+    )
+    bus_rows: Mapped[list["SchoolBus"]] = relationship(cascade="all, delete-orphan")
+
+    # Plain lists/counts for the API. Only valid on a school loaded by get_or_404.
+    @property
+    def subjects_list(self) -> list[str]:
+        return sorted(r.name for r in self.subjects)
+
+    @property
+    def cca_list(self) -> list[str]:
+        return sorted({r.grouping for r in self.ccas})
+
+    @property
+    def cca_details(self) -> list["SchoolCca"]:
+        return sorted(self.ccas, key=lambda r: (r.grouping, r.section or ""))
+
+    @property
+    def moe_programmes(self) -> list[str]:
+        return sorted(r.name for r in self.moe_programme_rows)
+
+    @property
+    def bus_numbers(self) -> list[str]:
+        return sorted(r.bus_no for r in self.bus_rows)
+
+    @property
+    def subjects_count(self) -> int:
+        return len(self.subjects)
+
+    @property
+    def cca_count(self) -> int:
+        return len(self.cca_list)
+
+    @property
+    def moe_programmes_count(self) -> int:
+        return len(self.moe_programme_rows)
+
+    # ------------------------------------------------------------------ queries
+
     @classmethod
-    def search(cls, q=None, zone=None, level=None, gendermix=None, limit=50, offset=0):
-        stmt = select(cls).order_by(cls.school_name)
+    def search(
+        cls,
+        q=None,
+        area=None,
+        zone=None,
+        level=None,
+        school_type=None,
+        gendermix=None,
+        nature=None,
+        session=None,
+        sap=None,
+        autonomous=None,
+        gifted=None,
+        ip=None,
+        ib=None,
+        mother_tongue=None,
+        alp_domain=None,
+        llp_domain=None,
+        mrt=None,
+        bus=(),
+        subject=(),
+        cca=(),
+        cca_category=None,
+        cca_section=None,
+        cca_name=None,
+        moe_programme=(),
+        psle_min=None,
+        psle_max=None,
+        rank_min=None,
+        rank_max=None,
+        places_min=None,
+        places_max=None,
+        limit=50,
+        offset=0,
+    ):
+        """Every filter given must match. For the repeatable ones (bus, subject, cca,
+        moe_programme) the school must have ALL the values listed."""
+        stmt = select(cls)
+
+        def add(condition):
+            nonlocal stmt
+            stmt = stmt.where(condition)
+
         if q:
-            stmt = stmt.where(cls.school_name.ilike(f"%{q}%"))
-        if zone:
-            stmt = stmt.where(cls.zone.ilike(zone))
+            add(cls.school_name.ilike(f"%{q.strip()}%"))
         if level:
-            stmt = stmt.where(cls.mainlevel_code.ilike(f"%{level}%"))
-        if gendermix:
-            stmt = stmt.where(cls.gendermix.ilike(gendermix))
-        with SessionLocal() as session:
-            return list(session.scalars(stmt.limit(limit).offset(offset)))
+            add(cls.mainlevel_code.ilike(f"%{level.strip()}%"))
+        if mrt:
+            add(cls.mrt_desc.ilike(f"%{mrt.strip()}%"))
+        for column, value in (
+            (cls.area, area),
+            (cls.zone, zone),
+            (cls.school_type, school_type),
+            (cls.gendermix, gendermix),
+            (cls.nature_code, nature),
+            (cls.session_code, session),
+            (cls.alp_domain, alp_domain),
+            (cls.llp_domain1, llp_domain),
+        ):
+            if value:
+                add(_eq(column, value))
+        for column, flag, yes, no in (
+            (cls.sap_ind, sap, "Yes", "No"),
+            (cls.autonomous_ind, autonomous, "Yes", "No"),
+            (cls.gifted_ind, gifted, "Yes", "No"),
+            (cls.ip_ind, ip, "Yes", "No"),
+            (cls.ib, ib, "Y", "N"),
+        ):
+            if flag is not None:
+                add(_eq(column, yes if flag else no))
+        if mother_tongue:
+            add(
+                or_(
+                    *(
+                        _eq(c, mother_tongue)
+                        for c in (
+                            cls.mothertongue1_code,
+                            cls.mothertongue2_code,
+                            cls.mothertongue3_code,
+                        )
+                    )
+                )
+            )
+        for column, low, high in (
+            (cls.psle_2017_cutoff, psle_min, psle_max),
+            (cls.rank_2017, rank_min, rank_max),
+            (cls.places_taken_phase2b, places_min, places_max),
+        ):
+            if low is not None:
+                add(column >= low)
+            if high is not None:
+                add(column <= high)
+
+        for value in subject:
+            add(cls.subjects.any(_eq(SchoolSubject.name, value)))
+        for value in moe_programme:
+            add(cls.moe_programme_rows.any(_eq(SchoolMoeProgramme.name, value)))
+        for value in bus:
+            add(cls.bus_rows.any(_eq(SchoolBus.bus_no, value)))
+        for value in cca:
+            add(cls.ccas.any(_eq(SchoolCca.grouping, value)))
+        if cca_category or cca_section or cca_name:
+            # all of these must hold on the SAME cca row
+            conditions = []
+            if cca_category:
+                conditions.append(_eq(SchoolCca.generic_name, cca_category))
+            if cca_section:
+                conditions.append(_eq(SchoolCca.section, cca_section))
+            if cca_name:
+                like = f"%{cca_name.strip()}%"
+                conditions.append(
+                    or_(
+                        SchoolCca.grouping.ilike(like),
+                        SchoolCca.customised_name.ilike(like),
+                    )
+                )
+            add(cls.ccas.any(and_(*conditions)))
+
+        with SessionLocal() as db:
+            total = db.scalar(select(func.count()).select_from(stmt.subquery()))
+            items = list(
+                db.scalars(stmt.order_by(cls.school_name).limit(limit).offset(offset))
+            )
+        return items, total
+
+    @classmethod
+    def options(cls) -> dict[str, list[str]]:
+        """Every value the filters accept, for the frontend's dropdowns."""
+
+        def distinct(column):
+            return list(
+                db.scalars(
+                    select(column)
+                    .where(column.is_not(None))
+                    .distinct()
+                    .order_by(column)
+                )
+            )
+
+        with SessionLocal() as db:
+            tongues = sorted(
+                {
+                    v
+                    for c in (
+                        cls.mothertongue1_code,
+                        cls.mothertongue2_code,
+                        cls.mothertongue3_code,
+                    )
+                    for v in distinct(c)
+                }
+            )
+            return {
+                "areas": distinct(cls.area),
+                "zones": distinct(cls.zone),
+                "levels": distinct(cls.mainlevel_code),
+                "school_types": distinct(cls.school_type),
+                "gendermix": distinct(cls.gendermix),
+                "natures": distinct(cls.nature_code),
+                "sessions": distinct(cls.session_code),
+                "mother_tongues": tongues,
+                "alp_domains": distinct(cls.alp_domain),
+                "llp_domains": distinct(cls.llp_domain1),
+                "subjects": distinct(SchoolSubject.name),
+                "cca_groupings": distinct(SchoolCca.grouping),
+                "cca_categories": distinct(SchoolCca.generic_name),
+                "cca_sections": distinct(SchoolCca.section),
+                "moe_programmes": distinct(SchoolMoeProgramme.name),
+                "bus_numbers": distinct(SchoolBus.bus_no),
+            }
 
     @classmethod
     def get_or_404(cls, school_key: str):
-        if not (school := cls.get_by_key(school_key=school_key)):
-            raise SchoolInfoError.SCHOOL_NOT_FOUND
-        return school
+        stmt = (
+            select(cls)
+            .where(cls.school_key == school_key)
+            .options(
+                selectinload(cls.subjects),
+                selectinload(cls.ccas),
+                selectinload(cls.moe_programme_rows),
+                selectinload(cls.bus_rows),
+            )
+        )
+        with SessionLocal() as db:
+            if not (school := db.scalars(stmt).first()):
+                raise SchoolInfoError.SCHOOL_NOT_FOUND
+            return school
+
+
+class SchoolSubject(Base):
+    __tablename__ = "school_subjects"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), index=True)
+
+
+class SchoolCca(Base):
+    __tablename__ = "school_ccas"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    grouping: Mapped[str] = mapped_column(String(200), index=True)  # e.g. AIKIDO
+    section: Mapped[str | None] = mapped_column(
+        String(100), index=True
+    )  # school level, e.g. PRIMARY
+    generic_name: Mapped[str | None] = mapped_column(
+        String(200), index=True
+    )  # category, e.g. PHYSICAL SPORTS
+    customised_name: Mapped[str | None] = mapped_column(String(200))
+
+
+class SchoolMoeProgramme(Base):
+    __tablename__ = "school_moe_programmes"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), index=True)
+
+
+class SchoolBus(Base):
+    __tablename__ = "school_buses"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    bus_no: Mapped[str] = mapped_column(String(10), index=True)

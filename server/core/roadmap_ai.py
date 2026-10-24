@@ -58,29 +58,28 @@ STAGE_NOTES = {
 STAGE_CRITERIA = {
     "primary": [
         (
-            "Distance matters a lot: choose schools close to the student's home. "
-            "Estimate nearness from the postal codes, addresses and zones (the first "
-            "two digits of a Singapore postal code identify the postal sector). The "
-            "estimate can be rough."
+            "Distance matters a lot: choose schools close to the student's home. Estimate "
+            "nearness from the postal codes, addresses and zones (the first two digits of a "
+            "Singapore postal code identify the postal sector). The estimate can be rough."
         ),
         "Where possible, vary the choices by programme (for example gifted education).",
     ],
     "secondary": [
         (
-            "Rank realistic fits first: schools whose psle_2017_cutoff the student's "
-            "score meets. Where possible include one slightly ambitious, one realistic "
-            "and one safer choice."
+            "Rank realistic fits first: schools whose psle_2017_cutoff the student's score "
+            "meets. Where possible include one slightly ambitious, one realistic and one "
+            "safer choice."
         ),
         (
-            "Between schools that fit equally well, prefer the one nearer to the "
-            "student's home. Estimate nearness from the postal codes, addresses and "
-            "zones; the estimate can be rough."
+            "Between schools that fit equally well, prefer the one nearer to the student's "
+            "home. Estimate nearness from the postal codes, addresses and zones; the "
+            "estimate can be rough."
         ),
     ],
     "postsec": [
         (
-            "Use the score only as a rough guide to how selective the choices should "
-            "be, and mix junior colleges and polytechnics where possible."
+            "Use the score only as a rough guide to how selective the choices should be, "
+            "and mix junior colleges and polytechnics where possible."
         ),
         "Do not consider distance; choose on programmes and fit only.",
     ],
