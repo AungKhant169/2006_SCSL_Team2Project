@@ -40,8 +40,11 @@ STAGE_NOTES = {
     ),
     "secondary": (
         "The score is the student's PSLE AL aggregate (4 best, 32 worst, lower is better). "
-        "psle_2017_cutoff is the AL of the last student posted in 2017, so it is only "
-        "indicative. Schools without a cut-off are unknown quantities."
+        "psle_2017_cutoff is the 2017 PSLE T-score cut-off of the last student posted, "
+        "which is on a different scale (higher is more selective). Compare them by "
+        "position: AL 4 matches the highest cut-off among the candidates and AL 32 the "
+        "lowest. The cut-off is only indicative. Schools without a cut-off are unknown "
+        "quantities."
     ),
     "postsec": (
         "The score is an O-Level aggregate (lower is better), but there are no cut-offs "
@@ -67,7 +70,7 @@ STAGE_CRITERIA = {
     "secondary": [
         (
             "Rank realistic fits first: schools whose psle_2017_cutoff the student's score "
-            "meets. Where possible include one slightly ambitious, one realistic and one "
+            "reaches. Where possible include one slightly ambitious, one realistic and one "
             "safer choice."
         ),
         (

@@ -2,12 +2,12 @@ from fastapi import APIRouter, status
 
 from core.authenticator import Requester
 from models.bookmark import Bookmark
-from schemas.bookmark import BookmarkSchool
+from schemas.school_payload import SchoolInfoSummary
 
 router = APIRouter(prefix="/bookmark", tags=["bookmark"])
 
 
-@router.get("", response_model=list[BookmarkSchool])
+@router.get("", response_model=list[SchoolInfoSummary])
 def list_bookmarks(user: Requester):
     return Bookmark.for_user(user.id)
 

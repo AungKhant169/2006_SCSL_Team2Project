@@ -6,37 +6,47 @@ from core.roadmap_rules import RuleRoadmapGenerator
 from models.roadmap import Roadmap
 from models.school_record import SchoolInfo
 from schemas.roadmap import (
-    AIRoadmapResponse,
     CreateRoadmapRequest,
     CreateRoadmapResponse,
     RoadmapEdit,
     RoadmapResponse,
     RoadmapSave,
-    RoadmapSchool,
 )
+from schemas.school_payload import SchoolInfoSummary
 
 router = APIRouter(prefix="/roadmap", tags=["roadmap"])
 
 
+def schools_of(choices: list[int]) -> list[SchoolInfoSummary]:
+    """Details of the chosen schools in the order chosen, skipping ids that no longer exist."""
+    return [
+        SchoolInfoSummary.model_validate(school)
+        for school_id in choices
+        if (school := SchoolInfo.get_by_id(school_id))
+    ]
+
+
+def to_plan(choices: list[int]) -> CreateRoadmapResponse:
+    return CreateRoadmapResponse(choices=choices, schools=schools_of(choices))
+
+
 def to_response(roadmap: Roadmap) -> RoadmapResponse:
     return RoadmapResponse(
-        stage=roadmap.stage, source=roadmap.source, choices=roadmap.choices
+        stage=roadmap.stage,
+        source=roadmap.source,
+        choices=roadmap.choices,
+        schools=schools_of(roadmap.choices),
     )
 
 
-@router.post("/generate-ai-roadmap", response_model=AIRoadmapResponse)
+@router.post("/generate-ai-roadmap", response_model=CreateRoadmapResponse)
 def generate_ai_roadmap(data: CreateRoadmapRequest, user: Requester):
-    choices = AIRoadmapGenerator.generate(user, data)
-    schools = []
-    for school_id in choices:
-        if school := SchoolInfo.get_by_id(school_id):
-            schools.append(RoadmapSchool.model_validate(school))
-    return AIRoadmapResponse(choices=choices, schools=schools)
+    return to_plan(AIRoadmapGenerator.generate(user, data))
 
 
 @router.post("/generate-rule-roadmap", response_model=CreateRoadmapResponse)
 def generate_rule_roadmap(data: CreateRoadmapRequest, user: Requester):
-    return CreateRoadmapResponse(choices=RuleRoadmapGenerator.generate(user, data))
+    return to_plan(RuleRoadmapGenerator.generate(user, data))
 
 
 @router.get("", response_model=RoadmapResponse)

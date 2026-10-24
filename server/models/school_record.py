@@ -180,10 +180,14 @@ class SchoolInfo(Base, Persistable):
         places_max=None,
         limit=50,
         offset=0,
+        load_programmes=False,
     ):
         """Every filter given must match. For the repeatable ones (bus, subject, cca,
-        moe_programme) the school must have ALL the values listed."""
+        moe_programme) the school must have ALL the values listed. With load_programmes
+        the subjects and CCAs are loaded too, so subjects_count and cca_count can be read."""
         stmt = select(cls)
+        if load_programmes:
+            stmt = stmt.options(selectinload(cls.subjects), selectinload(cls.ccas))
 
         def add(condition):
             nonlocal stmt

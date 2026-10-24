@@ -12,6 +12,7 @@ STAGE_LEVELS = {
 def candidate_pool(stage: str) -> dict[int, SchoolInfo]:
     pool: dict[int, SchoolInfo] = {}
     for level in STAGE_LEVELS[stage]:
-        for school in SchoolInfo.search(level=level, limit=1000):
+        schools, _ = SchoolInfo.search(level=level, limit=1000, load_programmes=True)
+        for school in schools:
             pool[school.id] = school
     return dict(sorted(pool.items(), key=lambda kv: kv[1].school_name))

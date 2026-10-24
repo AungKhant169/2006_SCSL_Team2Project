@@ -55,6 +55,8 @@ class SchoolFilter(BaseModel):
 class SchoolInfoSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    # The id is what bookmarks, reviews and roadmaps refer to; the key addresses the profile page.
+    id: int
     school_key: str
     school_name: str
     address: str | None = None
@@ -63,11 +65,14 @@ class SchoolInfoSummary(BaseModel):
     longitude: float | None = None
     area: str | None = None
     zone: str | None = None
+    mrt_desc: str | None = None
+    bus_desc: str | None = None
     mainlevel_code: str | None = None
     school_type: str | None = None
     gendermix: str | None = None
     psle_2017_cutoff: int | None = None
     rank_2017: int | None = None
+    places_taken_phase2b: int | None = None
 
 
 class CcaDetail(BaseModel):
@@ -83,8 +88,6 @@ class SchoolInfoDetail(SchoolInfoSummary):
     url_address: str | None = None
     telephone_no: str | None = None
     email_address: str | None = None
-    mrt_desc: str | None = None
-    bus_desc: str | None = None
     principal_name: str | None = None
     nature_code: str | None = None
     session_code: str | None = None
@@ -101,7 +104,6 @@ class SchoolInfoDetail(SchoolInfoSummary):
     llp_domain1: str | None = None
     llp_title: str | None = None
     olevel_track: int | None = None
-    places_taken_phase2b: int | None = None
     subjects_list: list[str] = []
     subjects_count: int = 0
     cca_list: list[str] = []

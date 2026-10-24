@@ -17,6 +17,9 @@ class CreateRoadmapRequest(BaseModel):
 class CreateRoadmapResponse(BaseModel):
     # School ids in preference order.
     choices: list[int]
+    # Details of the schools in `choices`, in the same order. An id that no longer
+    # exists has no entry.
+    schools: list[SchoolInfoSummary]
 
 
 class RoadmapSave(BaseModel):
@@ -29,19 +32,6 @@ class RoadmapEdit(BaseModel):
     choices: list[int]
 
 
-class RoadmapResponse(BaseModel):
+class RoadmapResponse(CreateRoadmapResponse):
     stage: Stage
     source: Source
-    choices: list[int]
-
-
-class RoadmapSchool(SchoolInfoSummary):
-    # SchoolInfoSummary already has name, address, postal code, zone, level and type.
-    id: int
-    mrt_desc: str | None = None
-    bus_desc: str | None = None
-
-
-class AIRoadmapResponse(CreateRoadmapResponse):
-    # Details of the schools in `choices`, in the same order.
-    schools: list[RoadmapSchool]
