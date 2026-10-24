@@ -5,9 +5,12 @@ export interface Session {
   refreshToken: string
 }
 
+export type Role = 'user' | 'admin'
+
 export interface Identity {
   id: number
   username: string
+  role: Role
 }
 
 interface TokenResponse {

@@ -76,3 +76,36 @@ describe('apiRequest', () => {
     await expect(apiRequest('/')).rejects.toMatchObject({ status: 0, message: GENERIC_ERROR })
   })
 })
+
+describe('apiRequest beyond GET and POST', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it.each(['PUT', 'PATCH', 'DELETE'] as const)('sends %s requests', async (method) => {
+    const fetchMock = vi.fn().mockResolvedValue(respond(200, {}))
+    vi.stubGlobal('fetch', fetchMock)
+    await apiRequest('/roadmap', { method, body: { choices: [1] } })
+    expect(fetchMock.mock.calls[0]![1].method).toBe(method)
+  })
+
+  it('sends a FormData body as it is, leaving the content type to the browser', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(respond(200, {}))
+    vi.stubGlobal('fetch', fetchMock)
+    const form = new FormData()
+    form.append('files', new File(['a,b'], 'moe.csv', { type: 'text/csv' }))
+    await apiRequest('/admin/dataset/update', { method: 'POST', body: form })
+    const init = fetchMock.mock.calls[0]![1]
+    expect(init.body).toBe(form)
+    expect(init.headers['Content-Type']).toBeUndefined()
+  })
+
+  it('passes the abort signal to fetch and reports an aborted request as unreachable', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn().mockRejectedValue(new DOMException('Aborted', 'AbortError'))
+    vi.stubGlobal('fetch', fetchMock)
+    controller.abort()
+    await expect(apiRequest('/', { signal: controller.signal })).rejects.toMatchObject({
+      status: 0,
+    })
+    expect(fetchMock.mock.calls[0]![1].signal).toBe(controller.signal)
+  })
+})

@@ -50,17 +50,21 @@ describe('authService (matches the /user API contract)', () => {
   })
 
   it('identity authenticates with the access token', async () => {
-    request.mockResolvedValue({ id: 3, username: 'planner2026' })
-    await expect(authService.identity(session)).resolves.toEqual({ id: 3, username: 'planner2026' })
+    request.mockResolvedValue({ id: 3, username: 'planner2026', role: 'user' })
+    await expect(authService.identity(session)).resolves.toEqual({
+      id: 3,
+      username: 'planner2026',
+      role: 'user',
+    })
     expect(request).toHaveBeenCalledWith('/user/identity', { token: 'a1' })
   })
 
   describe('restoreSession', () => {
     it('returns the identity of a still-valid session untouched', async () => {
-      request.mockResolvedValueOnce({ id: 3, username: 'planner2026' })
+      request.mockResolvedValueOnce({ id: 3, username: 'planner2026', role: 'user' })
       await expect(authService.restoreSession(session)).resolves.toEqual({
         session,
-        identity: { id: 3, username: 'planner2026' },
+        identity: { id: 3, username: 'planner2026', role: 'user' },
       })
       expect(request).toHaveBeenCalledTimes(1)
     })
@@ -69,7 +73,7 @@ describe('authService (matches the /user API contract)', () => {
       request
         .mockRejectedValueOnce(new ApiError(401, 'expired'))
         .mockResolvedValueOnce({ access_token: 'a2', refresh_token: 'r2' })
-        .mockResolvedValueOnce({ id: 3, username: 'planner2026' })
+        .mockResolvedValueOnce({ id: 3, username: 'planner2026', role: 'user' })
       const restored = await authService.restoreSession(session)
       expect(restored.session).toEqual({ accessToken: 'a2', refreshToken: 'r2' })
       expect(restored.identity.username).toBe('planner2026')

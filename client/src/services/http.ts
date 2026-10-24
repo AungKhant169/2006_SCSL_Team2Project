@@ -11,11 +11,14 @@ export class ApiError extends Error {
   }
 }
 
-interface RequestOptions {
-  method?: 'GET' | 'POST'
+export interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+  /** Sent as JSON, or as a multipart form when it is a FormData (file uploads). */
   body?: unknown
   /** Bearer access token for authenticated endpoints. */
   token?: string
+  /** Aborting it fails the request with status 0, like an unreachable server. */
+  signal?: AbortSignal
 }
 
 function baseUrl(): string {
@@ -32,9 +35,11 @@ function extractMessage(payload: unknown): string {
 }
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = 'GET', body, token } = options
+  const { method = 'GET', body, token, signal } = options
   const headers: Record<string, string> = {}
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  const isForm = body instanceof FormData
+  // A multipart body needs the browser to add its own content type, with the boundary.
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json'
   if (token) headers.Authorization = `Bearer ${token}`
 
   let response: Response
@@ -42,7 +47,8 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     response = await fetch(`${baseUrl()}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+      signal,
     })
   } catch {
     throw new ApiError(0, GENERIC_ERROR)
