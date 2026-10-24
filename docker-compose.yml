@@ -17,6 +17,8 @@ services:
       # Origin the browser loads the site from. Only used for CORS; nginx proxies /api same-origin.
       FRONTEND_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
       DATABASE_URL: sqlite:////data/main.db
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      SCHOOL_RAW_DIR: /data/school_raw
     volumes:
       - pathsg-data:/data
 

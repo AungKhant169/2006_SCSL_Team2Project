@@ -27,7 +27,8 @@ RUN useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
     && chown app /data
 USER app
 
-ENV DATABASE_URL=sqlite:////data/main.db
+ENV DATABASE_URL=sqlite:////data/main.db \
+    SCHOOL_RAW_DIR=/data/school_raw
 VOLUME /data
 
 # SECRET_KEY and FRONTEND_ORIGIN are required at run time (see the compose file).
@@ -37,4 +38,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 
 # Apply database migrations, then serve. A single worker is required: refresh tokens are held in
 # process memory.
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "alembic upgrade head && python -m scripts.refresh_school_data --if-empty && exec uvicorn main:app --host 0.0.0.0 --port 8000"]

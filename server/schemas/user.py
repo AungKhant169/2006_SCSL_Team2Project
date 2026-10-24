@@ -9,6 +9,7 @@ class Credentials(BaseModel):
 class Identity(BaseModel):
     id: int
     username: str
+    role: str
 
 
 class TokenRequest(BaseModel):

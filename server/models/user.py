@@ -20,6 +20,13 @@ SECRET_KEY = os.environ["SECRET_KEY"]
 
 USERNAME_PATTERN = re.compile(r"[A-Za-z0-9]{1,36}")
 PASSWORD_PATTERN = re.compile(r"(?=.*\d)(?=.*[^A-Za-z0-9])[\x20-\x7E]{8,36}")
+ROLE_USER = "user"
+ROLE_ADMIN = "admin"
+
+def always_admin_usernames() -> set[str]:
+    """Usernames in ADMIN_USERNAMES (.env, comma separated) are admins whatever their role."""
+    names = os.environ.get("ADMIN_USERNAMES", "")
+    return {n.strip().lower() for n in names.split(",") if n.strip()}
 
 # This is required to automatically refresh JWT tokens on expiry.
 # The tokens does not persist across application restarts.
@@ -66,6 +73,7 @@ class User(Base, Persistable):
 
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     password: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, default=ROLE_USER, server_default=ROLE_USER)
 
     def _create_access_token(self) -> str:
         expiry = datetime.now(timezone.utc) + timedelta(minutes=5)
@@ -79,6 +87,14 @@ class User(Base, Persistable):
 
     def create_tokens(self) -> tuple[str, str]:
         return self._create_access_token(), self._create_refresh_token()
+
+    @property
+    def is_admin(self) -> bool:
+        return self.role == ROLE_ADMIN or self.username.lower() in always_admin_usernames()
+
+    @property
+    def effective_role(self) -> str:
+        return ROLE_ADMIN if self.is_admin else self.role
 
     @validates("username")
     def username_validator(self, key: str, value: str) -> str:
