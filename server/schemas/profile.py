@@ -2,7 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from schemas.roadmap import Stage
+from schemas.school_payload import Stage
 
 PrimaryResult = Literal["None", "Kindergarten completion"]
 

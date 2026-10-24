@@ -33,6 +33,28 @@ class TestListSchools:
         body = client.get("/school-api", params={"level": "SECONDARY"}).json()
         assert [item["school_key"] for item in body["items"]] == ["b"]
 
+    def test_stage_includes_integrated_and_mixed_level_schools(self):
+        make_school("a", "Alpha Primary", mainlevel_code="PRIMARY")
+        make_school("b", "Beta Secondary", mainlevel_code="SECONDARY (S1-S5)")
+        make_school("c", "Gamma Integrated", mainlevel_code="MIXED LEVEL (S1-JC2)")
+        make_school("d", "Delta College", mainlevel_code="JUNIOR COLLEGE")
+        make_school("e", "Epsilon All-through", mainlevel_code="MIXED LEVEL (P1-S4)")
+
+        def keys(stage):
+            body = client.get("/school-api", params={"stage": stage}).json()
+            return [item["school_key"] for item in body["items"]]
+
+        assert keys("primary") == ["a", "e"]
+        assert keys("secondary") == ["b", "e", "c"]
+        assert keys("postsec") == ["d", "c"]
+        assert keys("preschool") == []
+        assert keys("uni") == []
+
+    def test_items_list_the_stages_of_the_school(self):
+        make_school("c", "Gamma Integrated", mainlevel_code="MIXED LEVEL (S1-JC2)")
+        item = client.get("/school-api").json()["items"][0]
+        assert item["stages"] == ["secondary", "postsec"]
+
     def test_pages_results(self):
         for n in range(3):
             make_school(f"s{n}", f"School {n}")

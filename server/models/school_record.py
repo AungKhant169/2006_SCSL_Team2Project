@@ -1,5 +1,15 @@
 from fastapi import status
-from sqlalchemy import Float, ForeignKey, Integer, String, and_, func, or_, select
+from sqlalchemy import (
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    and_,
+    false,
+    func,
+    or_,
+    select,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
 
 from core.exceptions import HttpError
@@ -15,6 +25,18 @@ class SchoolInfoError(HttpError):
         status.HTTP_403_FORBIDDEN,
         "Only an admin can update the school data.",
     )
+
+
+# The main levels (mainlevel_code contains) that belong to each education stage. A school that
+# spans stages, such as an integrated programme, belongs to every stage it covers.
+STAGE_LEVELS = {
+    "preschool": (),
+    "primary": ("PRIMARY", "MIXED LEVEL (P1"),
+    "secondary": ("SECONDARY", "MIXED LEVEL"),
+    # "JC2" picks out the mixed-level schools that run up to junior college.
+    "postsec": ("POLYTECHNIC", "JUNIOR COLLEGE", "CENTRALISED INSTITUTE", "JC2"),
+    "uni": ("UNIVERSITY",),
+}
 
 
 def _eq(column, value: str):
@@ -93,6 +115,16 @@ class SchoolInfo(Base, Persistable):
     )
     bus_rows: Mapped[list["SchoolBus"]] = relationship(cascade="all, delete-orphan")
 
+    @property
+    def stages(self) -> list[str]:
+        """The education stages the school belongs to, from its main level."""
+        level = (self.mainlevel_code or "").upper()
+        return [
+            stage
+            for stage, levels in STAGE_LEVELS.items()
+            if any(part in level for part in levels)
+        ]
+
     # Plain lists/counts for the API. Only valid on a school loaded by get_or_404.
     @property
     def subjects_list(self) -> list[str]:
@@ -135,6 +167,7 @@ class SchoolInfo(Base, Persistable):
         area=None,
         zone=None,
         level=None,
+        stage=None,
         school_type=None,
         gendermix=None,
         nature=None,
@@ -180,6 +213,16 @@ class SchoolInfo(Base, Persistable):
             add(cls.school_name.ilike(f"%{q.strip()}%"))
         if level:
             add(cls.mainlevel_code.ilike(f"%{level.strip()}%"))
+        if stage:
+            add(
+                or_(
+                    false(),
+                    *(
+                        cls.mainlevel_code.ilike(f"%{part}%")
+                        for part in STAGE_LEVELS[stage]
+                    ),
+                )
+            )
         if mrt:
             add(cls.mrt_desc.ilike(f"%{mrt.strip()}%"))
         for column, value in (

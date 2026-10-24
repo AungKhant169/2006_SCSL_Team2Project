@@ -1,6 +1,9 @@
 from datetime import datetime, timezone
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
+
+Stage = Literal["preschool", "primary", "secondary", "postsec", "uni"]
 
 
 class SchoolFilter(BaseModel):
@@ -11,6 +14,10 @@ class SchoolFilter(BaseModel):
     zone: str | None = None
     level: str | None = Field(
         None, description="Main level contains, e.g. PRIMARY, SECONDARY, JUNIOR"
+    )
+    stage: Stage | None = Field(
+        None,
+        description="Schools of an education stage, including integrated and mixed-level schools",
     )
     school_type: str | None = Field(
         None, description="e.g. Government, Government-Aided, Independent"
@@ -70,6 +77,8 @@ class SchoolInfoSummary(BaseModel):
     mrt_desc: str | None = None
     bus_desc: str | None = None
     mainlevel_code: str | None = None
+    # The stages the school belongs to; a school with an integrated programme has several.
+    stages: list[Stage] = []
     school_type: str | None = None
     gendermix: str | None = None
     psle_2017_cutoff: int | None = None

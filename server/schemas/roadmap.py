@@ -2,9 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from schemas.school_payload import SchoolInfoSummary
+from schemas.school_payload import SchoolInfoSummary, Stage
 
-Stage = Literal["preschool", "primary", "secondary", "postsec", "uni"]
 Source = Literal["Rule-Based Plan", "AI-Generated Plan"]
 
 
