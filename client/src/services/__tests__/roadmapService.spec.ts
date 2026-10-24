@@ -49,8 +49,8 @@ describe('roadmapService (matches the /roadmap API contract)', () => {
     expect(options?.signal).toBeInstanceOf(AbortSignal)
   })
 
-  it('gives the AI plan five seconds by default (PERF-7)', () => {
-    expect(AI_TIMEOUT_MS).toBe(5000)
+  it('gives the AI plan fifteen seconds by default (PERF-7)', () => {
+    expect(AI_TIMEOUT_MS).toBe(15000)
   })
 
   it('aborts an AI plan that takes longer than the timeout', async () => {

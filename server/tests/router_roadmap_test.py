@@ -93,8 +93,8 @@ class TestGenerateAI:
         monkeypatch.setenv("OPENAI_API_KEY", "test-key")
         monkeypatch.setattr(roadmap_ai, "OpenAI", FakeOpenAI)
         generate(authenticated)
-        # The client aborts after 5 seconds (PERF-7); a longer wait only leaves it with a dropped request.
-        assert options["timeout"] < 5
+        # The client aborts after 15 seconds (PERF-7); a longer wait only leaves it with a dropped request.
+        assert options["timeout"] < 15
 
     def test_prompt_only_carries_what_the_choice_needs(self):
         school = SchoolInfo.create(

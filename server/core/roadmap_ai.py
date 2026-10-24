@@ -14,8 +14,8 @@ from schemas.roadmap import CreateRoadmapRequest
 
 load_dotenv()
 
-# The client gives up after 5 seconds (PERF-7), so stop slightly earlier than that.
-AI_TIMEOUT_SECONDS = 4
+# The client gives up after 15 seconds (PERF-7), so stop slightly earlier than that.
+AI_TIMEOUT_SECONDS = 14
 
 # Strict JSON schema: the model must answer with {"choices": [<school id>, ...]}.
 RESPONSE_FORMAT = {

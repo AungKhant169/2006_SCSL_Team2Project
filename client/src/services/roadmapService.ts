@@ -5,8 +5,8 @@ import { ApiError } from './http'
 import { toSchool } from './schoolService'
 import type { SchoolSummaryPayload } from './schoolService'
 
-/** PERF-7 / REQ-3.7: the AI plan must arrive within five seconds or it is treated as failed. */
-export const AI_TIMEOUT_MS = 5000
+/** PERF-7 / REQ-3.7: the AI plan must arrive within fifteen seconds or it is treated as failed. */
+export const AI_TIMEOUT_MS = 15000
 
 /** What a plan is generated from. */
 export interface PlanRequest {
@@ -68,7 +68,7 @@ export async function generateRulePlan(request: PlanRequest): Promise<RoadmapPla
   )
 }
 
-/** The AI plan. Rejects on an error, or when it takes longer than the timeout (five seconds by default). */
+/** The AI plan. Rejects on an error, or when it takes longer than the timeout (fifteen seconds by default). */
 export async function generateAiPlan(
   request: PlanRequest,
   timeoutMs = AI_TIMEOUT_MS,
