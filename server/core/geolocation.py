@@ -2,8 +2,19 @@ import math
 import re
 from typing import ClassVar, NamedTuple
 
+from fastapi import status
+
+from core.exceptions import HttpError
+
 EARTH_RADIUS_KM = 6371
 POSTAL_PATTERN = re.compile(r"\d{6}")
+
+
+class LocationError(HttpError):
+    POSTAL_NOT_FOUND = (
+        status.HTTP_404_NOT_FOUND,
+        "This postal code could not be located. Please check it and try again.",
+    )
 
 
 class District(NamedTuple):

@@ -1,5 +1,7 @@
 from .admin import router as admin_router
 from .bookmark import router as bookmark_router
+from .location import router as location_router
+from .profile import router as profile_router
 from .review import router as review_router
 from .roadmap import router as roadmap_router
 from .school_api import router as school_info_router
