@@ -235,10 +235,11 @@ describe('PathSG app journeys', () => {
       await type('input[aria-label="Residential postal code"]', '556000')
       await type('input[placeholder="4 – 32"]', '8')
       await click('button', 'Save profile')
-      expect(find('[role="status"]').textContent).toContain('Profile saved')
       expect(api.profiles['planner2026']).toMatchObject({ score_a: 8, postal: '556000' })
+      expect(router.currentRoute.value.name).toBe('roadmap')
+      expect(find('h1').textContent).toBe('Education roadmap')
+      expect(text()).toContain('Profile saved successfully')
 
-      await click('nav a', 'Roadmap')
       await click('button', 'Generate Roadmap')
       expect(text()).toContain('Rule-Based Plan')
       expect(text()).toContain("St. Gabriel's Secondary School")
@@ -261,7 +262,6 @@ describe('PathSG app journeys', () => {
       await type('input[aria-label="Residential postal code"]', '556000')
       await type('input[placeholder="4 – 32"]', '8')
       await click('button', 'Save profile')
-      await click('nav a', 'Roadmap')
       await click('button', 'Generate Roadmap')
       await click('section button', 'Save Roadmap')
       await click('header button', 'planner2026 · Log out')
@@ -284,6 +284,17 @@ describe('PathSG app journeys', () => {
       await click('[role="dialog"] button', 'Go to my profile')
       expect(router.currentRoute.value.name).toBe('profile')
       expect(dialog()).toBeNull()
+    })
+
+    it('can dismiss the profile toast on the roadmap page', async () => {
+      await launch()
+      await logIn('planner2026')
+      await type('input[aria-label="Residential postal code"]', '556000')
+      await type('input[placeholder="4 – 32"]', '8')
+      await click('button', 'Save profile')
+      expect(text()).toContain('Profile saved successfully')
+      await click('button[aria-label="Dismiss notification"]')
+      expect(text()).not.toContain('Profile saved successfully')
     })
 
     it('posts, edits and deletes a review on a school profile', async () => {

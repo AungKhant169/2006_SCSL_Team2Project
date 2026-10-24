@@ -20,7 +20,6 @@ export const useProfileStore = defineStore('profile', () => {
   const postal = ref('')
   const primaryResult = ref<PrimaryResult>('None')
   const error = ref('')
-  const status = ref('')
   const saving = ref(false)
 
   const levelInfo = computed(() => getLevel(level.value))
@@ -28,11 +27,9 @@ export const useProfileStore = defineStore('profile', () => {
 
   function clearMessages() {
     error.value = ''
-    status.value = ''
   }
 
   watch([scoreA, scoreB], clearMessages, { flush: 'sync' })
-  watch(postal, () => (status.value = ''), { flush: 'sync' })
 
   /** Changing the transition clears academic results that belong to the previous one. */
   function setLevel(next: TierId) {
@@ -91,7 +88,6 @@ export const useProfileStore = defineStore('profile', () => {
       saving.value = false
     }
     useDirectoryStore().setPostal(postal.value)
-    status.value = 'Profile saved'
     return true
   }
 
@@ -112,7 +108,6 @@ export const useProfileStore = defineStore('profile', () => {
     postal,
     primaryResult,
     error,
-    status,
     saving,
     levelInfo,
     postalValid,

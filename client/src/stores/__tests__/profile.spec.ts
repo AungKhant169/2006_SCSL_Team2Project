@@ -58,10 +58,9 @@ describe('profile store (UC-2.4)', () => {
     it('clears the academic fields and messages that no longer apply', () => {
       const p = useProfileStore()
       p.error = 'old error'
-      p.status = 'Profile saved'
       p.setLevel('uni')
       expect(p.level).toBe('uni')
-      expect([p.scoreA, p.scoreB, p.error, p.status]).toEqual(['', '', '', ''])
+      expect([p.scoreA, p.scoreB, p.error]).toEqual(['', '', ''])
     })
 
     it('exposes guidance for the selected level', () => {
@@ -76,13 +75,12 @@ describe('profile store (UC-2.4)', () => {
       await signInAs('planner2026')
     })
 
-    it('stores a valid profile, confirms it and makes the postal code the distance anchor', async () => {
+    it('stores a valid profile and makes the postal code the distance anchor', async () => {
       const p = useProfileStore()
       const directory = useDirectoryStore()
       p.setPostal('119077')
       p.scoreA = '12'
       expect(await p.save()).toBe(true)
-      expect(p.status).toBe('Profile saved')
       expect(p.error).toBe('')
       expect(directory.postal).toBe('119077')
       expect(api.profiles['planner2026']).toEqual({
@@ -100,7 +98,6 @@ describe('profile store (UC-2.4)', () => {
       p.scoreA = '35'
       expect(await p.save()).toBe(false)
       expect(p.error).toBe('Invalid academic score! PSLE AL must be a whole number from 4 to 32.')
-      expect(p.status).toBe('')
       expect(api.callsTo('PUT /profile')).toHaveLength(0)
     })
 
@@ -127,7 +124,6 @@ describe('profile store (UC-2.4)', () => {
       )
       expect(await p.save()).toBe(false)
       expect(p.error).toBe('Please enter a valid 6-digit Singapore postal code.')
-      expect(p.status).toBe('')
       expect(directory.postal).toBe('556000')
     })
 
@@ -151,19 +147,7 @@ describe('profile store (UC-2.4)', () => {
       expect(p.error).not.toBe('')
       p.scoreA = '10'
       expect(p.error).toBe('')
-      await p.save()
-      expect(p.status).toBe('Profile saved')
-      p.scoreA = '11'
-      expect(p.status).toBe('')
-    })
-
-    it('editing the postal code clears the saved confirmation', async () => {
-      const p = useProfileStore()
-      p.setPostal('556000')
-      p.scoreA = '8'
-      await p.save()
-      p.setPostal('556001')
-      expect(p.status).toBe('')
+      expect(await p.save()).toBe(true)
     })
   })
 
