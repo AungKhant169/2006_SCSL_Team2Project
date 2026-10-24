@@ -18,6 +18,9 @@ services:
       FRONTEND_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
       DATABASE_URL: sqlite:////data/main.db
       ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      # For AI roadmaps; without a key that endpoint answers 503.
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
       SCHOOL_RAW_DIR: /data/school_raw
     volumes:
       - pathsg-data:/data

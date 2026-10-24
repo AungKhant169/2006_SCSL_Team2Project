@@ -59,8 +59,7 @@ Read from the environment, and from `server/.env` when present (`python-dotenv`)
 | `OPENAI_API_KEY`      | none                    | Needed by `POST /roadmap/generate-ai-roadmap`; without it that endpoint returns 503 |
 | `OPENAI_MODEL`        | `gpt-5.5`               | Model used for AI roadmaps                                                       |
 
-`.env` is git-ignored. Only `.env.example` is tracked, and it does not list the two `OPENAI_*`
-variables.
+`.env` is git-ignored. Only `.env.example` is tracked.
 
 ## Commands
 
@@ -92,10 +91,13 @@ All routes are JSON unless noted. Protected routes take `Authorization: Bearer <
 |           | `POST /user/refresh`                   |       | Exchange a refresh token for a new pair                    |
 |           | `POST /user/logout`                    |       | Invalidate a refresh token (204)                           |
 |           | `GET /user/identity`                   | user  | The caller's id, username and role                         |
+| Profile   | `GET /profile`                         | user  | The student's target level, scores and postal code         |
+|           | `PUT /profile`                         | user  | Validate and save the profile, replacing the old one       |
+| Location  | `GET /location/{postal}`               |       | The point distances from a postal code are measured from   |
 | Schools   | `GET /school-api`                      |       | Filtered, paged search of schools                          |
 |           | `GET /school-api/options`              |       | Every value each filter accepts, for dropdowns             |
 |           | `GET /school-api/{school_key}`         |       | Full school profile                                        |
-|           | `POST /school-api/admin/refresh`       | admin | Upload raw CSVs and reload the school data                 |
+|           | `POST /school-api/admin/refresh`       | admin | The school data update below, also open to `ADMIN_USERNAMES` |
 | Reviews   | `GET /review/school/{school_id}`       |       | Reviews of a school, newest first                          |
 |           | `POST /review/school/{school_id}`      | user  | Add a review (one per account per school)                  |
 |           | `PATCH /review/{review_id}`            | owner | Edit own review                                            |
@@ -103,16 +105,18 @@ All routes are JSON unless noted. Protected routes take `Authorization: Bearer <
 | Bookmarks | `GET /bookmark`                        | user  | Bookmarked schools, in the order saved                     |
 |           | `PUT /bookmark/{school_id}`            | user  | Bookmark a school, idempotent (204)                        |
 |           | `DELETE /bookmark/{school_id}`         | user  | Remove a bookmark, idempotent (204)                        |
-| Roadmap   | `POST /roadmap/generate-rule-roadmap`  | user  | Rule-based school ids for a stage                          |
+| Roadmap   | `POST /roadmap/generate-rule-roadmap`  | user  | Rule-based school ids for a stage, plus the schools' details |
 |           | `POST /roadmap/generate-ai-roadmap`    | user  | AI-ranked school ids, plus the schools' details            |
-|           | `GET /roadmap`                         | user  | The saved roadmap (404 if none)                            |
+|           | `GET /roadmap`                         | user  | The saved roadmap with its schools (404 if none)           |
 |           | `PUT /roadmap`                         | user  | Save a roadmap, replacing any existing one                 |
 |           | `PATCH /roadmap`                       | user  | Change the saved roadmap's school choices                  |
 |           | `DELETE /roadmap`                      | user  | Delete the saved roadmap (204)                             |
-| Admin     | `POST /admin/dataset/update`           | admin | Single-CSV update, not implemented (returns 501)           |
+| Admin     | `GET /admin/dataset`                   | admin | Schools in the database and when they were last loaded     |
+|           | `POST /admin/dataset/update`           | admin | Upload raw CSVs and reload the school data                 |
 
 Schools are addressed by `school_key` (a text slug) in the directory, and by numeric `school_id` in
-reviews, bookmarks and roadmaps.
+reviews, bookmarks and roadmaps. Every place that returns schools (search, bookmarks, roadmaps) gives
+each one's `id` as well as its `school_key`, so a client never needs a second lookup.
 
 ### Accounts and sessions
 
@@ -129,6 +133,10 @@ reviews, bookmarks and roadmaps.
 
 `GET /school-api` returns `{total, limit, offset, items}`. Every filter given must match.
 
+- Stage: `stage` (`primary`, `secondary`, `postsec`, `uni`), the schools a roadmap for that stage
+  can pick from. Integrated and mixed-level schools belong to every stage they cover (Raffles
+  Institution is both secondary and post-secondary). Each school lists its `stages`. The mapping is
+  `STAGE_LEVELS` in [`models/school_record.py`](models/school_record.py).
 - Text: `q` (name contains), `level` and `mrt` (contains), `area`, `zone`, `school_type`,
   `gendermix`, `nature`, `session`, `mother_tongue`, `alp_domain`, `llp_domain` (exact, ignoring case).
 - Flags: `sap`, `autonomous`, `gifted`, `ip`, `ib` (`true` or `false`).
@@ -144,7 +152,9 @@ offer in dropdowns.
 
 A request carries `stage` (`preschool`, `primary`, `secondary`, `postsec` or `uni`), and optionally
 `postal` (6-digit postal code) and `previous_academic_score`. A roadmap holds 1 to 3 school ids in
-preference order, and an account keeps at most one.
+preference order, and an account keeps at most one. Every roadmap response lists the chosen
+schools' details (`schools`, in the same order as `choices`; an id whose school no longer exists is
+left out).
 
 - **Rule-based** ([`core/roadmap_rules.py`](core/roadmap_rules.py)). Primary ranks by distance from
   the student's postal district. Secondary ranks schools the student's PSLE AL score reaches against
@@ -155,6 +165,18 @@ preference order, and an account keeps at most one.
   It gives up after 10 seconds (504), and any other failure or unusable answer is a 503.
 - **Distance** ([`core/geolocation.py`](core/geolocation.py)) is approximate: the first two digits of
   the postal code select a postal district, and the distance is measured to that district's centre.
+  `GET /location/{postal}` returns that centre, so a client can show the same distances.
+- The `psle_2017_cutoff` column is the 2017 PSLE **T-score** cut-off (roughly 190 to 264, higher is
+  more selective), not an AL score. The rule-based plan scales it against the candidates, and the AI
+  prompt says the same.
+
+### Student profile
+
+`GET /profile` returns the saved profile, or the starting values (`secondary`, no scores, no postal
+code) for an account that has none. `PUT /profile` validates and replaces it with the rules the
+client form uses: a 6-digit postal code, and for the target level a PSLE AL (4 to 32, whole), an
+L1R5 (2 to 54) and/or ELR2B2, or a GPA (0 to 4) and/or A-Level rank points (0 to 90). Scores the
+level does not use are dropped. Only these fields are stored, never a name or NRIC.
 
 ## School data
 
@@ -166,13 +188,19 @@ holds one row per school. Subjects, CCAs, MOE programmes and bus services are in
 `school_subjects`, `school_ccas`, `school_moe_programmes` and `school_buses`, which are rebuilt on
 every refresh.
 
-There are two ways to refresh, and both use the same code:
+There are three ways to refresh, and all use the same code:
 
 - `python -m scripts.refresh_school_data` reloads from the stored files. With `--if-empty` it does
   nothing when schools are already loaded, which is what the Docker image runs on start-up.
-- `POST /school-api/admin/refresh` (admin) takes a multipart `files` field with one or more of the
+- `POST /admin/dataset/update` (admin role) takes a multipart `files` field with one or more of the
   seven CSVs. Each file is recognised by its column headers, so file names do not matter, and any
-  kind not uploaded is taken from the last upload (or the copy in `data/raw/`).
+  kind not uploaded is taken from the last upload (or the copy in `data/raw/`). This is what the
+  client's admin panel uses.
+- `POST /school-api/admin/refresh` is the same update, also open to the `ADMIN_USERNAMES` accounts.
+
+Only one update runs at a time (the second gets 409). Every successful load is logged in the
+`dataset_updates` table, and `GET /admin/dataset` reports the school count and the time of the last
+load.
 
 A refresh is all or nothing: the files are validated and cleaned first, and everything is written in
 one transaction. Schools already in the database but missing from the files are kept and counted as
@@ -180,14 +208,10 @@ one transaction. Schools already in the database but missing from the files are 
 succeeds. The response summarises the run (`schools`, `added`, `updated`, `not_in_files`, `subjects`,
 `ccas`, `moe_programmes`, `buses`, `warnings`).
 
-Failures: 403 when the caller is not an admin, 422 when no file is sent, a file is not a non-empty
-`.csv` within `SCHOOL_MAX_UPLOAD_MB`, or the data cannot be processed, and 503 when the database is
-unreachable.
-
-`POST /admin/dataset/update` is a separate, older single-CSV endpoint in
-[`core/dataset_update.py`](core/dataset_update.py). Its upload checks and single-update lock are in
-place, but its three pipeline steps (`parse_dataset`, `standardize_records`, `bulk_write_records`)
-still raise, so a valid upload returns 501.
+Failures: 403 when the caller is not an admin, 409 when another update is running, 422 when no file
+is sent, a file is not a non-empty `.csv` within `SCHOOL_MAX_UPLOAD_MB`, or the data cannot be
+processed, and 503 when the database is unreachable. The request handling and the lock are in
+[`core/dataset_update.py`](core/dataset_update.py).
 
 ### Errors
 
@@ -207,8 +231,8 @@ Tests live in [`tests/`](tests/) as `*_test.py` files, driven through FastAPI's 
 running server. [`tests/conftest.py`](tests/conftest.py) points the app at a throwaway SQLite
 database and sets its own `SECRET_KEY` and `FRONTEND_ORIGIN`, so your `.env` is not used, and resets
 every table before each test. Use the `authenticated` and `admin` fixtures for a logged-in user or
-administrator. The OpenAI call and the unfinished `/admin/dataset/update` pipeline are replaced with
-`monkeypatch`.
+administrator. The OpenAI client is replaced with `monkeypatch`; the school data pipeline runs for
+real on the bundled CSVs, with uploads redirected to a temporary folder.
 
 ## Database migrations
 
@@ -239,14 +263,15 @@ container, with the `ADMIN_USERNAMES` caveat above), or promote a registered acc
 docker compose exec server python -m scripts.make_admin <username>
 ```
 
-`docker-compose.yml` does not pass `OPENAI_API_KEY` to the container yet, so AI roadmaps return 503
-there until it is added.
+Set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`) in the root `.env` for AI roadmaps; compose
+passes both to the container, and without a key they return 503.
 
 ## Structure
 
 ```
 main.py          App setup: CORS, routers, error handler
-routers/         One FastAPI router per area (user, school_api, review, bookmark, roadmap, admin)
+routers/         One FastAPI router per area (user, profile, location, school_api, review, bookmark,
+                 roadmap, admin)
 schemas/         Pydantic request and response models
 models/          SQLAlchemy models. Each also holds its own queries and business rules
 core/
@@ -256,7 +281,7 @@ core/
   geolocation.py     Postal districts and distance
   school_cleaning.py Raw school CSVs to clean records (pandas)
   school_import.py   Writes cleaned records to the database, keeps uploaded CSVs
-  dataset_update.py  Older single-CSV admin update (unfinished)
+  dataset_update.py  Admin school data update: upload checks, the single-update lock
   alembic/           Migration environment and versions
 scripts/         One-off commands: refresh_school_data, make_admin, promote_admin
 data/raw/        The seven raw school CSV files

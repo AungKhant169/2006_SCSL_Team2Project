@@ -30,35 +30,41 @@ see [`../DEPLOYMENT.md`](../DEPLOYMENT.md) for running and releasing them.
 
 ## What talks to the server
 
-| Area                                  | Source                                                                       |
-| ------------------------------------- | ---------------------------------------------------------------------------- |
-| Register, log in, log out, session    | FastAPI `/user/*` endpoints (`src/services/authService.ts`)                  |
-| Schools, reviews, bookmarks, profile  | In-memory demo data (`src/data/`, Pinia stores) until endpoints exist        |
-| AI roadmap plan, admin dataset update | Simulated services (`src/services/roadmapAiService.ts`, `datasetService.ts`) |
+Everything the app shows comes from the FastAPI server in `../server`, so start it before the
+client.
 
-Start the API (`server/`) before using the login page. The server does not return account roles
-yet, so the account named `admin` is treated as the administrator (`src/stores/auth.ts`).
+| Area                                   | Endpoints                                     | Client code                                                  |
+| -------------------------------------- | --------------------------------------------- | ------------------------------------------------------------ |
+| Register, log in, log out, role        | `/user/*`                                     | `services/authService.ts`, `stores/auth.ts`                  |
+| Directory and school profiles          | `/school-api`, `/school-api/{school_key}`     | `services/schoolService.ts`, `stores/directory.ts`           |
+| Distances from a postal code           | `/location/{postal}`                          | `services/locationService.ts`, `stores/location.ts`          |
+| Student profile                        | `/profile`                                    | `services/profileService.ts`, `stores/profile.ts`            |
+| Bookmarks                              | `/bookmark`                                   | `services/bookmarkService.ts`, `stores/bookmarks.ts`         |
+| Reviews                                | `/review`                                     | `services/reviewService.ts`, `stores/reviews.ts`             |
+| Rule-based and AI roadmaps, saved plan | `/roadmap/*`                                  | `services/roadmapService.ts`, `stores/roadmap.ts`            |
+| School data update (admin)             | `/admin/dataset`, `/admin/dataset/update`     | `services/adminService.ts`, `stores/admin.ts`                |
 
-Account-scoped demo data (profile, bookmarks, saved roadmap) lives in memory, is seeded with the
-design's example values, and is cleared on log out.
+Account pages need a login. Access tokens last five minutes, so every authenticated call goes
+through `services/authorizedRequest.ts`: on a 401 it renews the token pair once (concurrent calls
+share one renewal, because refresh tokens are single-use) and repeats the call. If the renewal is
+refused the session ends and a notice says so. The administrator is whoever the server says has
+the `admin` role.
 
-### Demonstrating failure states
+What the school dataset does not have, the app shows as "Not available": fees, financial aid and
+scholarships, benchmark history, polytechnics and universities (the Post-Secondary tier lists
+junior colleges and integrated schools; the University tier is empty). The PSLE benchmark is the
+2017 T-score cut-off, and primary schools show the places taken up to Phase 2B.
 
-The simulated services read URL flags when the page loads, so each outcome in the design can be
-shown without a backend:
-
-| Flag                     | Effect                                                        |
-| ------------------------ | ------------------------------------------------------------- |
-| `/?aiOutcome=error`      | The AI roadmap panel fails and offers **Retry AI Generation** |
-| `/?adminOutcome=timeout` | Admin update aborts with "Unable to reach API"                |
-| `/?adminOutcome=parse`   | Admin update aborts with "Unable to process dataset format"   |
+Distances are measured from the centre of the postal code's district, the point the server's
+rule-based roadmap also uses. The directory fetches a whole tier once and searches, filters, sorts
+and pages it in the browser.
 
 ## Structure
 
 ```
 src/
   assets/styles/     Tailwind entry + shared style modules (see below)
-  assets/logos/      School badges, named by school id
+  assets/logos/      School badges, named after the school key (spaces as dashes)
   components/
     ui/              Reusable controls: buttons, fields, segmented switch, tiles, modal, cards
     layout/          Header, navigation, notice banner, dialog host
@@ -69,14 +75,16 @@ src/
   views/             One component per route
   router/            Routes, guards (login / admin access) and route meta typing
   stores/            Pinia stores holding the SRS business rules
-  services/          API client, auth, simulated AI / dataset services
+  services/          API client, token renewal, and one service per area of the API
   utils/ data/ types/
-  test/              Shared test helpers
+  test/              Shared test helpers, school fixtures and a fake PathSG server
 ```
 
-Tests sit next to the code in `__tests__/` folders: pure utilities, services, stores (business
-rules such as the single saved roadmap, one review per school and AI fault isolation),
-components, views, route guards, and whole-app user journeys in `src/__tests__/App.spec.ts`.
+Tests sit next to the code in `__tests__/` folders: pure utilities, services (each checked against
+the API contract), stores (business rules such as the single saved roadmap, one review per school
+and AI fault isolation), components, views, route guards, and whole-app user journeys in
+`src/__tests__/App.spec.ts`. Stores, views and journeys run against `src/test/fakeApi.ts`, an
+in-memory stand-in for the server behind a stubbed `fetch`, so they exercise the real services.
 
 ## Styling
 
