@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { apiRequest, ApiError, GENERIC_ERROR } from '../http'
+import { apiDownload, apiRequest, ApiError, GENERIC_ERROR } from '../http'
 
 function respond(status: number, body?: unknown) {
   return new Response(body === undefined ? null : JSON.stringify(body), {
@@ -107,5 +107,59 @@ describe('apiRequest beyond GET and POST', () => {
       status: 0,
     })
     expect(fetchMock.mock.calls[0]![1].signal).toBe(controller.signal)
+  })
+})
+
+describe('apiDownload', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function file(headers: Record<string, string> = {}) {
+    return new Response('school_key,school_name\r\na,A\r\n', {
+      headers: { 'Content-Type': 'text/csv', ...headers },
+    })
+  }
+
+  it('returns the file and the name the server suggested', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          file({ 'Content-Disposition': 'attachment; filename="pathsg_schools_20261025.csv"' }),
+        ),
+    )
+    const download = await apiDownload('/admin/dataset/export', { token: 'abc' })
+    expect(download.filename).toBe('pathsg_schools_20261025.csv')
+    expect(await download.blob.text()).toBe('school_key,school_name\r\na,A\r\n')
+  })
+
+  it('sends the bearer token like any other request', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(file())
+    vi.stubGlobal('fetch', fetchMock)
+    await apiDownload('/admin/dataset/export', { token: 'abc' })
+    const [, init] = fetchMock.mock.calls[0]!
+    expect(init.method).toBe('GET')
+    expect(init.headers.Authorization).toBe('Bearer abc')
+  })
+
+  it('has no name when the response does not suggest one', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(file()))
+    await expect(apiDownload('/admin/dataset/export')).resolves.toMatchObject({ filename: null })
+  })
+
+  it('throws an ApiError carrying the server’s detail message', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(respond(503, { detail: 'Export Failed: Unable to retrieve.' })),
+    )
+    await expect(apiDownload('/admin/dataset/export')).rejects.toMatchObject({
+      status: 503,
+      message: 'Export Failed: Unable to retrieve.',
+    })
+  })
+
+  it('reports an unreachable server as status 0', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+    await expect(apiDownload('/admin/dataset/export')).rejects.toMatchObject({ status: 0 })
   })
 })

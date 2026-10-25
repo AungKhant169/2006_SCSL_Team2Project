@@ -1,5 +1,12 @@
 export type ModalId =
-  'postal' | 'overwrite' | 'delRoadmap' | 'delReview' | 'guestReview' | 'timeout' | 'parse'
+  | 'postal'
+  | 'overwrite'
+  | 'delRoadmap'
+  | 'delReview'
+  | 'guestReview'
+  | 'timeout'
+  | 'parse'
+  | 'export'
 
 export interface ModalDefinition {
   title: string
@@ -56,6 +63,12 @@ export const MODALS: Record<ModalId, ModalDefinition> = {
   parse: {
     title: 'Database Update Failed',
     body: 'Unable to process dataset format. Please check source data and try again.',
+    cancel: 'Close',
+    tone: 'danger',
+  },
+  export: {
+    title: 'Export Failed',
+    body: 'Unable to retrieve school data at this time.',
     cancel: 'Close',
     tone: 'danger',
   },

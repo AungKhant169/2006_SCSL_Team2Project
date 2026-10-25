@@ -1,12 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fetchDatasetStatus, updateDataset } from '../adminService'
-import { authorizedRequest } from '../authorizedRequest'
+import { exportDataset, fetchDatasetStatus, updateDataset } from '../adminService'
+import { authorizedDownload, authorizedRequest } from '../authorizedRequest'
 
-vi.mock('../authorizedRequest', () => ({ authorizedRequest: vi.fn() }))
+vi.mock('../authorizedRequest', () => ({ authorizedRequest: vi.fn(), authorizedDownload: vi.fn() }))
 const request = vi.mocked(authorizedRequest)
+const download = vi.mocked(authorizedDownload)
 
 describe('adminService (matches the /admin API contract)', () => {
-  beforeEach(() => request.mockReset())
+  beforeEach(() => {
+    request.mockReset()
+    download.mockReset()
+  })
 
   it('reads the dataset status', async () => {
     request.mockResolvedValue({ records: 337, last_update: '2026-10-20T06:30:00+00:00' })
@@ -29,5 +33,22 @@ describe('adminService (matches the /admin API contract)', () => {
     expect(options?.method).toBe('POST')
     const form = options?.body as FormData
     expect(form.getAll('files').map((f) => (f as File).name)).toEqual(['moe.csv', 'ccas.csv'])
+  })
+
+  describe('export', () => {
+    it('downloads the file under the name the server gave it', async () => {
+      const blob = new Blob(['school_key,school_name'])
+      download.mockResolvedValue({ blob, filename: 'pathsg_schools_20261025.csv' })
+      await expect(exportDataset()).resolves.toEqual({
+        blob,
+        filename: 'pathsg_schools_20261025.csv',
+      })
+      expect(download).toHaveBeenCalledWith('/admin/dataset/export')
+    })
+
+    it('names the file itself when the response has no name', async () => {
+      download.mockResolvedValue({ blob: new Blob(['a']), filename: null })
+      await expect(exportDataset()).resolves.toMatchObject({ filename: 'pathsg_schools.csv' })
+    })
   })
 })

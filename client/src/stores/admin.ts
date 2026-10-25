@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import * as adminService from '@/services/adminService'
 import { ApiError } from '@/services/http'
+import { saveFile } from '@/utils/download'
 import { formatTimestamp } from '@/utils/format'
 import { useDirectoryStore } from './directory'
 import { useUiStore } from './ui'
@@ -9,11 +10,13 @@ import { useUiStore } from './ui'
 /** The server starts the message of a failed pipeline run with this; other errors are about the input. */
 const FAILURE_PREFIX = 'Database Update Failed:'
 
-/** Manual school dataset update for administrators (UC-5.1). */
+/** Manual school dataset update (UC-5.1) and export (UC-5.2) for administrators. */
 export const useAdminStore = defineStore('admin', () => {
   const ui = useUiStore()
 
   const busy = ref(false)
+  /** An export is being fetched. It does not lock the update controls. */
+  const exporting = ref(false)
   /** The success banner. */
   const message = ref('')
   /** Why the files were refused, shown beside the form. */
@@ -76,8 +79,26 @@ export const useAdminStore = defineStore('admin', () => {
     }
   }
 
+  /**
+   * Downloads every school as a CSV file. Whatever goes wrong (an empty or unreachable database,
+   * an unreachable server) raises the same popup and saves nothing (REQ-5.15).
+   */
+  async function runExport() {
+    if (exporting.value) return
+    exporting.value = true
+    try {
+      const { blob, filename } = await adminService.exportDataset()
+      saveFile(blob, filename)
+    } catch {
+      ui.openModal('export')
+    } finally {
+      exporting.value = false
+    }
+  }
+
   function reset() {
     busy.value = false
+    exporting.value = false
     message.value = ''
     error.value = ''
     files.value = []
@@ -85,5 +106,18 @@ export const useAdminStore = defineStore('admin', () => {
     lastUpdate.value = ''
   }
 
-  return { busy, message, error, files, lastUpdate, recordCount, setFiles, load, runUpdate, reset }
+  return {
+    busy,
+    exporting,
+    message,
+    error,
+    files,
+    lastUpdate,
+    recordCount,
+    setFiles,
+    load,
+    runUpdate,
+    runExport,
+    reset,
+  }
 })

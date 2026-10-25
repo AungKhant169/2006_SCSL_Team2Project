@@ -1,7 +1,7 @@
 import { refresh } from './authService'
 import type { Session } from './authService'
-import { ApiError, apiRequest } from './http'
-import type { RequestOptions } from './http'
+import { ApiError, apiDownload, apiRequest } from './http'
+import type { Download, RequestOptions } from './http'
 
 /** Shown when a signed-out visitor, or one whose session was refused, reaches a protected call. */
 export const SESSION_ENDED = 'Your session has expired. Please log in again.'
@@ -37,19 +37,16 @@ function renew(stale: Session): Promise<Session> {
 }
 
 /**
- * A request with the signed-in user's access token. Access tokens are short-lived, so a 401 renews
- * the pair once and repeats the request. A refusal of the refresh token ends the session; an
+ * Makes a call with the signed-in user's access token. Access tokens are short-lived, so a 401
+ * renews the pair once and repeats the call. A refusal of the refresh token ends the session; an
  * unreachable server does not.
  */
-export async function authorizedRequest<T>(
-  path: string,
-  options: Omit<RequestOptions, 'token'> = {},
-): Promise<T> {
+async function withSession<T>(call: (token: string) => Promise<T>): Promise<T> {
   const session = binding?.current()
   if (!session) throw new ApiError(401, SESSION_ENDED)
 
   try {
-    return await apiRequest<T>(path, { ...options, token: session.accessToken })
+    return await call(session.accessToken)
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 401) throw error
 
@@ -65,6 +62,19 @@ export async function authorizedRequest<T>(
         throw renewError
       }
     }
-    return apiRequest<T>(path, { ...options, token: next.accessToken })
+    return call(next.accessToken)
   }
+}
+
+/** A request with the signed-in user's access token. */
+export function authorizedRequest<T>(
+  path: string,
+  options: Omit<RequestOptions, 'token'> = {},
+): Promise<T> {
+  return withSession((token) => apiRequest<T>(path, { ...options, token }))
+}
+
+/** A file download with the signed-in user's access token. */
+export function authorizedDownload(path: string): Promise<Download> {
+  return withSession((token) => apiDownload(path, { token }))
 }

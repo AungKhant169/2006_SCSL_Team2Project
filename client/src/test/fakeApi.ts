@@ -64,9 +64,12 @@ const STARTING_PROFILE: ProfileRow = {
 }
 
 export const DATASET_LAST_UPDATE = '2026-10-20T06:30:00+00:00'
+/** What the fake server names the exported file. */
+export const DATASET_EXPORT_FILENAME = 'pathsg_schools_20261024.csv'
 
 export type AiMode = 'ok' | 'error' | 'hang'
 export type DatasetOutcome = 'success' | 'parse' | 'database' | 'running'
+export type ExportOutcome = 'success' | 'unavailable'
 
 /**
  * A stand-in for the PathSG server, behind a stubbed `fetch`. It keeps the state a real server
@@ -90,6 +93,8 @@ export class FakeApi {
   ai: AiMode = 'ok'
   /** How the next dataset update ends. */
   datasetOutcome: DatasetOutcome = 'success'
+  /** How the next dataset export ends. */
+  exportOutcome: ExportOutcome = 'success'
 
   private sequence = 0
   private accessTokens = new Map<string, string>()
@@ -281,6 +286,9 @@ export class FakeApi {
     if (method === 'POST' && path === '/admin/dataset/update') {
       return () => this.adminOnly(call, () => this.updateDataset(call))
     }
+    if (method === 'GET' && path === '/admin/dataset/export') {
+      return () => this.adminOnly(call, () => this.exportDataset())
+    }
     return undefined
   }
 
@@ -431,6 +439,19 @@ export class FakeApi {
       default:
         return problem(405, 'Method not allowed')
     }
+  }
+
+  private exportDataset() {
+    if (this.exportOutcome === 'unavailable') {
+      return problem(503, 'Export Failed: Unable to retrieve school data at this time.')
+    }
+    const rows = this.schools.map((s) => `${s.school_key},${s.school_name}`)
+    return new Response(['school_key,school_name', ...rows].join('\r\n'), {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="${DATASET_EXPORT_FILENAME}"`,
+      },
+    })
   }
 
   private updateDataset(call: Call) {

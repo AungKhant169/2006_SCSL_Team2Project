@@ -1,16 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { refresh } from '../authService'
 import type { Session } from '../authService'
-import { authorizedRequest, bindSession, SESSION_ENDED } from '../authorizedRequest'
-import { ApiError, apiRequest } from '../http'
+import {
+  authorizedDownload,
+  authorizedRequest,
+  bindSession,
+  SESSION_ENDED,
+} from '../authorizedRequest'
+import { ApiError, apiDownload, apiRequest } from '../http'
+import type { Download } from '../http'
 
 vi.mock('../http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../http')>()),
   apiRequest: vi.fn(),
+  apiDownload: vi.fn(),
 }))
 vi.mock('../authService', () => ({ refresh: vi.fn() }))
 
 const request = vi.mocked(apiRequest)
+const fetchFile = vi.mocked(apiDownload)
 const renewToken = vi.mocked(refresh)
 
 const first: Session = { accessToken: 'a1', refreshToken: 'r1' }
@@ -123,5 +131,53 @@ describe('authorizedRequest', () => {
     renewToken.mockResolvedValue(second)
     await expect(authorizedRequest('/profile')).rejects.toMatchObject({ status: 401 })
     expect(request).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('authorizedDownload', () => {
+  const download = (name: string): Download => ({ blob: new Blob(['a,b']), filename: name })
+
+  beforeEach(() => {
+    fetchFile.mockReset()
+    renewToken.mockReset()
+  })
+
+  it('fetches the file with the access token', async () => {
+    bindTo(first)
+    fetchFile.mockResolvedValue(download('schools.csv'))
+    await expect(authorizedDownload('/admin/dataset/export')).resolves.toMatchObject({
+      filename: 'schools.csv',
+    })
+    expect(fetchFile).toHaveBeenCalledWith('/admin/dataset/export', { token: 'a1' })
+  })
+
+  it('refuses without a session, without calling the server', async () => {
+    bindTo(null)
+    await expect(authorizedDownload('/admin/dataset/export')).rejects.toMatchObject({
+      status: 401,
+      message: SESSION_ENDED,
+    })
+    expect(fetchFile).not.toHaveBeenCalled()
+  })
+
+  it('renews an expired access token once and repeats the download', async () => {
+    const { renewed } = bindTo(first)
+    fetchFile.mockRejectedValueOnce(expired()).mockResolvedValueOnce(download('schools.csv'))
+    renewToken.mockResolvedValue(second)
+    await expect(authorizedDownload('/admin/dataset/export')).resolves.toMatchObject({
+      filename: 'schools.csv',
+    })
+    expect(renewed).toHaveBeenCalledWith(second)
+    expect(fetchFile).toHaveBeenLastCalledWith('/admin/dataset/export', { token: 'a2' })
+  })
+
+  it('ends the session when the refresh token is refused', async () => {
+    const { rejected } = bindTo(first)
+    fetchFile.mockRejectedValue(expired())
+    renewToken.mockRejectedValue(new ApiError(401, 'Your session has expired.'))
+    await expect(authorizedDownload('/admin/dataset/export')).rejects.toMatchObject({
+      status: 401,
+    })
+    expect(rejected).toHaveBeenCalledOnce()
   })
 })

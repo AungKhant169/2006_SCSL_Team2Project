@@ -34,7 +34,8 @@ function extractMessage(payload: unknown): string {
   return GENERIC_ERROR
 }
 
-export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+/** Sends the request. A refusal or an unreachable server becomes an ApiError. */
+async function send(path: string, options: RequestOptions): Promise<Response> {
   const { method = 'GET', body, token, signal } = options
   const headers: Record<string, string> = {}
   const isForm = body instanceof FormData
@@ -58,6 +59,28 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const payload: unknown = await response.json().catch(() => null)
     throw new ApiError(response.status, extractMessage(payload))
   }
+  return response
+}
+
+export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const response = await send(path, options)
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+/** A file the server sent, with the name it suggested if the response carried one. */
+export interface Download {
+  blob: Blob
+  filename: string | null
+}
+
+function suggestedName(response: Response): string | null {
+  const match = /filename="?([^";]+)"?/i.exec(response.headers.get('Content-Disposition') ?? '')
+  return match?.[1] ?? null
+}
+
+/** Like `apiRequest`, for an endpoint that answers with a file instead of JSON. */
+export async function apiDownload(path: string, options: RequestOptions = {}): Promise<Download> {
+  const response = await send(path, options)
+  return { blob: await response.blob(), filename: suggestedName(response) }
 }

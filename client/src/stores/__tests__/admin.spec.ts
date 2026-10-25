@@ -1,12 +1,16 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
-import { DATASET_LAST_UPDATE, stubApi } from '@/test/fakeApi'
+import { DATASET_EXPORT_FILENAME, DATASET_LAST_UPDATE, stubApi } from '@/test/fakeApi'
 import type { FakeApi } from '@/test/fakeApi'
 import { signInAs } from '@/test/helpers'
+import { saveFile } from '@/utils/download'
 import { formatTimestamp } from '@/utils/format'
 import { useAdminStore } from '../admin'
 import { useDirectoryStore } from '../directory'
 import { useUiStore } from '../ui'
+
+// jsdom cannot download a file; what the store hands to the browser is checked instead.
+vi.mock('@/utils/download', () => ({ saveFile: vi.fn() }))
 
 const SUCCESS = 'Database updated successfully with the latest Singapore school data'
 const csv = (name = 'moe.csv') => new File(['a,b'], name, { type: 'text/csv' })
@@ -188,6 +192,80 @@ describe('admin store (UC-5.1)', () => {
     })
   })
 
+  describe('runExport (UC-5.2)', () => {
+    beforeEach(() => vi.mocked(saveFile).mockClear())
+
+    it('asks the server for the export and saves the file under the name it gave', async () => {
+      const a = useAdminStore()
+      await a.runExport()
+      expect(api.callsTo('GET /admin/dataset/export')).toHaveLength(1)
+      expect(saveFile).toHaveBeenCalledOnce()
+      const [blob, filename] = vi.mocked(saveFile).mock.calls[0]!
+      expect(filename).toBe(DATASET_EXPORT_FILENAME)
+      expect(await blob.text()).toMatch(/^school_key,school_name\r\n/)
+      expect(useUiStore().modal).toBeNull()
+      expect(a.exporting).toBe(false)
+    })
+
+    it('locks the trigger while the file is fetched and ignores a second click', async () => {
+      const release = api.hold('GET /admin/dataset/export')
+      const a = useAdminStore()
+      const first = a.runExport()
+      expect(a.exporting).toBe(true)
+      await a.runExport()
+      release()
+      await first
+      expect(api.callsTo('GET /admin/dataset/export')).toHaveLength(1)
+      expect(saveFile).toHaveBeenCalledOnce()
+      expect(a.exporting).toBe(false)
+    })
+
+    it('leaves the update controls and their messages alone', async () => {
+      const release = api.hold('GET /admin/dataset/export')
+      const a = useAdminStore()
+      a.setFiles([csv()])
+      const exported = a.runExport()
+      expect(a.busy).toBe(false)
+      release()
+      await exported
+      expect(a.files).toHaveLength(1)
+      expect(a.message).toBe('')
+      expect(a.error).toBe('')
+    })
+
+    it('an empty or unreachable database raises the "Export Failed" popup and saves nothing (REQ-5.15)', async () => {
+      api.exportOutcome = 'unavailable'
+      const a = useAdminStore()
+      await a.runExport()
+      const ui = useUiStore()
+      expect(ui.modal?.id).toBe('export')
+      expect(ui.modalDefinition?.title).toBe('Export Failed')
+      expect(ui.modalDefinition?.body).toBe('Unable to retrieve school data at this time.')
+      expect(saveFile).not.toHaveBeenCalled()
+      expect(a.exporting).toBe(false)
+    })
+
+    it('an unreachable server raises the same popup', async () => {
+      api.override('GET /admin/dataset/export', () => {
+        throw new TypeError('Failed to fetch')
+      })
+      await useAdminStore().runExport()
+      expect(useUiStore().modal?.id).toBe('export')
+      expect(saveFile).not.toHaveBeenCalled()
+    })
+
+    it('can export again after a failure', async () => {
+      api.exportOutcome = 'unavailable'
+      const a = useAdminStore()
+      await a.runExport()
+      useUiStore().closeModal()
+      api.exportOutcome = 'success'
+      await a.runExport()
+      expect(saveFile).toHaveBeenCalledOnce()
+      expect(useUiStore().modal).toBeNull()
+    })
+  })
+
   it('reset clears the banner, the files and the figures', async () => {
     const a = useAdminStore()
     a.setFiles([csv()])
@@ -197,5 +275,16 @@ describe('admin store (UC-5.1)', () => {
     expect(a.files).toEqual([])
     expect(a.recordCount).toBeNull()
     expect(a.lastUpdate).toBe('')
+  })
+
+  it('reset also stops showing an export in progress', async () => {
+    const release = api.hold('GET /admin/dataset/export')
+    const a = useAdminStore()
+    const pending = a.runExport()
+    expect(a.exporting).toBe(true)
+    a.reset()
+    expect(a.exporting).toBe(false)
+    release()
+    await pending
   })
 })
