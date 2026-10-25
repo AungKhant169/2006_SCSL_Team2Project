@@ -352,6 +352,22 @@ class SchoolInfo(Base, Persistable):
             return db.scalar(select(func.count()).select_from(cls)) or 0
 
     @classmethod
+    def all_with_details(cls) -> list["SchoolInfo"]:
+        """Every school, by name, with its subjects, CCAs, MOE programmes and buses loaded."""
+        stmt = (
+            select(cls)
+            .order_by(cls.school_name)
+            .options(
+                selectinload(cls.subjects),
+                selectinload(cls.ccas),
+                selectinload(cls.moe_programme_rows),
+                selectinload(cls.bus_rows),
+            )
+        )
+        with SessionLocal() as db:
+            return list(db.scalars(stmt))
+
+    @classmethod
     def get_or_404(cls, school_key: str):
         stmt = (
             select(cls)

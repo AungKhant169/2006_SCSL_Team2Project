@@ -1,10 +1,24 @@
+import csv
+import io
+import re
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import status
 from sqlalchemy.exc import OperationalError
 
 from core import school_import
+from core.dataset_export import DatasetExportError, SchoolDatasetExporter
 from core.dataset_update import DatasetUpdateError, SchoolDatasetUpdater
-from models.school_record import SchoolInfo, SchoolInfoError
+from models.base import SessionLocal
+from models.school_record import (
+    SchoolBus,
+    SchoolCca,
+    SchoolInfo,
+    SchoolInfoError,
+    SchoolMoeProgramme,
+    SchoolSubject,
+)
 from models.user import UserError
 from tests.conftest import client
 
@@ -135,3 +149,162 @@ class TestUpdateDataset:
         )
         assert not SchoolDatasetUpdater._lock.locked()
         assert list(raw_dir.iterdir()) == []
+
+
+EXPORT = "/admin/dataset/export"
+
+
+def add_schools():
+    """Two schools: the first with its details and list entries filled in, the second bare."""
+    with SessionLocal() as db:
+        db.add_all(
+            [
+                SchoolInfo(
+                    school_key="alpha primary",
+                    school_name="ALPHA PRIMARY SCHOOL",
+                    address="1 Alpha Road",
+                    postal_code="012345",
+                    latitude=1.3,
+                    longitude=103.8,
+                    principal_name="MR TAN",
+                    mainlevel_code="PRIMARY",
+                    rank_2017=5,
+                    places_taken_phase2b=120,
+                    subjects=[
+                        SchoolSubject(name="Mathematics"),
+                        SchoolSubject(name="Art"),
+                    ],
+                    ccas=[
+                        SchoolCca(
+                            grouping="CHESS", section="PRIMARY", generic_name="CLUBS"
+                        ),
+                        SchoolCca(
+                            grouping="AIKIDO",
+                            section="PRIMARY",
+                            generic_name="PHYSICAL SPORTS",
+                            customised_name="MARTIAL ARTS",
+                        ),
+                    ],
+                    moe_programme_rows=[SchoolMoeProgramme(name="LEARNING SUPPORT")],
+                    bus_rows=[SchoolBus(bus_no="965"), SchoolBus(bus_no="964")],
+                ),
+                SchoolInfo(school_key="beta secondary", school_name="BETA SECONDARY"),
+            ]
+        )
+        db.commit()
+
+
+def export(auth=None):
+    return client.get(EXPORT, headers=headers(auth))
+
+
+def rows(response):
+    return list(csv.DictReader(io.StringIO(response.text)))
+
+
+class TestExportAccess:
+    def test_requires_authentication(self):
+        response = export()
+        assert error(response, UserError) == UserError.ACCESS_TOKEN_INVALID
+
+    def test_rejects_plain_users(self, authenticated):
+        add_schools()
+        response = export(authenticated)
+        assert error(response, UserError) == UserError.ADMIN_REQUIRED
+        assert "ALPHA" not in response.text
+
+
+class TestExportDataset:
+    def test_downloads_a_csv_named_for_the_date(self, admin):
+        add_schools()
+        response = export(admin)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.headers["content-type"].startswith("text/csv")
+        assert re.fullmatch(
+            r'attachment; filename="pathsg_schools_\d{8}\.csv"',
+            response.headers["content-disposition"],
+        )
+
+    def test_has_every_column_of_the_schools_table_and_the_list_columns(self, admin):
+        add_schools()
+        header = next(csv.reader(io.StringIO(export(admin).text)))
+        table_columns = {c.name for c in SchoolInfo.__table__.columns} - {"id"}
+        assert table_columns <= set(header)
+        assert header[-4:] == ["subjects", "ccas", "moe_programmes", "bus_numbers"]
+
+    def test_has_one_row_per_school_by_name(self, admin):
+        add_schools()
+        schools = rows(export(admin))
+        assert [s["school_name"] for s in schools] == [
+            "ALPHA PRIMARY SCHOOL",
+            "BETA SECONDARY",
+        ]
+
+    def test_writes_the_details_of_a_school(self, admin):
+        add_schools()
+        alpha = rows(export(admin))[0]
+        assert alpha["school_key"] == "alpha primary"
+        assert alpha["address"] == "1 Alpha Road"
+        assert alpha["postal_code"] == "012345"  # the leading zero is kept
+        assert (alpha["latitude"], alpha["longitude"]) == ("1.3", "103.8")
+        assert (alpha["rank_2017"], alpha["places_taken_phase2b"]) == ("5", "120")
+        assert alpha["principal_name"] == "MR TAN"
+
+    def test_lists_the_subjects_ccas_programmes_and_buses(self, admin):
+        add_schools()
+        alpha = rows(export(admin))[0]
+        assert alpha["subjects"] == "Art; Mathematics"
+        assert alpha["ccas"] == (
+            "AIKIDO | PRIMARY | PHYSICAL SPORTS | MARTIAL ARTS; CHESS | PRIMARY | CLUBS | "
+        )
+        assert alpha["moe_programmes"] == "LEARNING SUPPORT"
+        assert alpha["bus_numbers"] == "964; 965"
+
+    def test_leaves_missing_values_empty(self, admin):
+        add_schools()
+        beta = rows(export(admin))[1]
+        assert beta["address"] == beta["rank_2017"] == beta["subjects"] == ""
+        assert beta["ccas"] == beta["moe_programmes"] == beta["bus_numbers"] == ""
+
+    def test_excludes_users_reviews_and_bookmarks(self, admin):
+        add_schools()
+        school = SchoolInfo.get_by_key(school_key="alpha primary")
+        review = client.post(
+            f"/review/school/{school.id}",
+            json={"text": "Lovely canteen"},
+            headers=headers(admin),
+        )
+        assert review.status_code == status.HTTP_200_OK
+        client.put(f"/bookmark/{school.id}", headers=headers(admin))
+
+        response = export(admin)
+        header = next(csv.reader(io.StringIO(response.text)))
+        assert not {"username", "password", "role", "user_id", "text"} & set(header)
+        assert "alice" not in response.text
+        assert "Lovely canteen" not in response.text
+
+    def test_the_file_name_is_the_singapore_date(self):
+        just_before_midnight_in_utc = datetime(2026, 10, 24, 17, 0, tzinfo=timezone.utc)
+        assert (
+            SchoolDatasetExporter.filename(just_before_midnight_in_utc)
+            == "pathsg_schools_20261025.csv"
+        )
+
+
+class TestExportFailure:
+    def test_an_empty_database(self, admin):
+        response = export(admin)
+        assert error(response, DatasetExportError) == DatasetExportError.EXPORT_FAILED
+
+    def test_an_unreachable_database(self, admin, monkeypatch):
+        add_schools()
+
+        def fail():
+            raise OperationalError("SELECT", {}, Exception("unable to open database"))
+
+        monkeypatch.setattr(SchoolInfo, "all_with_details", fail)
+        response = export(admin)
+        assert error(response, DatasetExportError) == DatasetExportError.EXPORT_FAILED
+        assert response.json()["detail"] == (
+            "Export Failed: Unable to retrieve school data at this time."
+        )

@@ -28,6 +28,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Lets the client read the name of an exported file.
+    expose_headers=["Content-Disposition"],
 )
 
 app.include_router(user_router)

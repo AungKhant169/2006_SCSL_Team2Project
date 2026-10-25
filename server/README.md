@@ -113,6 +113,7 @@ All routes are JSON unless noted. Protected routes take `Authorization: Bearer <
 |           | `DELETE /roadmap`                      | user  | Delete the saved roadmap (204)                             |
 | Admin     | `GET /admin/dataset`                   | admin | Schools in the database and when they were last loaded     |
 |           | `POST /admin/dataset/update`           | admin | Upload raw CSVs and reload the school data                 |
+|           | `GET /admin/dataset/export`            | admin | Download every school as `pathsg_schools_YYYYMMDD.csv`     |
 
 Schools are addressed by `school_key` (a text slug) in the directory, and by numeric `school_id` in
 reviews, bookmarks and roadmaps. Every place that returns schools (search, bookmarks, roadmaps) gives
@@ -213,6 +214,18 @@ is sent, a file is not a non-empty `.csv` within `SCHOOL_MAX_UPLOAD_MB`, or the 
 processed, and 503 when the database is unreachable. The request handling and the lock are in
 [`core/dataset_update.py`](core/dataset_update.py).
 
+### Export
+
+`GET /admin/dataset/export` (admin role) downloads the stored school data as one CSV file, named
+`pathsg_schools_YYYYMMDD.csv` for the Singapore date of the export (`Content-Disposition`, which CORS
+exposes so the client can read it). There is one row per school, ordered by name. The columns are
+every column of the `schools` table except its internal `id`, followed by the child tables:
+`subjects`, `moe_programmes` and `bus_numbers` hold their entries separated by `; `, and each entry of
+`ccas` is `grouping | section | category | customised name`. Nothing about accounts, saved roadmaps,
+bookmarks or reviews is read. Fails with 503 and `Export Failed: Unable to retrieve school data at
+this time.` when the database is unreachable or holds no schools. The code is in
+[`core/dataset_export.py`](core/dataset_export.py).
+
 ### Errors
 
 Failures return `{"detail": "<message>"}`. Domain errors are enums that extend `HttpError`
@@ -282,6 +295,7 @@ core/
   school_cleaning.py Raw school CSVs to clean records (pandas)
   school_import.py   Writes cleaned records to the database, keeps uploaded CSVs
   dataset_update.py  Admin school data update: upload checks, the single-update lock
+  dataset_export.py  Admin school data export to one CSV file
   alembic/           Migration environment and versions
 scripts/         One-off commands: refresh_school_data, make_admin, promote_admin
 data/raw/        The seven raw school CSV files
