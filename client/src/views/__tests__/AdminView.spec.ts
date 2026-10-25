@@ -17,7 +17,7 @@ async function mountAdmin() {
   return mounted
 }
 
-const trigger = (w: VueWrapper) => w.get('button')
+const trigger = (w: VueWrapper) => w.get('[data-testid="admin-update"]')
 const tiles = (w: VueWrapper) =>
   Object.fromEntries(
     w.findAll('.panel').map((t) => {
@@ -78,6 +78,30 @@ describe('AdminView (UC-5.1)', () => {
         'Completes within 10 seconds; writes commit as one transaction.',
       )
       expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+    })
+  })
+
+  describe('picking files', () => {
+    it('lists them, and sends only those left after one is removed', async () => {
+      const { wrapper, api } = await mountAdmin()
+      await pick(wrapper, 'moe.csv', 'ccas.csv')
+      expect(wrapper.findAll('li').map((row) => row.text())).toEqual([
+        expect.stringContaining('moe.csv'),
+        expect.stringContaining('ccas.csv'),
+      ])
+      await wrapper.get('[aria-label="Remove moe.csv"]').trigger('click')
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      const form = api.callsTo('POST /admin/dataset/update')[0]!.body as FormData
+      expect(form.getAll('files').map((f) => (f as File).name)).toEqual(['ccas.csv'])
+    })
+
+    it('keeps the list empty again once a run has used the files', async () => {
+      const { wrapper } = await mountAdmin()
+      await pick(wrapper, 'moe.csv')
+      await trigger(wrapper).trigger('click')
+      await flushPromises()
+      expect(wrapper.find('li').exists()).toBe(false)
     })
   })
 

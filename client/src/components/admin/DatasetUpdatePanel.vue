@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
+import CsvDropZone from '@/components/admin/CsvDropZone.vue'
 import AlertMessage from '@/components/ui/AlertMessage.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
@@ -9,22 +10,8 @@ import { useAdminStore } from '@/stores/admin'
 
 const admin = useAdminStore()
 
-const picker = ref<HTMLInputElement | null>(null)
-
 const records = computed(() =>
   admin.recordCount === null ? '—' : admin.recordCount.toLocaleString('en-SG'),
-)
-
-function pick(event: Event) {
-  admin.setFiles(Array.from((event.target as HTMLInputElement).files ?? []))
-}
-
-// The browser keeps showing the files it was given, so clear them once a run has used them.
-watch(
-  () => admin.files,
-  (files) => {
-    if (files.length === 0 && picker.value) picker.value.value = ''
-  },
 )
 </script>
 
@@ -43,29 +30,22 @@ watch(
       </StatTile>
     </div>
 
-    <div class="flex flex-col gap-1.5">
-      <label for="dataset-files" class="field-label">CSV files</label>
-      <input
-        id="dataset-files"
-        ref="picker"
-        type="file"
-        accept=".csv,text/csv"
-        multiple
-        :disabled="admin.busy"
-        class="text-sm"
-        @change="pick"
-      />
-      <span class="text-xs text-muted">
-        Any of the general, primary, secondary, sdp, moe, ccas and subjects files; each is
-        recognised by its columns, and any left out keep their last upload.
-      </span>
-    </div>
+    <CsvDropZone
+      :model-value="admin.files"
+      :disabled="admin.busy"
+      @update:model-value="admin.setFiles"
+    />
 
     <AlertMessage v-if="admin.error">{{ admin.error }}</AlertMessage>
 
     <div class="flex flex-wrap items-center gap-3">
       <!-- Disabled for the whole run so a second submission cannot start (REQ-5.2). -->
-      <BaseButton size="lg" :disabled="admin.busy" @click="admin.runUpdate()">
+      <BaseButton
+        size="lg"
+        :disabled="admin.busy"
+        data-testid="admin-update"
+        @click="admin.runUpdate()"
+      >
         <SpinnerIcon v-if="admin.busy" size="sm" tone="light" />
         {{ admin.busy ? 'Updating dataset…' : 'Update Dataset' }}
       </BaseButton>
