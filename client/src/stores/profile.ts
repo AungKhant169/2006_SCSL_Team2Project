@@ -31,11 +31,20 @@ export const useProfileStore = defineStore('profile', () => {
 
   watch([scoreA, scoreB], clearMessages, { flush: 'sync' })
 
-  /** Changing the transition clears academic results that belong to the previous one. */
+  /** Scores typed or loaded for each level, kept so that coming back to a level finds them again. */
+  const scoresByLevel = new Map<TierId, { scoreA: string; scoreB: string }>()
+
+  /**
+   * Each transition shows only its own academic results, since a PSLE score means nothing as an
+   * O-Level one. The results of the level being left are set aside rather than thrown away.
+   */
   function setLevel(next: TierId) {
+    if (next === level.value) return
+    scoresByLevel.set(level.value, { scoreA: scoreA.value, scoreB: scoreB.value })
+    const kept = scoresByLevel.get(next)
     level.value = next
-    scoreA.value = ''
-    scoreB.value = ''
+    scoreA.value = kept?.scoreA ?? ''
+    scoreB.value = kept?.scoreB ?? ''
     clearMessages()
   }
 
@@ -44,6 +53,7 @@ export const useProfileStore = defineStore('profile', () => {
   }
 
   function apply(form: ProfileForm) {
+    scoresByLevel.clear()
     level.value = form.level
     scoreA.value = form.scoreA
     scoreB.value = form.scoreB
@@ -93,6 +103,7 @@ export const useProfileStore = defineStore('profile', () => {
 
   /** Back to the starting values when the account session ends. */
   function reset() {
+    scoresByLevel.clear()
     level.value = DEFAULT_LEVEL
     scoreA.value = ''
     scoreB.value = ''

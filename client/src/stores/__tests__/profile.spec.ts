@@ -63,6 +63,42 @@ describe('profile store (UC-2.4)', () => {
       expect([p.scoreA, p.scoreB, p.error]).toEqual(['', '', ''])
     })
 
+    it('gives the results back when the level is selected again', () => {
+      const p = useProfileStore()
+      p.scoreA = '12'
+      p.setLevel('postsec')
+      p.scoreA = '9'
+      p.scoreB = '7'
+      p.setLevel('secondary')
+      expect([p.scoreA, p.scoreB]).toEqual(['12', ''])
+      p.setLevel('postsec')
+      expect([p.scoreA, p.scoreB]).toEqual(['9', '7'])
+    })
+
+    it('keeps everything when the current level is selected again', () => {
+      const p = useProfileStore()
+      p.scoreA = '12'
+      p.error = 'old error'
+      p.setLevel('secondary')
+      expect([p.scoreA, p.error]).toEqual(['12', 'old error'])
+    })
+
+    it('keeps the saved results on a level the student only looked away from', async () => {
+      api.profiles['planner2026'] = {
+        level: 'postsec',
+        score_a: 12,
+        score_b: 9,
+        postal: '119077',
+        primary_result: 'None',
+      }
+      const p = useProfileStore()
+      await signInAs('planner2026')
+      p.setLevel('uni')
+      expect([p.scoreA, p.scoreB]).toEqual(['', ''])
+      p.setLevel('postsec')
+      expect([p.scoreA, p.scoreB]).toEqual(['12', '9'])
+    })
+
     it('exposes guidance for the selected level', () => {
       const p = useProfileStore()
       p.setLevel('postsec')
@@ -165,5 +201,15 @@ describe('profile store (UC-2.4)', () => {
     p.reset()
     expect([p.level, p.scoreA, p.postal, p.primaryResult]).toEqual(['secondary', '', '', 'None'])
     await flushPromises()
+  })
+
+  it('reset also forgets the results set aside for other levels', () => {
+    const p = useProfileStore()
+    p.setLevel('uni')
+    p.scoreA = '3.5'
+    p.setLevel('secondary')
+    p.reset()
+    p.setLevel('uni')
+    expect(p.scoreA).toBe('')
   })
 })
