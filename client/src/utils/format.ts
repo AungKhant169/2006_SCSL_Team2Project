@@ -17,6 +17,14 @@ export function formatTimestamp(value: Date | string): string {
   return `${day} ${MONTHS[date.getMonth()]} ${date.getFullYear()}, ${hour12}:${minutes} ${meridiem}`
 }
 
+/** "812 B", "840 KB" or "4.2 MB". */
+export function formatFileSize(bytes: number): string {
+  const kilobytes = bytes / 1024
+  if (kilobytes < 1) return `${bytes} B`
+  if (Math.round(kilobytes) < 1024) return `${Math.round(kilobytes)} KB`
+  return `${(kilobytes / 1024).toFixed(1)} MB`
+}
+
 /** "1st choice", "2nd choice", "3rd choice". Falls back to "4th" style beyond the third. */
 export function choiceLabel(index: number): string {
   return `${ORDINALS[index] ?? `${index + 1}th`} choice`

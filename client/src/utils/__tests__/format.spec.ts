@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { choiceLabel, formatDistance, formatMoney, formatTimestamp, pluralize } from '../format'
+import {
+  choiceLabel,
+  formatDistance,
+  formatFileSize,
+  formatMoney,
+  formatTimestamp,
+  pluralize,
+} from '../format'
+
+describe('formatFileSize', () => {
+  it('counts bytes below a kilobyte', () => {
+    expect(formatFileSize(0)).toBe('0 B')
+    expect(formatFileSize(812)).toBe('812 B')
+  })
+
+  it('rounds kilobytes to a whole number', () => {
+    expect(formatFileSize(1024)).toBe('1 KB')
+    expect(formatFileSize(860_160)).toBe('840 KB')
+  })
+
+  it('shows megabytes to one decimal, and never "1024 KB"', () => {
+    expect(formatFileSize(1_048_575)).toBe('1.0 MB')
+    expect(formatFileSize(4_404_019)).toBe('4.2 MB')
+  })
+})
 
 describe('formatMoney', () => {
   it('prefixes S$ and groups thousands', () => {
