@@ -42,13 +42,17 @@ client.
 | Bookmarks                              | `/bookmark`                                   | `services/bookmarkService.ts`, `stores/bookmarks.ts`         |
 | Reviews                                | `/review`                                     | `services/reviewService.ts`, `stores/reviews.ts`             |
 | Rule-based and AI roadmaps, saved plan | `/roadmap/*`                                  | `services/roadmapService.ts`, `stores/roadmap.ts`            |
-| School data update (admin)             | `/admin/dataset`, `/admin/dataset/update`     | `services/adminService.ts`, `stores/admin.ts`                |
+| School data update and export (admin)  | `/admin/dataset/*`                            | `services/adminService.ts`, `stores/admin.ts`                |
 
 Account pages need a login. Access tokens last five minutes, so every authenticated call goes
 through `services/authorizedRequest.ts`: on a 401 it renews the token pair once (concurrent calls
 share one renewal, because refresh tokens are single-use) and repeats the call. If the renewal is
 refused the session ends and a notice says so. The administrator is whoever the server says has
 the `admin` role.
+
+The admin export (`GET /admin/dataset/export`) answers with a CSV file instead of JSON, so it goes
+through `authorizedDownload` (same token renewal) and `utils/download.ts` hands the file to the
+browser under the name the server gave it, `pathsg_schools_YYYYMMDD.csv`.
 
 What the school dataset does not have, the app shows as "Not available": fees, financial aid and
 scholarships, benchmark history, polytechnics and universities (the Post-Secondary tier lists

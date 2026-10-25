@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import DatasetExportPanel from '@/components/admin/DatasetExportPanel.vue'
 import DatasetUpdatePanel from '@/components/admin/DatasetUpdatePanel.vue'
 import AlertMessage from '@/components/ui/AlertMessage.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
@@ -14,11 +15,12 @@ onMounted(() => admin.load())
   <div class="page page-narrow">
     <PageHeader
       title="Admin panel"
-      subtitle="Restricted to accounts with the Admin role. Manual trigger for the school dataset pipeline."
+      subtitle="Restricted to accounts with the Admin role. Update the school dataset from raw CSV files, or export it."
     />
 
     <AlertMessage v-if="admin.message" variant="success">{{ admin.message }}</AlertMessage>
 
     <DatasetUpdatePanel />
+    <DatasetExportPanel />
   </div>
 </template>

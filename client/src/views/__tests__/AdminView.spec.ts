@@ -1,11 +1,15 @@
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { useUiStore } from '@/stores/ui'
-import { DATASET_LAST_UPDATE, stubApi } from '@/test/fakeApi'
+import { DATASET_EXPORT_FILENAME, DATASET_LAST_UPDATE, stubApi } from '@/test/fakeApi'
 import { mountWithApp } from '@/test/helpers'
+import { saveFile } from '@/utils/download'
 import { formatTimestamp } from '@/utils/format'
 import AdminView from '../AdminView.vue'
+
+// jsdom cannot download a file; what the page hands to the browser is checked instead.
+vi.mock('@/utils/download', () => ({ saveFile: vi.fn() }))
 
 async function mountAdmin() {
   const mounted = await mountWithApp(AdminView, {
@@ -238,5 +242,74 @@ describe('AdminView (UC-5.1)', () => {
       'Records in database': '2,418',
       Status: 'Idle',
     })
+  })
+})
+
+describe('Database export (UC-5.2)', () => {
+  const exportButton = (w: VueWrapper) => w.get('[data-testid="admin-export"]')
+
+  beforeEach(() => vi.mocked(saveFile).mockClear())
+
+  it('offers an Export Database button and says what the file holds', async () => {
+    const { wrapper } = await mountAdmin()
+    expect(wrapper.text()).toContain('Export school dataset')
+    expect(wrapper.text()).toContain(
+      'User accounts, saved roadmaps and reviews are never included.',
+    )
+    expect(wrapper.text()).toContain('pathsg_schools_YYYYMMDD.csv')
+    expect(exportButton(wrapper).text()).toBe('Export Database')
+    expect(exportButton(wrapper).attributes('disabled')).toBeUndefined()
+  })
+
+  it('downloads the file the server names, without a popup or a banner (REQ-5.15)', async () => {
+    const { wrapper, api } = await mountAdmin()
+    await exportButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(api.callsTo('GET /admin/dataset/export')).toHaveLength(1)
+    expect(saveFile).toHaveBeenCalledOnce()
+    expect(vi.mocked(saveFile).mock.calls[0]![1]).toBe(DATASET_EXPORT_FILENAME)
+    expect(useUiStore().modal).toBeNull()
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('locks the button and shows progress while the file is fetched', async () => {
+    const { wrapper, api } = await mountAdmin()
+    const release = api.hold('GET /admin/dataset/export')
+    await exportButton(wrapper).trigger('click')
+    expect(exportButton(wrapper).text()).toBe('Exporting…')
+    expect(exportButton(wrapper).attributes('disabled')).toBeDefined()
+    expect(exportButton(wrapper).find('[role="status"]').exists()).toBe(true)
+    // The dataset update is a separate job and stays available.
+    expect(trigger(wrapper).attributes('disabled')).toBeUndefined()
+    release()
+    await flushPromises()
+    expect(exportButton(wrapper).text()).toBe('Export Database')
+    expect(exportButton(wrapper).attributes('disabled')).toBeUndefined()
+    expect(api.callsTo('GET /admin/dataset/export')).toHaveLength(1)
+  })
+
+  it('an empty or unreachable database raises the "Export Failed" popup and saves nothing', async () => {
+    const { wrapper, api } = await mountAdmin()
+    api.exportOutcome = 'unavailable'
+    await exportButton(wrapper).trigger('click')
+    await flushPromises()
+    const ui = useUiStore()
+    expect(ui.modal?.id).toBe('export')
+    expect(ui.modalDefinition?.title).toBe('Export Failed')
+    expect(ui.modalDefinition?.body).toBe('Unable to retrieve school data at this time.')
+    expect(saveFile).not.toHaveBeenCalled()
+    expect(exportButton(wrapper).attributes('disabled')).toBeUndefined()
+  })
+
+  it('the button works again after a failure', async () => {
+    const { wrapper, api } = await mountAdmin()
+    api.exportOutcome = 'unavailable'
+    await exportButton(wrapper).trigger('click')
+    await flushPromises()
+    useUiStore().closeModal()
+    api.exportOutcome = 'success'
+    await exportButton(wrapper).trigger('click')
+    await flushPromises()
+    expect(saveFile).toHaveBeenCalledOnce()
   })
 })
