@@ -1,5 +1,5 @@
 /*
- * The roadmap map is drawn by Leaflet outside Vue's templates, so its pins are styled here.
+ * Maps are drawn by Leaflet outside Vue's templates, so their pins are styled here.
  * Leaflet's own stylesheet is unlayered and would win over anything in a layer, which is why the
  * pin is an inner element (Leaflet only positions the wrapper) and why the font override below
  * sits outside @layer.
@@ -22,6 +22,6 @@
   }
 }
 
-.plan-map.leaflet-container {
+.location-map.leaflet-container {
   font-family: inherit;
 }

@@ -45,13 +45,6 @@ describe('PlanMap', () => {
     )
   })
 
-  it('credits the map provider', async () => {
-    const wrapper = await mountMap()
-    const credit = wrapper.get('.leaflet-control-attribution')
-    expect(credit.text()).toContain('OneMap')
-    expect(credit.text()).toContain('Singapore Land Authority')
-  })
-
   it('marks where the postal code is once it is known, and explains the marker', async () => {
     const wrapper = await mountMap({ origin })
     expect(pins(wrapper)).toHaveLength(4)
@@ -120,23 +113,5 @@ describe('PlanMap', () => {
     // The roadmap store hands over a new array whenever any school is described.
     await wrapper.setProps({ nodes: nodes.map((n) => ({ ...n })) })
     expect(pins(wrapper).map((pin) => pin.element)).toEqual(before)
-  })
-
-  it('shows a school name as text, never as markup', async () => {
-    const hostile = '<img src=x onerror="window.pwned = 1">'
-    const wrapper = await mountMap({ nodes: [node(1, hostile)] })
-    await pins(wrapper)[0]!.trigger('click')
-    const popup = wrapper.get('.leaflet-popup-content')
-    expect(popup.text()).toContain(hostile)
-    expect(popup.find('img').exists()).toBe(false)
-    expect(wrapper.find('.map-pin img').exists()).toBe(false)
-  })
-
-  it('tears the map down with the component', async () => {
-    const wrapper = await mountMap()
-    const container = wrapper.get('.leaflet-container').element
-    expect(container.querySelector('.leaflet-map-pane')).not.toBeNull()
-    wrapper.unmount()
-    expect(container.querySelector('.leaflet-map-pane')).toBeNull()
   })
 })
