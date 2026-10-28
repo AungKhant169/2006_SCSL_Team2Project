@@ -34,6 +34,7 @@ The stereotypes are the ones used in the course class diagram.
 | Start-up | Dockerfile `CMD` + `main.py` | `server/Dockerfile`, `server/main.py` | `alembic upgrade head`, `refresh_school_data --if-empty`, then `uvicorn` with one worker |
 | External | OpenAI API | `core/roadmap_ai.py` | Ranks candidate schools for the AI roadmap; 14 s timeout; the username is never sent |
 | External | data.gov.sg | none (manual) | Source of the school CSVs; an administrator downloads and uploads them |
+| External | OneMap tiles | `client/src/data/map.ts`, `components/roadmap/PlanMap.vue` | Basemap for the roadmap maps, drawn with Leaflet; no API key. The browser asks OneMap for tiles of the area shown, never for the postal code itself |
 
 ### Connectors
 
@@ -46,6 +47,7 @@ The stereotypes are the ones used in the course class diagram.
 | Method calls | Routers, engine, pipeline and models | In-process Python calls |
 | SQLAlchemy ORM / SQL | Models and SQLite | Sessions and transactions |
 | HTTPS | Roadmap Engine and OpenAI | OpenAI SDK, strict JSON schema answer |
+| HTTPS | Roadmap map and OneMap | Leaflet requests map tiles straight from the browser; the API is not involved |
 | Manual transfer | data.gov.sg and the administrator | CSV download, never automatic |
 
 ## How it follows the Fox heuristics (pp. 341–345)
