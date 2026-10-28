@@ -47,7 +47,7 @@ describe('reviews store (UC-4.1 to UC-4.4)', () => {
   })
 
   describe('submit', () => {
-    it('adds a review that becomes the newest for that school', async () => {
+    it('[WB-REV-03] adds a review that becomes the newest for that school', async () => {
       const r = useReviewsStore()
       await r.load(2)
       expect(await r.submit(2, 'planner2026', 'Great school')).toBe('')
@@ -55,15 +55,19 @@ describe('reviews store (UC-4.1 to UC-4.4)', () => {
       expect(newest).toMatchObject({ username: 'planner2026', text: 'Great school' })
       expect(newest?.updatedAt).toBeUndefined()
       expect(api.reviews.some((x) => x.text === 'Great school')).toBe(true)
+      expect(api.callsTo('POST /review/school/2')).toHaveLength(1)
     })
 
-    it.each(['', '   ', '\n\t', '<b></b>'])('rejects blank text %j (REQ-4.6)', async (text) => {
-      const r = useReviewsStore()
-      expect(await r.submit(1, 'planner2026', text)).toBe(
-        'Review text cannot be blank or consist entirely of spaces.',
-      )
-      expect(api.callsTo('POST /review/school/1')).toHaveLength(0)
-    })
+    it.each(['', '   ', '\n\t', '<b></b>'])(
+      '[WB-REV-01] rejects blank text %j (REQ-4.6)',
+      async (text) => {
+        const r = useReviewsStore()
+        expect(await r.submit(1, 'planner2026', text)).toBe(
+          'Review text cannot be blank or consist entirely of spaces.',
+        )
+        expect(api.callsTo('POST /review/school/1')).toHaveLength(0)
+      },
+    )
 
     it('strips HTML tags before sending (REQ-4.4)', async () => {
       const r = useReviewsStore()
@@ -73,15 +77,17 @@ describe('reviews store (UC-4.1 to UC-4.4)', () => {
       })
     })
 
-    it('allows only one review per school per account (BR-6)', async () => {
+    it('[WB-REV-02] allows only one review per school per account (BR-6)', async () => {
       const r = useReviewsStore()
       expect(await r.submit(1, 'planner2026', 'First')).toBe('')
-      expect(await r.submit(1, 'planner2026', 'Second')).toMatch(/already reviewed/)
+      expect(await r.submit(1, 'planner2026', 'Second')).toBe(
+        'You have already reviewed this school.',
+      )
       expect(r.forSchool(1)).toHaveLength(1)
       expect(api.callsTo('POST /review/school/1')).toHaveLength(1)
     })
 
-    it('shows the server’s refusal when it knows better', async () => {
+    it('[WB-REV-04] shows the server’s refusal when it knows better', async () => {
       const r = useReviewsStore()
       api.addReview({ school_id: 1, username: 'planner2026', text: 'Posted on another device' })
       // Not loaded here, so the store cannot know; the server says no.
@@ -89,6 +95,25 @@ describe('reviews store (UC-4.1 to UC-4.4)', () => {
         'You have already reviewed this school.',
       )
       expect(r.forSchool(1)).toEqual([])
+      expect(api.callsTo('POST /review/school/1')).toHaveLength(1)
+      expect(api.reviews.filter((review) => review.school_id === 1)).toHaveLength(1)
+    })
+
+    it('returns a network error without changing loaded reviews', async () => {
+      const r = useReviewsStore()
+      await r.load(2)
+      const previous = r.forSchool(2)
+      const serverReviews = api.reviews.slice()
+      api.override('POST /review/school/2', () => {
+        throw new TypeError('Failed to fetch')
+      })
+
+      expect(await r.submit(2, 'planner2026', 'Great school')).toBe(
+        'Unable to complete your request at this time. Please try again later.',
+      )
+      expect(r.forSchool(2)).toEqual(previous)
+      expect(api.reviews).toEqual(serverReviews)
+      expect(api.callsTo('POST /review/school/2')).toHaveLength(1)
     })
   })
 

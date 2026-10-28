@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="940" viewBox="0 0 900 940" role="img" aria-labelledby="title description">
+  <title id="title">Review submission control flow graph</title>
+  <desc id="description">Nine numbered nodes and eleven directed edges. Four independent paths cover blank input, a cached duplicate, successful submission, and a handled submission failure.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#334155"/></marker>
+  </defs>
+  <rect width="900" height="940" fill="white"/>
+  <g font-family="Arial, sans-serif" fill="#0f172a" text-anchor="middle">
+    <text x="450" y="32" font-size="22" font-weight="bold">submit(): local control flow including handled exceptions</text>
+    <text x="450" y="58" font-size="14">E = 11, N = 9, V(G) = E - N + 2 = 4</text>
+  </g>
+  <g fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M450 145 V185"/>
+    <path d="M330 235 H260"/>
+    <path d="M450 285 V335"/>
+    <path d="M115 275 V875 H390"/>
+    <path d="M570 385 H635"/>
+    <path d="M450 435 V505"/>
+    <path d="M775 425 V875 H510"/>
+    <path d="M350 585 V650 H235 V690"/>
+    <path d="M550 585 V650 H650 V690"/>
+    <path d="M235 770 V830 H430 V850"/>
+    <path d="M650 770 V830 H470 V850"/>
+  </g>
+  <g stroke="#334155" stroke-width="2">
+    <rect x="270" y="85" width="360" height="60" rx="12" fill="#e0f2fe"/>
+    <path d="M450 185 L570 235 L450 285 L330 235 Z" fill="#fef3c7"/>
+    <rect x="15" y="195" width="245" height="80" rx="12" fill="#fee2e2"/>
+    <path d="M450 335 L570 385 L450 435 L330 385 Z" fill="#fef3c7"/>
+    <rect x="635" y="345" width="250" height="80" rx="12" fill="#fee2e2"/>
+    <rect x="245" y="505" width="410" height="80" rx="12" fill="#e0f2fe"/>
+    <rect x="85" y="690" width="300" height="80" rx="12" fill="#dcfce7"/>
+    <rect x="500" y="690" width="300" height="80" rx="12" fill="#fee2e2"/>
+    <ellipse cx="450" cy="875" rx="60" ry="25" fill="#f1f5f9"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="16" fill="#0f172a" text-anchor="middle">
+    <text x="450" y="109">1. Entry</text><text x="450" y="132">text = sanitizeReviewText(rawText)</text>
+    <text x="450" y="241">2. !text?</text>
+    <text x="137" y="226">3. Return</text><text x="137" y="250">BLANK_REVIEW_ERROR</text>
+    <text x="450" y="379">4. Own review</text><text x="450" y="401">already cached?</text>
+    <text x="760" y="376">5. Return</text><text x="760" y="400">duplicate-review error</text>
+    <text x="450" y="531">6. Try: await service submission</text><text x="450" y="555">and replace local cached review</text><text x="450" y="575" font-size="13">Normal or handled exceptional outcome</text>
+    <text x="235" y="722">7. Return empty string</text><text x="235" y="746">after successful replacement</text>
+    <text x="650" y="722">8. Catch error</text><text x="650" y="746">return messageOf(error)</text>
+    <text x="450" y="881">9. Exit</text>
+    <text x="295" y="222">True</text><text x="475" y="316">False</text>
+    <text x="600" y="372">True</text><text x="475" y="477">False</text>
+    <text x="270" y="636">Normal</text><text x="635" y="636">Exception</text>
+    <text x="450" y="927" font-size="13">Scope: submit() only; helper and service internals are not expanded.</text>
+  </g>
+</svg>

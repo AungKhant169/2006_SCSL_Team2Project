@@ -1,17 +1,11 @@
 # PathSG System Architecture
 
-![PathSG system architecture diagram](System_Architecture_Diagram.png)
+![PathSG system architecture diagram](System_Architecture_Diagram.svg)
 
-A PDF with this diagram plus the cross-component interaction descriptions (sign-in and token renewal, the OpenAI exchange, the admin data update, start-up) is in [`System_Architecture.pdf`](System_Architecture.pdf).
-
-The diagram follows the notation of Lecture 12 (System Design). The editable source is
-[`System_Architecture_Diagram.svg`](System_Architecture_Diagram.svg); the PNG is the same drawing.
-
-## Architecture = {Components, Connectors}
+## Architecture
 
 **Style:** Client–Server (communicating processes), with a 3-layered structure inside each tier:
 Presentation (`«boundary»`), Application Logic (`«control»`) and Persistent Data (`«entity»`).
-The stereotypes are the ones used in the course class diagram.
 
 ### Components
 
@@ -50,19 +44,19 @@ The stereotypes are the ones used in the course class diagram.
 | HTTPS | Roadmap map and OneMap | Leaflet requests map tiles straight from the browser; the API is not involved |
 | Manual transfer | data.gov.sg and the administrator | CSV download, never automatic |
 
-## How it follows the Fox heuristics (pp. 341–345)
+## Design Decisions
 
-| Heuristic | Where it shows in PathSG |
+| Decision | Implementation |
 | --------- | ------------------------ |
-| Change actors to interface classes | Guest, Authenticated and Administrator become the Views and UI Components (`«boundary»`); OpenAI becomes `AIRoadmapGenerator`; the CSV source becomes the Admin panel upload |
-| Add actor domain classes | `User` with `Role`, and the student `Profile` |
-| Add a start-up class | `main.ts` bootstrap on the client; `main.py` plus the Dockerfile `CMD` on the server |
-| Add controllers and coordinators | Pinia stores, API routers, `Authenticator`, the two roadmap generators, `SchoolDatasetUpdater` and `SchoolDatasetExporter` |
-| Add classes for data types | `Role` (`StrEnum`), the `HttpError` enums, Pydantic schemas, and `client/src/types` |
-| Add container classes | Store collections (`directory.catalogue`, `bookmarks.schools`, `reviews.bySchool`, roadmap choices), `SchoolPage`, `candidate_pool`, and a roadmap's one to three school ids |
-| Apply design patterns | Strategy (rule-based vs AI generator), Facade (API services), Dependency Injection (`Depends`), Observer (Vue reactivity), Reverse Proxy (nginx) |
+| User interfaces | Views and components for guests, authenticated users, and administrators |
+| Domain model | `User`, `Role`, and student `Profile` |
+| Startup | Client `main.ts`; server `main.py` and Dockerfile `CMD` |
+| Coordination | Pinia stores, API routers, authentication, roadmap generators, and dataset services |
+| Typed boundaries | Pydantic schemas, error enums, and TypeScript types |
+| Collections | School catalogues, bookmarks, reviews, candidate pools, and roadmap choices |
+| Patterns | Strategy, Facade, Dependency Injection, Observer, and Reverse Proxy |
 
-## Why this architecture (Lecture 12, slide 16)
+## Architecture Rationale
 
 - **Functional requirements:** UC-1 to UC-5 map onto one feature area each, from view to store to
   service to router to model.
@@ -74,7 +68,7 @@ The stereotypes are the ones used in the course class diagram.
 - **Constraints:** TypeScript and Python 3.14, REST over HTTP, SQLite on one instance, and no live
   map API (distance comes from postal-district centroids).
 
-## Notes from checking the SRS against the code
+## Implementation Notes
 
 - `SEC-5` says JWTs in HTTP-only cookies for 24 hours. The code uses a Bearer access token (5
   minutes) and a single-use refresh token (7 days), kept in `sessionStorage`. The diagram shows the

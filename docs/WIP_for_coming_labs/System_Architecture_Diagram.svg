@@ -265,7 +265,7 @@
 <path d="M1127,1150 L1127,1090" fill="none" stroke="#334155" stroke-width="1.7" stroke-linejoin="round" marker-end="url(#arr)"/>
 <path d="M1640,665 L1730,665" fill="none" stroke="#334155" stroke-width="1.7" stroke-linejoin="round" marker-start="url(#arr)" marker-end="url(#arr)"/>
 <path d="M16,1291 H1892 V1273 L1944,1401 L1892,1525 V1511 H16 Z" fill="#d6e6ee" stroke="none"/>
-<text x="20" y="1273" font-size="13.5" font-weight="600" fill="#1e293b" text-anchor="start">Design rationale – how the architecture was derived (Lecture 12: requirements → principles → patterns → constraints)</text>
+<text x="20" y="1273" font-size="13.5" font-weight="600" fill="#1e293b" text-anchor="start">Design rationale: requirements, principles, patterns, and constraints</text>
 <rect x="34" y="1303" width="356" height="190" rx="16" fill="#1f6f8b"/>
 <text x="52" y="1331" font-size="15.5" font-weight="700" fill="#ffffff" text-anchor="start">Functional Requirements</text>
 <text x="52" y="1357" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">•</text>

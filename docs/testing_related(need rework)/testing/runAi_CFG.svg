@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="900" viewBox="0 0 1000 900" role="img" aria-labelledby="title description">
+  <title id="title">AI roadmap request control flow graph</title>
+  <desc id="description">Nine numbered nodes and eleven directed edges. Four independent paths cover current success, stale success, current failure, and stale failure. Helper internals are not expanded.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 Z" fill="#334155"/></marker>
+  </defs>
+  <rect width="1000" height="900" fill="white"/>
+  <g font-family="Arial, sans-serif" fill="#0f172a" text-anchor="middle">
+    <text x="500" y="32" font-size="22" font-weight="bold">runAi(): local request flow including handled service failure</text>
+    <text x="500" y="58" font-size="14">E = 11, N = 9, V(G) = E - N + 2 = 4</text>
+  </g>
+  <g fill="none" stroke="#334155" stroke-width="2" marker-end="url(#arrow)">
+    <path d="M500 155 V205"/>
+    <path d="M390 285 V335 H250 V380"/>
+    <path d="M610 285 V335 H750 V380"/>
+    <path d="M250 480 V535 H125 V590"/>
+    <path d="M250 480 V535 H365 V590"/>
+    <path d="M750 480 V535 H635 V590"/>
+    <path d="M750 480 V535 H875 V590"/>
+    <path d="M125 670 V790 H440"/>
+    <path d="M365 690 V735 H480 V765"/>
+    <path d="M635 670 V735 H520 V765"/>
+    <path d="M875 670 V790 H560"/>
+  </g>
+  <g stroke="#334155" stroke-width="2">
+    <rect x="320" y="85" width="360" height="70" rx="12" fill="#e0f2fe"/>
+    <rect x="245" y="205" width="510" height="80" rx="12" fill="#e0f2fe"/>
+    <path d="M250 380 L380 430 L250 480 L120 430 Z" fill="#fef3c7"/>
+    <path d="M750 380 L880 430 L750 480 L620 430 Z" fill="#fef3c7"/>
+    <rect x="25" y="590" width="200" height="80" rx="12" fill="#f1f5f9"/>
+    <rect x="250" y="590" width="230" height="100" rx="12" fill="#dcfce7"/>
+    <rect x="535" y="590" width="200" height="80" rx="12" fill="#f1f5f9"/>
+    <rect x="775" y="590" width="200" height="80" rx="12" fill="#fee2e2"/>
+    <ellipse cx="500" cy="790" rx="60" ry="25" fill="#f1f5f9"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="16" fill="#0f172a" text-anchor="middle">
+    <text x="500" y="111">1. Entry; run = ++aiRun</text><text x="500" y="138">aiStatus = loading</text>
+    <text x="500" y="235">2. Try: await generateAiPlan(planRequest())</text><text x="500" y="263">Normal or handled exceptional outcome</text>
+    <text x="250" y="436">3. run !== aiRun?</text>
+    <text x="750" y="436">6. run !== aiRun?</text>
+    <text x="125" y="622">4. Return</text><text x="125" y="648">Ignore stale success</text>
+    <text x="365" y="619">5. remember(plan.schools)</text><text x="365" y="646">aiChoices = plan.choices</text><text x="365" y="673">aiStatus = ready</text>
+    <text x="635" y="622">7. Return</text><text x="635" y="648">Ignore stale failure</text>
+    <text x="875" y="622">8. aiStatus = error</text><text x="875" y="648">Current failure</text>
+    <text x="500" y="796">9. Exit</text>
+    <text x="310" y="322">Normal</text><text x="700" y="322">Exception</text>
+    <text x="140" y="523">True</text><text x="350" y="523">False</text>
+    <text x="640" y="523">True</text><text x="865" y="523">False</text>
+    <text x="500" y="862" font-size="13">Scope: typed service results; successful post-processing; helper internals are not expanded.</text>
+  </g>
+</svg>

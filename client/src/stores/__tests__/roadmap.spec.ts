@@ -83,7 +83,7 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       )
     })
 
-    it('fills the AI plan when it arrives', async () => {
+    it('[WB-AI-01] fills the AI plan when it arrives', async () => {
       const r = await generated()
       expect(r.aiStatus).toBe('ready')
       expect(r.aiPlan.map((n) => n.schoolName)).toEqual([
@@ -91,6 +91,7 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
         "Cedar Girls' Secondary School",
         'Raffles Institution',
       ])
+      expect(api.callsTo(`POST ${AI}`)).toHaveLength(1)
     })
 
     it('carries each school’s position so the plan can be mapped', async () => {
@@ -167,13 +168,15 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
   })
 
   describe('fault isolation (REQ-3.7 to REQ-3.9)', () => {
-    it('an AI failure is confined to the AI status and leaves the rule plan intact', async () => {
+    it('[WB-AI-03] an AI failure is confined to the AI status and leaves the rule plan intact', async () => {
       api.ai = 'error'
       const r = await generated()
       expect(r.aiStatus).toBe('error')
       expect(r.ruleStatus).toBe('ready')
       expect(r.generated).toBe(true)
       expect(r.rulePlan).toHaveLength(3)
+      expect(r.aiPlan).toEqual([])
+      expect(api.callsTo(`POST ${AI}`)).toHaveLength(1)
     })
 
     it('a rule-based failure is confined to its own status', async () => {
@@ -210,7 +213,7 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       expect(r.rulePlan.map((n) => n.step)).toEqual([1, 2, 3])
     })
 
-    it('ignores a late AI response after the stage has changed', async () => {
+    it('[WB-AI-02] ignores a late AI response after the stage has changed', async () => {
       const release = api.hold(`POST ${AI}`)
       const r = useRoadmapStore()
       r.generate()
@@ -219,13 +222,20 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       await flushPromises()
       expect(r.aiStatus).toBe('idle')
       expect(r.aiPlan).toEqual([])
+      expect(r.stage).toBe('uni')
+      expect(api.callsTo(`POST ${AI}`)).toHaveLength(1)
+      expect(api.callsTo(`POST ${AI}`)[0]?.body).toEqual({
+        stage: 'secondary',
+        postal: '556000',
+        previous_academic_score: null,
+      })
     })
 
     // Basis Path P4:
     // The AI request fails after it has already become stale.
     // run !== aiRun is therefore true in the catch branch,
     // so the old error must be ignored.
-    it('ignores a late AI error after the stage has changed', async () => {
+    it('[WB-AI-04] ignores a late AI error after the stage has changed', async () => {
       const release = api.hold(`POST ${AI}`)
       const r = useRoadmapStore()
       r.generate()
@@ -238,6 +248,13 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       // The stale failure must not overwrite the current state.
       expect(r.aiStatus).toBe('idle')
       expect(r.aiPlan).toEqual([])
+      expect(r.stage).toBe('uni')
+      expect(api.callsTo(`POST ${AI}`)).toHaveLength(1)
+      expect(api.callsTo(`POST ${AI}`)[0]?.body).toEqual({
+        stage: 'secondary',
+        postal: '556000',
+        previous_academic_score: null,
+      })
     })
   })
 
