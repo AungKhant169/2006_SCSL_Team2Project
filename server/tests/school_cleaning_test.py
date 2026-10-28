@@ -1,6 +1,6 @@
 import pandas as pd
 
-from core.school_cleaning import REQUIRED_COLUMNS, clean_schools
+from core.school_cleaning import REQUIRED_COLUMNS, clean_schools, identify_frame
 
 
 def frame(key, rows=()):
@@ -11,14 +11,21 @@ def frame(key, rows=()):
     return pd.DataFrame([{**base, **row} for row in rows])
 
 
-def clean_by_key(general_rows, secondary_rows=()):
+def clean(general_rows, secondary_rows=(), **files):
+    """Clean a dataset; `files` are rows for the other kinds (programmes=..., ...)."""
     raw = {key: frame(key) for key in REQUIRED_COLUMNS}
     raw["general"] = frame("general", general_rows)
     raw["secondary"] = frame("secondary", secondary_rows)
     raw["sdp"] = pd.DataFrame(
         columns=["school_name", "alp_domain", "alp_title", "llp_domain1", "llp_title"]
     )
-    return {s["school_key"]: s for s in clean_schools(raw).schools}
+    for key, rows in files.items():
+        raw[key] = frame(key, rows)
+    return clean_schools(raw)
+
+
+def clean_by_key(general_rows, secondary_rows=()):
+    return {s["school_key"]: s for s in clean(general_rows, secondary_rows).schools}
 
 
 class TestCoordinates:
@@ -91,3 +98,107 @@ class TestCoordinates:
         )
         assert schools["delta"]["postal_code"] == "100004"
         assert schools["delta"]["latitude"] is None
+
+
+GENERAL = [
+    {
+        "school_name": "ALPHA POLYTECHNIC",
+        "postal_code": "100001",
+        "mainlevel_code": "POLYTECHNIC",
+    }
+]
+
+
+class TestProgrammesAidAndScholarships:
+    def test_programme_fees_are_numbers_and_missing_fees_are_none(self):
+        dataset = clean(
+            GENERAL,
+            programmes=[
+                {
+                    "school_name": "ALPHA POLYTECHNIC",
+                    "programme": "DIPLOMA IN ENGINEERING",
+                    "field": "Engineering",
+                    "fee_sc": "3100",
+                    "fee_pr": "6400",
+                    "fee_intl": "12400",
+                    "misc_fee": "na",
+                }
+            ],
+        )
+        assert dataset.programmes == [
+            {
+                "school_key": "alpha polytechnic",
+                "name": "DIPLOMA IN ENGINEERING",
+                "field": "Engineering",
+                "fee_sc": 3100.0,
+                "fee_pr": 6400.0,
+                "fee_intl": 12400.0,
+                "misc_fee": None,
+            }
+        ]
+
+    def test_rows_for_unknown_schools_are_skipped_with_a_warning(self):
+        dataset = clean(
+            GENERAL,
+            programmes=[
+                {
+                    "school_name": "GHOST SCHOOL",
+                    "programme": "NOTHING",
+                    "fee_sc": "1",
+                }
+            ],
+            financial_aid=[{"school_name": "GHOST SCHOOL", "aid_name": "FAS"}],
+        )
+        assert dataset.programmes == []
+        assert dataset.financial_aid == []
+        assert any(
+            "'programmes': 1 name(s) match no school" in w for w in dataset.warnings
+        )
+
+    def test_aid_and_scholarships_are_kept_per_school(self):
+        dataset = clean(
+            GENERAL,
+            financial_aid=[
+                {
+                    "school_name": "ALPHA POLYTECHNIC",
+                    "aid_name": "MOE Financial Assistance Scheme",
+                    "aid_note": "100% fee subsidy",
+                }
+            ],
+            scholarships=[
+                {
+                    "school_name": "ALPHA POLYTECHNIC",
+                    "scholarship_name": "Gold Scholarship",
+                    "source": "Alpha Polytechnic",
+                    "eligibility": "Top students",
+                }
+            ],
+        )
+        assert dataset.financial_aid == [
+            {
+                "school_key": "alpha polytechnic",
+                "name": "MOE Financial Assistance Scheme",
+                "note": "100% fee subsidy",
+            }
+        ]
+        assert dataset.scholarships == [
+            {
+                "school_key": "alpha polytechnic",
+                "name": "Gold Scholarship",
+                "source": "Alpha Polytechnic",
+                "eligibility": "Top students",
+            }
+        ]
+
+    def test_the_new_files_are_recognised_by_their_headers(self):
+        assert (
+            identify_frame(frame("programmes", [{"school_name": "A"}])) == "programmes"
+        )
+        assert (
+            identify_frame(frame("financial_aid", [{"school_name": "A"}]))
+            == "financial_aid"
+        )
+        assert (
+            identify_frame(frame("scholarships", [{"school_name": "A"}]))
+            == "scholarships"
+        )

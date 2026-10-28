@@ -107,13 +107,20 @@ class SchoolInfo(Base, Persistable):
     olevel_track: Mapped[int | None] = mapped_column(Integer)
     places_taken_phase2b: Mapped[int | None] = mapped_column(Integer)
 
-    # one row per subject / CCA / MOE programme / bus (classes below)
+    # one row per subject / CCA / MOE programme / bus / programme with fees / aid / scholarship
     subjects: Mapped[list["SchoolSubject"]] = relationship(cascade="all, delete-orphan")
     ccas: Mapped[list["SchoolCca"]] = relationship(cascade="all, delete-orphan")
     moe_programme_rows: Mapped[list["SchoolMoeProgramme"]] = relationship(
         cascade="all, delete-orphan"
     )
     bus_rows: Mapped[list["SchoolBus"]] = relationship(cascade="all, delete-orphan")
+    programme_rows: Mapped[list["SchoolProgramme"]] = relationship(
+        cascade="all, delete-orphan"
+    )
+    aid_rows: Mapped[list["SchoolAid"]] = relationship(cascade="all, delete-orphan")
+    scholarship_rows: Mapped[list["SchoolScholarship"]] = relationship(
+        cascade="all, delete-orphan"
+    )
 
     @property
     def stages(self) -> list[str]:
@@ -141,6 +148,18 @@ class SchoolInfo(Base, Persistable):
     @property
     def moe_programmes(self) -> list[str]:
         return sorted(r.name for r in self.moe_programme_rows)
+
+    @property
+    def programmes(self) -> list["SchoolProgramme"]:
+        return sorted(self.programme_rows, key=lambda r: r.name)
+
+    @property
+    def financial_aid(self) -> list["SchoolAid"]:
+        return sorted(self.aid_rows, key=lambda r: r.name)
+
+    @property
+    def scholarships(self) -> list["SchoolScholarship"]:
+        return sorted(self.scholarship_rows, key=lambda r: r.name)
 
     @property
     def bus_numbers(self) -> list[str]:
@@ -362,6 +381,9 @@ class SchoolInfo(Base, Persistable):
                 selectinload(cls.ccas),
                 selectinload(cls.moe_programme_rows),
                 selectinload(cls.bus_rows),
+                selectinload(cls.programme_rows),
+                selectinload(cls.aid_rows),
+                selectinload(cls.scholarship_rows),
             )
         )
         with SessionLocal() as db:
@@ -377,6 +399,9 @@ class SchoolInfo(Base, Persistable):
                 selectinload(cls.ccas),
                 selectinload(cls.moe_programme_rows),
                 selectinload(cls.bus_rows),
+                selectinload(cls.programme_rows),
+                selectinload(cls.aid_rows),
+                selectinload(cls.scholarship_rows),
             )
         )
         with SessionLocal() as db:
@@ -426,3 +451,41 @@ class SchoolBus(Base):
         ForeignKey("schools.id", ondelete="CASCADE"), index=True
     )
     bus_no: Mapped[str] = mapped_column(String(10), index=True)
+
+
+class SchoolProgramme(Base):
+    """A programme or course with its fees. Fees are per month for primary and secondary
+    schools and per year for the post-secondary and university tiers (the client shows the unit)."""
+
+    __tablename__ = "school_programmes"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), index=True)
+    field: Mapped[str | None] = mapped_column(String(200))
+    fee_sc: Mapped[float | None] = mapped_column(Float)  # Singapore citizens
+    fee_pr: Mapped[float | None] = mapped_column(Float)  # permanent residents
+    fee_intl: Mapped[float | None] = mapped_column(Float)  # international students
+    misc_fee: Mapped[float | None] = mapped_column(Float)
+
+
+class SchoolAid(Base):
+    __tablename__ = "school_aid"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    note: Mapped[str | None] = mapped_column(String(500))
+
+
+class SchoolScholarship(Base):
+    __tablename__ = "school_scholarships"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    name: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str | None] = mapped_column(String(200))
+    eligibility: Mapped[str | None] = mapped_column(String(500))

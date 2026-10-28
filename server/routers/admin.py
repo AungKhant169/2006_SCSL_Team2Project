@@ -25,7 +25,7 @@ def dataset_status():
 # The files are optional so that a missing one gets the SRS error message instead of a generic 422.
 @router.post("/dataset/update", response_model=SchoolUpdateResult)
 def update_dataset(files: Annotated[list[UploadFile] | None, File()] = None):
-    """Upload one or more of the 7 raw CSV files (any file name: each is recognised by its
+    """Upload one or more of the raw CSV files (any file name: each is recognised by its
     columns); files not uploaded are taken from the last upload. Everything is cleaned and
     written in one transaction, or nothing is changed."""
     return SchoolDatasetUpdater.run(files or [])

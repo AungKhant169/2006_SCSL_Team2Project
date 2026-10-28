@@ -14,9 +14,10 @@ log = logging.getLogger(__name__)
 # The date in the file name is the Singapore date, whatever time zone the server runs in.
 SINGAPORE = timezone(timedelta(hours=8))
 
-# Between the entries of a list column, and between the parts of one CCA entry.
+# Between the entries of a list column, and between the parts of one entry (a CCA, programme,
+# aid or scholarship).
 LIST_SEPARATOR = "; "
-CCA_SEPARATOR = " | "
+PART_SEPARATOR = " | "
 
 
 class DatasetExportError(HttpError):
@@ -32,12 +33,23 @@ class SchoolDatasetExporter:
     One row per school. The columns are those of the schools table (without its internal id),
     then the child tables as list columns: `subjects`, `moe_programmes` and `bus_numbers` hold
     their entries separated by "; ", and each entry of `ccas` is
-    "grouping | section | category | customised name". Nothing about users, saved roadmaps or
-    reviews is read (REQ-5.13).
+    "grouping | section | category | customised name". `programmes` (name, field, fee for
+    citizens, permanent residents, international students, misc fee), `financial_aid` (name,
+    note) and `scholarships` (name, source, eligibility) hold their entries the same way.
+    Nothing about users, saved roadmaps or reviews is read (REQ-5.13).
     """
 
     COLUMNS = tuple(c.name for c in SchoolInfo.__table__.columns if c.name != "id")
-    HEADER = (*COLUMNS, "subjects", "ccas", "moe_programmes", "bus_numbers")
+    HEADER = (
+        *COLUMNS,
+        "subjects",
+        "ccas",
+        "moe_programmes",
+        "bus_numbers",
+        "programmes",
+        "financial_aid",
+        "scholarships",
+    )
 
     @classmethod
     def run(cls, now: datetime | None = None) -> tuple[str, str]:
@@ -66,13 +78,22 @@ class SchoolDatasetExporter:
         writer.writerows(cls.row(school) for school in schools)
         return out.getvalue()
 
+    @staticmethod
+    def _entry(*parts) -> str:
+        """One entry of a list column. A fee is written without a trailing ".0"."""
+        return PART_SEPARATOR.join(
+            ""
+            if part is None
+            else f"{part:g}"
+            if isinstance(part, float)
+            else str(part)
+            for part in parts
+        )
+
     @classmethod
     def row(cls, school: SchoolInfo) -> list:
         ccas = (
-            CCA_SEPARATOR.join(
-                part or ""
-                for part in (c.grouping, c.section, c.generic_name, c.customised_name)
-            )
+            cls._entry(c.grouping, c.section, c.generic_name, c.customised_name)
             for c in school.cca_details
         )
         return [
@@ -81,4 +102,14 @@ class SchoolDatasetExporter:
             LIST_SEPARATOR.join(ccas),
             LIST_SEPARATOR.join(school.moe_programmes),
             LIST_SEPARATOR.join(school.bus_numbers),
+            LIST_SEPARATOR.join(
+                cls._entry(p.name, p.field, p.fee_sc, p.fee_pr, p.fee_intl, p.misc_fee)
+                for p in school.programmes
+            ),
+            LIST_SEPARATOR.join(
+                cls._entry(a.name, a.note) for a in school.financial_aid
+            ),
+            LIST_SEPARATOR.join(
+                cls._entry(s.name, s.source, s.eligibility) for s in school.scholarships
+            ),
         ]

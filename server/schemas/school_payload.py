@@ -95,6 +95,32 @@ class CcaDetail(BaseModel):
     customised_name: str | None = None
 
 
+class ProgrammeDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    field: str | None = None
+    fee_sc: float | None = Field(None, description="Singapore citizens")
+    fee_pr: float | None = Field(None, description="Permanent residents")
+    fee_intl: float | None = Field(None, description="International students")
+    misc_fee: float | None = None
+
+
+class AidDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    note: str | None = None
+
+
+class ScholarshipDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    source: str | None = None
+    eligibility: str | None = None
+
+
 class SchoolInfoDetail(SchoolInfoSummary):
     url_address: str | None = None
     telephone_no: str | None = None
@@ -123,6 +149,9 @@ class SchoolInfoDetail(SchoolInfoSummary):
     moe_programmes: list[str] = []
     moe_programmes_count: int = 0
     bus_numbers: list[str] = []
+    programmes: list[ProgrammeDetail] = []
+    financial_aid: list[AidDetail] = []
+    scholarships: list[ScholarshipDetail] = []
 
 
 class SchoolPage(BaseModel):
@@ -154,4 +183,7 @@ class SchoolUpdateResult(BaseModel):
     ccas: int
     moe_programmes: int
     buses: int
+    programmes: int = 0
+    financial_aid: int = 0
+    scholarships: int = 0
     warnings: list[str]

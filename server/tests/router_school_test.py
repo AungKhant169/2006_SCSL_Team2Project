@@ -1,6 +1,13 @@
 from fastapi import status
 
-from models.school_record import SchoolInfo, SchoolInfoError
+from models.base import SessionLocal
+from models.school_record import (
+    SchoolAid,
+    SchoolInfo,
+    SchoolInfoError,
+    SchoolProgramme,
+    SchoolScholarship,
+)
 from tests.conftest import client
 
 
@@ -70,6 +77,50 @@ class TestSchoolDetail:
         assert body["id"] == school.id
         assert body["principal_name"] == "MS TAN"
         assert body["subjects_list"] == []
+
+    def test_lists_the_programmes_with_their_fees_aid_and_scholarships(self):
+        school = make_school()
+        with SessionLocal() as db:
+            db.add_all(
+                [
+                    SchoolProgramme(
+                        school_id=school.id,
+                        name="DIPLOMA IN ENGINEERING",
+                        field="Engineering",
+                        fee_sc=3100,
+                        fee_pr=6400,
+                        fee_intl=12400,
+                        misc_fee=300,
+                    ),
+                    SchoolAid(
+                        school_id=school.id, name="MOE FAS", note="100% fee subsidy"
+                    ),
+                    SchoolScholarship(
+                        school_id=school.id,
+                        name="Gold",
+                        source="School",
+                        eligibility="Top students",
+                    ),
+                ]
+            )
+            db.commit()
+        body = client.get("/school-api/first").json()
+        assert body["programmes"] == [
+            {
+                "name": "DIPLOMA IN ENGINEERING",
+                "field": "Engineering",
+                "fee_sc": 3100.0,
+                "fee_pr": 6400.0,
+                "fee_intl": 12400.0,
+                "misc_fee": 300.0,
+            }
+        ]
+        assert body["financial_aid"] == [
+            {"name": "MOE FAS", "note": "100% fee subsidy"}
+        ]
+        assert body["scholarships"] == [
+            {"name": "Gold", "source": "School", "eligibility": "Top students"}
+        ]
 
     def test_unknown_key(self):
         response = client.get("/school-api/missing")

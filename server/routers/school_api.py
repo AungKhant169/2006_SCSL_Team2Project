@@ -35,7 +35,7 @@ def refresh_school_data(
     user: Requester, files: Annotated[list[UploadFile] | None, File()] = None
 ):
     """Admin only: the same update as POST /admin/dataset/update. Upload one or more of the
-    7 raw CSV files (any file name: each is recognised by its columns); files not uploaded
+    raw CSV files (any file name: each is recognised by its columns); files not uploaded
     are taken from the last upload. Everything is cleaned and written in one transaction,
     or nothing is changed. Unlike /admin/*, this also accepts the ADMIN_USERNAMES accounts."""
     if not user.is_admin:

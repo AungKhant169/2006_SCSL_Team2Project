@@ -22,10 +22,13 @@ from core.school_cleaning import (
 from models.base import SessionLocal
 from models.dataset_update import DatasetUpdate
 from models.school_record import (
+    SchoolAid,
     SchoolBus,
     SchoolCca,
     SchoolInfo,
     SchoolMoeProgramme,
+    SchoolProgramme,
+    SchoolScholarship,
     SchoolSubject,
 )
 
@@ -82,7 +85,7 @@ def sort_uploads(uploads: dict[str, bytes]) -> dict[str, bytes]:
         key = identify_frame(read_csv_bytes(data, filename))
         if key is None:
             raise SchoolDataError(
-                f"'{filename}' is not one of the 7 expected datasets (unrecognised columns)."
+                f"'{filename}' is not one of the {len(FILE_KEYS)} expected datasets (unrecognised columns)."
             )
         if key in out:
             raise SchoolDataError(f"Two uploaded files look like the '{key}' file.")
@@ -145,6 +148,36 @@ def _write_database(dataset: CleanDataset) -> dict:
                     for r in dataset.ccas
                 ],
             ),
+            (
+                SchoolProgramme,
+                [
+                    {
+                        "school_id": ids[r["school_key"]],
+                        **{k: v for k, v in r.items() if k != "school_key"},
+                    }
+                    for r in dataset.programmes
+                ],
+            ),
+            (
+                SchoolAid,
+                [
+                    {
+                        "school_id": ids[r["school_key"]],
+                        **{k: v for k, v in r.items() if k != "school_key"},
+                    }
+                    for r in dataset.financial_aid
+                ],
+            ),
+            (
+                SchoolScholarship,
+                [
+                    {
+                        "school_id": ids[r["school_key"]],
+                        **{k: v for k, v in r.items() if k != "school_key"},
+                    }
+                    for r in dataset.scholarships
+                ],
+            ),
         ):
             session.execute(delete(model))
             if rows:
@@ -166,6 +199,9 @@ def _write_database(dataset: CleanDataset) -> dict:
         "ccas": len(dataset.ccas),
         "moe_programmes": len(dataset.moe_programmes),
         "buses": len(dataset.buses),
+        "programmes": len(dataset.programmes),
+        "financial_aid": len(dataset.financial_aid),
+        "scholarships": len(dataset.scholarships),
         "warnings": dataset.warnings,
     }
 

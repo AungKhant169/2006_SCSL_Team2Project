@@ -12,11 +12,14 @@ from core.dataset_export import DatasetExportError, SchoolDatasetExporter
 from core.dataset_update import DatasetUpdateError, SchoolDatasetUpdater
 from models.base import SessionLocal
 from models.school_record import (
+    SchoolAid,
     SchoolBus,
     SchoolCca,
     SchoolInfo,
     SchoolInfoError,
     SchoolMoeProgramme,
+    SchoolProgramme,
+    SchoolScholarship,
     SchoolSubject,
 )
 from models.user import UserError
@@ -187,6 +190,24 @@ def add_schools():
                     ],
                     moe_programme_rows=[SchoolMoeProgramme(name="LEARNING SUPPORT")],
                     bus_rows=[SchoolBus(bus_no="965"), SchoolBus(bus_no="964")],
+                    programme_rows=[
+                        SchoolProgramme(
+                            name="DIPLOMA IN ENGINEERING",
+                            field="Engineering",
+                            fee_sc=3100,
+                            fee_pr=6400,
+                            fee_intl=12400,
+                            misc_fee=300,
+                        )
+                    ],
+                    aid_rows=[SchoolAid(name="MOE FAS", note="100% fee subsidy")],
+                    scholarship_rows=[
+                        SchoolScholarship(
+                            name="Gold",
+                            source="School",
+                            eligibility="Top students",
+                        )
+                    ],
                 ),
                 SchoolInfo(school_key="beta secondary", school_name="BETA SECONDARY"),
             ]
@@ -230,7 +251,15 @@ class TestExportDataset:
         header = next(csv.reader(io.StringIO(export(admin).text)))
         table_columns = {c.name for c in SchoolInfo.__table__.columns} - {"id"}
         assert table_columns <= set(header)
-        assert header[-4:] == ["subjects", "ccas", "moe_programmes", "bus_numbers"]
+        assert header[-7:] == [
+            "subjects",
+            "ccas",
+            "moe_programmes",
+            "bus_numbers",
+            "programmes",
+            "financial_aid",
+            "scholarships",
+        ]
 
     def test_has_one_row_per_school_by_name(self, admin):
         add_schools()
@@ -259,6 +288,16 @@ class TestExportDataset:
         )
         assert alpha["moe_programmes"] == "LEARNING SUPPORT"
         assert alpha["bus_numbers"] == "964; 965"
+
+    def test_lists_the_programmes_with_fees_and_the_aid_and_scholarships(self, admin):
+        add_schools()
+        alpha = rows(export(admin))[0]
+        assert (
+            alpha["programmes"]
+            == "DIPLOMA IN ENGINEERING | Engineering | 3100 | 6400 | 12400 | 300"
+        )
+        assert alpha["financial_aid"] == "MOE FAS | 100% fee subsidy"
+        assert alpha["scholarships"] == "Gold | School | Top students"
 
     def test_leaves_missing_values_empty(self, admin):
         add_schools()

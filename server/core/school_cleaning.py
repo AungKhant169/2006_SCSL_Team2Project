@@ -1,7 +1,7 @@
 """Cleaning of the raw MOE school CSV files.
 
 This is the notebook (SC2006_EDA.ipynb) turned into a normal module. It takes the
-7 raw CSV files and returns plain Python lists/dicts, ready to be put in the database.
+raw CSV files and returns plain Python lists/dicts, ready to be put in the database.
 It never touches the database itself.
 """
 
@@ -52,6 +52,17 @@ REQUIRED_COLUMNS = {
     "moe": ["school_name", "moe_programme_desc"],
     "sdp": ["school_name"],
     "subjects": ["school_name", "subject_desc"],
+    "programmes": [
+        "school_name",
+        "programme",
+        "field",
+        "fee_sc",
+        "fee_pr",
+        "fee_intl",
+        "misc_fee",
+    ],
+    "financial_aid": ["school_name", "aid_name", "aid_note"],
+    "scholarships": ["school_name", "scholarship_name", "source", "eligibility"],
 }
 
 FILE_KEYS = tuple(REQUIRED_COLUMNS)
@@ -65,6 +76,9 @@ SIGNATURE_COLUMNS = {
     "moe": {"moe_programme_desc"},
     "sdp": {"alp_domain"},
     "subjects": {"subject_desc"},
+    "programmes": {"fee_sc"},
+    "financial_aid": {"aid_name"},
+    "scholarships": {"scholarship_name"},
 }
 
 # Names in the extra files that differ from the general-information file.
@@ -101,6 +115,13 @@ class CleanDataset:
     )  # {school_key, section, grouping, generic_name, customised_name}
     moe_programmes: list[dict] = field(default_factory=list)  # {school_key, name}
     buses: list[dict] = field(default_factory=list)  # {school_key, bus_no}
+    programmes: list[dict] = field(
+        default_factory=list
+    )  # {school_key, name, field, fee_*, misc_fee}
+    financial_aid: list[dict] = field(default_factory=list)  # {school_key, name, note}
+    scholarships: list[dict] = field(
+        default_factory=list
+    )  # {school_key, name, source, eligibility}
     warnings: list[str] = field(default_factory=list)
 
 
@@ -108,7 +129,7 @@ class CleanDataset:
 
 
 def identify_frame(df: pd.DataFrame) -> str | None:
-    """Which of the 7 files this is, judged by its column headers. None if unknown."""
+    """Which of the raw files this is, judged by its column headers. None if unknown."""
     headers = set(df.columns.astype(str).str.strip().str.lower())
     for key, signature in SIGNATURE_COLUMNS.items():
         if signature <= headers:
@@ -194,7 +215,7 @@ def _to_number(series: pd.Series) -> pd.Series:
 
 
 def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
-    """raw: {'general': DataFrame, 'ccas': DataFrame, ...} for all 7 keys."""
+    """raw: {'general': DataFrame, 'ccas': DataFrame, ...} for every key in FILE_KEYS."""
     missing = [k for k in FILE_KEYS if k not in raw]
     if missing:
         raise SchoolDataError(f"Missing file(s): {', '.join(missing)}")
@@ -362,11 +383,37 @@ def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
         for b in parse_buses(text)
     ]
 
+    # --- programmes with their fees, financial aid and scholarships (one row per entry)
+    programmes = keep(dfs["programmes"])[
+        ["school_key", "programme", "field", "fee_sc", "fee_pr", "fee_intl", "misc_fee"]
+    ].copy()
+    for col in ("fee_sc", "fee_pr", "fee_intl", "misc_fee"):
+        programmes[col] = _to_number(programmes[col])
+    programmes = (
+        programmes.dropna(subset=["programme"])
+        .drop_duplicates()
+        .rename(columns={"programme": "name"})
+    )
+    programmes = programmes.astype(object).where(programmes.notna(), None)
+    aid = keep(dfs["financial_aid"])[["school_key", "aid_name", "aid_note"]]
+    aid = aid.dropna(subset=["aid_name"]).drop_duplicates()
+    aid = aid.rename(columns={"aid_name": "name", "aid_note": "note"})
+    aid = aid.astype(object).where(aid.notna(), None)
+    scholarships = keep(dfs["scholarships"])[
+        ["school_key", "scholarship_name", "source", "eligibility"]
+    ]
+    scholarships = scholarships.dropna(subset=["scholarship_name"]).drop_duplicates()
+    scholarships = scholarships.rename(columns={"scholarship_name": "name"})
+    scholarships = scholarships.astype(object).where(scholarships.notna(), None)
+
     return CleanDataset(
         schools=merged.to_dict("records"),
         subjects=subjects.to_dict("records"),
         ccas=ccas.to_dict("records"),
         moe_programmes=moe.to_dict("records"),
         buses=buses,
+        programmes=programmes.to_dict("records"),
+        financial_aid=aid.to_dict("records"),
+        scholarships=scholarships.to_dict("records"),
         warnings=warnings,
     )
