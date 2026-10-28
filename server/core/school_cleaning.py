@@ -225,6 +225,11 @@ def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
     if general.empty:
         raise SchoolDataError("The general information file has no schools.")
     master = set(general["school_key"])
+    # The general file may carry coordinates (the institutions do). They only fill the gaps:
+    # the primary and secondary files win wherever they place the school.
+    fallback = general.reindex(columns=["school_key", *FLOAT_COLUMNS])
+    fallback = fallback.set_index("school_key")
+    general = general.drop(columns=FLOAT_COLUMNS, errors="ignore")
 
     for key, df in dfs.items():
         if key == "general":
@@ -297,6 +302,9 @@ def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
 
     # --- tidy values so every filter works
     merged = tidy_frame(merged)
+    for col in FLOAT_COLUMNS:
+        from_general = merged["school_key"].map(fallback[col])
+        merged[col] = merged[col].where(merged[col].notna(), from_general)
     merged["postal_code"] = merged["postal_code"].map(
         lambda v: None if v is None else re.sub(r"\.0$", "", str(v)).zfill(6)
     )
