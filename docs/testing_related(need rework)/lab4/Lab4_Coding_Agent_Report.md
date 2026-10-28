@@ -17,7 +17,7 @@ The assistant used the existing equivalence-class and boundary-value tests in `c
 
 ### Request and reconstruction brief
 
-The user's request was to complete Lab 4 Section 3.3.2 with guidance and prepare the subsequent documentation. The following is a reproducible task brief assembled by the assistant from that request, the manual, and the existing tests; it is not a verbatim quotation of a separate user prompt:
+We asked Codex to help us complete Section 3.3.2 and write up the results. The task is summarised below, based on the lab manual and existing tests:
 
 > Recreate the complete `UserProfileController` responsibility in `client/src/stores/profile.ts` and `client/src/utils/profileValidation.ts` after temporarily removing both files. Use the existing profile validation tests, profile store tests, profile view and its tests, education definitions, types, postal-code utilities, and callers to recover the public interface and expected behaviour. Preserve the existing tests and implement the missing code. Validate postal codes before academic results; support each target education level; preserve inline error messages, postal-code sanitisation, profile reset, and directory-anchor updates. Run the focused tests, the frontend regression suite, type checking, and the production build. Record any follow-up corrections accurately.
 
