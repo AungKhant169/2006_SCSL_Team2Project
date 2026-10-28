@@ -1,5 +1,7 @@
 # PathSG System Architecture
 
+Authors: SC2006 SCSL Team 2
+
 ![PathSG system architecture diagram](System_Architecture_Diagram.svg)
 
 ## Architecture

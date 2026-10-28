@@ -1,5 +1,7 @@
 # White-Box Testing
 
+Authors: SC2006 SCSL Team 2
+
 We used basis path testing for `runAi()` and `submit()`. The graphs include service
 failures but do not expand the code inside helper functions. Each test uses a new
 Pinia instance and a fake API.

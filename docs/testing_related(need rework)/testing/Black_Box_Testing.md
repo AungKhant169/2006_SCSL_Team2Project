@@ -1,5 +1,7 @@
 # Black-Box Testing
 
+Authors: SC2006 SCSL Team 2
+
 ## 1. What We Tested
 
 We tested profile saving with equivalence class partitioning and boundary value

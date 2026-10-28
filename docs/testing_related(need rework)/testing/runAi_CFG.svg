@@ -47,5 +47,6 @@
     <text x="140" y="523">True</text><text x="350" y="523">False</text>
     <text x="640" y="523">True</text><text x="865" y="523">False</text>
     <text x="500" y="862" font-size="13">Scope: typed service results; successful post-processing; helper internals are not expanded.</text>
+    <text x="500" y="885" font-size="12">Authors: SC2006 SCSL Team 2</text>
   </g>
 </svg>

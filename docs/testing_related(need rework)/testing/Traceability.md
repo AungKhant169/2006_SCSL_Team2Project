@@ -1,5 +1,7 @@
 # Testing Traceability
 
+Authors: SC2006 SCSL Team 2
+
 ## 1. Sources and Scope
 
 The tables below link each tested requirement to its design class, code, and test cases.
