@@ -181,12 +181,17 @@ level does not use are dropped. Only these fields are stored, never a name or NR
 
 ## School data
 
-The schools come from seven raw CSV files in [`data/raw/`](data/raw/): `general`, `primary`,
-`secondary`, `sdp`, `moe`, `ccas` and `subjects`.
+The schools come from ten raw CSV files in [`data/raw/`](data/raw/): `general`, `primary`,
+`secondary`, `sdp`, `moe`, `ccas`, `subjects`, `programmes`, `financial_aid` and `scholarships`.
+`programmes` holds each programme with its fees (citizens, permanent residents, international
+students, and a misc fee); `financial_aid` and `scholarships` hold what a school lists. The `general`
+file may also carry `latitude` and `longitude`, which are used only where the primary and secondary
+files do not place the school (the post-secondary institutions do this).
 [`core/school_cleaning.py`](core/school_cleaning.py) (pandas, no database access) turns them into
 clean records, and [`core/school_import.py`](core/school_import.py) writes them. The `schools` table
-holds one row per school. Subjects, CCAs, MOE programmes and bus services are in the child tables
-`school_subjects`, `school_ccas`, `school_moe_programmes` and `school_buses`, which are rebuilt on
+holds one row per school. Subjects, CCAs, MOE programmes, bus services, programmes, aid and
+scholarships are in the child tables `school_subjects`, `school_ccas`, `school_moe_programmes`,
+`school_buses`, `school_programmes`, `school_aid` and `school_scholarships`, which are rebuilt on
 every refresh.
 
 There are three ways to refresh, and all use the same code:
@@ -194,7 +199,7 @@ There are three ways to refresh, and all use the same code:
 - `python -m scripts.refresh_school_data` reloads from the stored files. With `--if-empty` it does
   nothing when schools are already loaded, which is what the Docker image runs on start-up.
 - `POST /admin/dataset/update` (admin role) takes a multipart `files` field with one or more of the
-  seven CSVs. Each file is recognised by its column headers, so file names do not matter, and any
+  CSVs. Each file is recognised by its column headers, so file names do not matter, and any
   kind not uploaded is taken from the last upload (or the copy in `data/raw/`). This is what the
   client's admin panel uses.
 - `POST /school-api/admin/refresh` is the same update, also open to the `ADMIN_USERNAMES` accounts.
@@ -202,6 +207,10 @@ There are three ways to refresh, and all use the same code:
 Only one update runs at a time (the second gets 409). Every successful load is logged in the
 `dataset_updates` table, and `GET /admin/dataset` reports the school count and the time of the last
 load.
+
+The start-up command does not reload schools that are already in the database. After an upgrade to
+a database that already has schools, run `python -m scripts.refresh_school_data` once so that the
+programme, aid and scholarship tables are filled.
 
 A refresh is all or nothing: the files are validated and cleaned first, and everything is written in
 one transaction. Schools already in the database but missing from the files are kept and counted as
@@ -298,7 +307,7 @@ core/
   dataset_export.py  Admin school data export to one CSV file
   alembic/           Migration environment and versions
 scripts/         One-off commands: refresh_school_data, make_admin, promote_admin
-data/raw/        The seven raw school CSV files
+data/raw/        The raw school CSV files
 tests/           pytest suite
 ```
 

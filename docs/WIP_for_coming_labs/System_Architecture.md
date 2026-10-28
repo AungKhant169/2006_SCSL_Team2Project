@@ -26,7 +26,7 @@ Presentation (`«boundary»`), Application Logic (`«control»`) and Persistent 
 | FastAPI | Roadmap Engine | `core/roadmap_rules.py`, `roadmap_ai.py`, `roadmap_pool.py`, `geolocation.py` | Rule-based and AI generators over a stage's candidate schools; distance from postal-district centroids |
 | FastAPI | School Data Pipeline | `core/dataset_update.py`, `school_cleaning.py`, `school_import.py`, `dataset_export.py` | Admin CSV update (one at a time, all-or-nothing) and CSV export |
 | FastAPI | Domain Models | `server/models/` | Entities with their own rules and queries, on a shared `Persistable` mixin |
-| Data | SQLite `main.db`, raw CSV files | `/data` volume `pathsg-data` | 12 tables versioned with Alembic; uploaded CSVs kept for the next refresh |
+| Data | SQLite `main.db`, raw CSV files | `/data` volume `pathsg-data` | 15 tables versioned with Alembic; uploaded CSVs kept for the next refresh |
 | Start-up | Dockerfile `CMD` + `main.py` | `server/Dockerfile`, `server/main.py` | `alembic upgrade head`, `refresh_school_data --if-empty`, then `uvicorn` with one worker |
 | External | OpenAI API | `core/roadmap_ai.py` | Ranks candidate schools for the AI roadmap; 14 s timeout; the username is never sent |
 | External | data.gov.sg | none (manual) | Source of the school CSVs; an administrator downloads and uploads them |
