@@ -9,12 +9,16 @@ const nodes: PlanNode[] = [
     label: '1st choice',
     schoolName: 'Rosyth School',
     detail: 'P1 Phase 2C ratio: 2.4 : 1',
+    latitude: 1.375,
+    longitude: 103.885,
   },
   {
     step: 2,
     label: '2nd choice',
     schoolName: 'Tao Nan School',
     detail: 'P1 Phase 2C ratio: 1.8 : 1',
+    latitude: 1.305,
+    longitude: 103.91,
   },
 ]
 

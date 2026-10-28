@@ -93,6 +93,30 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       ])
     })
 
+    it('carries each school’s position so the plan can be mapped', async () => {
+      const r = await generated()
+      expect(r.rulePlan.map((n) => [n.latitude, n.longitude])).toEqual([
+        [1.3497, 103.8715],
+        [1.3457, 103.8437],
+        [1.3395, 103.8336],
+      ])
+    })
+
+    it('places the profile’s postal code once the server has located it', async () => {
+      const r = await generated()
+      expect(r.origin).toEqual({
+        latitude: 1.37,
+        longitude: 103.893,
+        district: 'Serangoon Garden, Hougang, Punggol',
+      })
+    })
+
+    it('has no place for a postal code that is not valid', async () => {
+      useProfileStore().setPostal('12')
+      const r = await generated()
+      expect(r.origin).toBeNull()
+    })
+
     it('asks the server with the stage, postal code and the profile’s score', async () => {
       const profile = useProfileStore()
       profile.scoreA = '8'

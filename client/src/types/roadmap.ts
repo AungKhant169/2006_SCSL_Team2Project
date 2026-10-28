@@ -16,6 +16,9 @@ export interface PlanNode {
   /** Display name of the school, or "Not available" for a stale choice. */
   schoolName: string
   detail: string
+  /** Where the school is, or null when it is not available or the dataset has no position for it. */
+  latitude: number | null
+  longitude: number | null
 }
 
 /** Where a plan is in being fetched from the server. */

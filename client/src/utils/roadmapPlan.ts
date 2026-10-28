@@ -36,6 +36,8 @@ export function planNodes(
       label: choiceLabel(i),
       schoolName: school ? school.name : 'Not available',
       detail: school ? describe(school, stage, postal) : 'Not available',
+      latitude: school?.latitude ?? null,
+      longitude: school?.longitude ?? null,
     }
   })
 }

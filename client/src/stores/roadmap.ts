@@ -74,6 +74,9 @@ export const useRoadmapStore = defineStore('roadmap', () => {
       : [],
   )
 
+  /** Where the profile's postal code is placed, once the server has located it. */
+  const origin = computed(() => location.originOf(profile.postal))
+
   const hasSaved = computed(() => saved.value !== null)
   const showSaved = computed(() => hasSaved.value && !generated.value)
   const showEmpty = computed(() => !hasSaved.value && !generated.value)
@@ -269,6 +272,7 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     aiPlan,
     savedPlan,
     savedPool,
+    origin,
     hasSaved,
     showSaved,
     showEmpty,

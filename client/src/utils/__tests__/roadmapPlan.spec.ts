@@ -43,6 +43,21 @@ describe('planNodes', () => {
     expect(node).toMatchObject({ schoolName: 'Not available', detail: 'Not available' })
   })
 
+  it('carries the position of each school, for the map', () => {
+    const placed = { ...secondary, latitude: 1.3395, longitude: 103.8336 }
+    const [node] = planNodes([6], known(placed), 'secondary', '556000')
+    expect(node).toMatchObject({ latitude: 1.3395, longitude: 103.8336 })
+  })
+
+  it('has no position for a school the dataset cannot place, or one that no longer exists', () => {
+    const unplaced = { ...poly, latitude: null, longitude: null }
+    const nodes = planNodes([9, 9999], known(unplaced), 'postsec', '556000')
+    expect(nodes.map((n) => [n.latitude, n.longitude])).toEqual([
+      [null, null],
+      [null, null],
+    ])
+  })
+
   it('a plan is three choices long', () => {
     expect(PLAN_LENGTH).toBe(3)
   })
