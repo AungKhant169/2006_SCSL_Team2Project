@@ -3,6 +3,7 @@ import BaseButton from '@/components/ui/BaseButton.vue'
 import SectionCard from '@/components/ui/SectionCard.vue'
 import { getLevel } from '@/data/education'
 import { useRoadmapStore } from '@/stores/roadmap'
+import PlanMap from './PlanMap.vue'
 import PlanNodeList from './PlanNodeList.vue'
 import RoadmapEditor from './RoadmapEditor.vue'
 
@@ -29,6 +30,9 @@ const roadmap = useRoadmapStore()
       @save="$emit('saveEdits')"
       @cancel="$emit('cancelEdit')"
     />
-    <PlanNodeList v-else :nodes="roadmap.savedPlan" :from="getLevel(roadmap.saved.stage).from" />
+    <template v-else>
+      <PlanNodeList :nodes="roadmap.savedPlan" :from="getLevel(roadmap.saved.stage).from" />
+      <PlanMap :nodes="roadmap.savedPlan" :origin="roadmap.origin" />
+    </template>
   </SectionCard>
 </template>

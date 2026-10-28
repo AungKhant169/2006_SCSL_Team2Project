@@ -4,6 +4,7 @@ import SectionCard from '@/components/ui/SectionCard.vue'
 import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import { getLevel } from '@/data/education'
 import { useRoadmapStore } from '@/stores/roadmap'
+import PlanMap from './PlanMap.vue'
 import PlanNodeList from './PlanNodeList.vue'
 
 defineEmits<{ save: [] }>()
@@ -50,6 +51,7 @@ const roadmap = useRoadmapStore()
         offers.
       </p>
       <PlanNodeList :nodes="roadmap.aiPlan" :from="getLevel(roadmap.stage).from" tone="ai" />
+      <PlanMap :nodes="roadmap.aiPlan" :origin="roadmap.origin" tone="ai" />
       <BaseButton
         variant="ai"
         class="self-start"

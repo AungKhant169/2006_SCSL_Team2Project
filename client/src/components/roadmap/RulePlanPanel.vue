@@ -5,6 +5,7 @@ import SpinnerIcon from '@/components/ui/SpinnerIcon.vue'
 import { getLevel } from '@/data/education'
 import { useProfileStore } from '@/stores/profile'
 import { useRoadmapStore } from '@/stores/roadmap'
+import PlanMap from './PlanMap.vue'
 import PlanNodeList from './PlanNodeList.vue'
 
 defineEmits<{ save: [] }>()
@@ -50,6 +51,7 @@ const profile = useProfileStore()
 
     <template v-else-if="roadmap.ruleStatus === 'ready'">
       <PlanNodeList :nodes="roadmap.rulePlan" :from="getLevel(roadmap.stage).from" />
+      <PlanMap :nodes="roadmap.rulePlan" :origin="roadmap.origin" />
       <BaseButton
         class="self-start"
         :disabled="roadmap.rulePlan.length === 0"

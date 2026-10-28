@@ -220,6 +220,72 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
   })
 
+  describe('map of the recommended schools', () => {
+    const pins = (section: ReturnType<VueWrapper['get']>) =>
+      section.findAll('.leaflet-marker-icon').map((pin) => pin.attributes('aria-label'))
+
+    it('pins each plan’s schools, and the postal district they are measured from', async () => {
+      const { wrapper } = await mountRoadmap()
+      await generate(wrapper)
+      expect(pins(panel(wrapper, 'Rule-Based Plan'))).toEqual([
+        'Your postal district',
+        "1st choice: St. Gabriel's Secondary School",
+        '2nd choice: Raffles Institution',
+        "3rd choice: Cedar Girls' Secondary School",
+      ])
+      expect(pins(panel(wrapper, 'AI-Generated Plan'))).toEqual([
+        'Your postal district',
+        '1st choice: Bukit Panjang Govt. High School',
+        "2nd choice: Cedar Girls' Secondary School",
+        '3rd choice: Raffles Institution',
+      ])
+    })
+
+    it('colours the AI plan’s pins purple and the rule-based plan’s blue', async () => {
+      const { wrapper } = await mountRoadmap()
+      await generate(wrapper)
+      expect(panel(wrapper, 'Rule-Based Plan').findAll('.map-pin-primary')).toHaveLength(3)
+      expect(panel(wrapper, 'AI-Generated Plan').findAll('.map-pin-ai')).toHaveLength(3)
+    })
+
+    it('keeps a failed plan’s panel free of a map, and the other plan’s intact', async () => {
+      const { wrapper } = await mountRoadmap((api) => {
+        api.ai = 'error'
+      })
+      await generate(wrapper)
+      expect(panel(wrapper, 'AI-Generated Plan').find('.leaflet-container').exists()).toBe(false)
+      expect(pins(panel(wrapper, 'Rule-Based Plan'))).toHaveLength(4)
+    })
+
+    it('draws no map for a stage that has no institutions', async () => {
+      const { wrapper } = await mountRoadmap()
+      await stageTile(wrapper, 'Autonomous University').trigger('click')
+      await generate(wrapper)
+      expect(wrapper.find('.leaflet-container').exists()).toBe(false)
+    })
+
+    it('shows the saved roadmap on a map too, until it is being edited', async () => {
+      const { wrapper } = await mountRoadmap((api) => {
+        api.roadmaps['planner2026'] = {
+          stage: 'secondary',
+          source: 'AI-Generated Plan',
+          choices: [6, 5],
+        }
+      })
+      const saved = () => panel(wrapper, 'Saved roadmap')
+      expect(pins(saved())).toEqual([
+        'Your postal district',
+        "1st choice: Cedar Girls' Secondary School",
+        '2nd choice: Raffles Institution',
+      ])
+
+      await click(wrapper, 'Edit Roadmap')
+      expect(saved().find('.leaflet-container').exists()).toBe(false)
+      await click(wrapper, 'Cancel')
+      expect(pins(saved())).toHaveLength(3)
+    })
+  })
+
   describe('failures stay inside their own panel (REQ-3.8, REQ-3.9, QUAL-7)', () => {
     async function failedAi() {
       const mounted = await mountRoadmap((api) => {
