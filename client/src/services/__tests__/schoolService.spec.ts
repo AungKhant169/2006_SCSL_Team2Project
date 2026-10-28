@@ -55,7 +55,7 @@ describe('toSchool', () => {
     expect(toSchool(raffles).tier).toBe('secondary')
   })
 
-  it('has no fees, financial aid or scholarships: the dataset carries none', () => {
+  it('leaves fees, financial aid and scholarships to the profile', () => {
     expect(toSchool(nanyang)).toMatchObject({ courses: [], aid: [], scholarships: [] })
   })
 
@@ -101,6 +101,36 @@ describe('toSchoolProfile', () => {
     expect(profile.ccas).toEqual([
       { category: 'Clubs and Societies', names: ['Visual Arts'] },
       { category: 'Visual and Performing Arts', names: ['Chinese Dance'] },
+    ])
+  })
+
+  it('maps the programmes with their fees, the aid and the scholarships', () => {
+    const profile = toSchoolProfile({
+      ...rosyth,
+      programmes: [
+        {
+          name: 'All full-time diploma courses',
+          field: 'Total payable per year',
+          fee_sc: 3177.52,
+          fee_pr: 6507.52,
+          fee_intl: 13767.99,
+          misc_fee: null,
+        },
+      ],
+      financial_aid: [{ name: 'MOE Financial Assistance Scheme (FAS)', note: null }],
+      scholarships: [{ name: 'Gold Scholarship', source: 'School', eligibility: 'Top students' }],
+    })
+    expect(profile.courses).toEqual([
+      {
+        name: 'All full-time diploma courses',
+        field: 'Total payable per year',
+        fees: { sc: 3177.52, pr: 6507.52, intl: 13767.99 },
+        miscFee: 0,
+      },
+    ])
+    expect(profile.aid).toEqual([{ name: 'MOE Financial Assistance Scheme (FAS)', note: '' }])
+    expect(profile.scholarships).toEqual([
+      { name: 'Gold Scholarship', source: 'School', eligibility: 'Top students' },
     ])
   })
 

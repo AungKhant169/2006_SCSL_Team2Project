@@ -55,6 +55,9 @@ function school(
     subjects_list: ['English Language', 'Mathematics'],
     cca_details: [],
     moe_programmes: [],
+    programmes: [],
+    financial_aid: [],
+    scholarships: [],
     ...options,
   }
 }

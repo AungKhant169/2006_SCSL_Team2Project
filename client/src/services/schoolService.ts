@@ -2,9 +2,12 @@ import type {
   BenchmarkPoint,
   BenchmarkSpec,
   CcaGroup,
+  Course,
   DirectoryTierId,
+  FinancialAid,
   ProgrammeInfo,
   School,
+  Scholarship,
   SchoolProfile,
   TierId,
 } from '@/types/school'
@@ -36,6 +39,26 @@ interface CcaPayload {
   customised_name: string | null
 }
 
+interface ProgrammePayload {
+  name: string
+  field: string | null
+  fee_sc: number | null
+  fee_pr: number | null
+  fee_intl: number | null
+  misc_fee: number | null
+}
+
+interface AidPayload {
+  name: string
+  note: string | null
+}
+
+interface ScholarshipPayload {
+  name: string
+  source: string | null
+  eligibility: string | null
+}
+
 /** What GET /school-api/{school_key} returns. */
 export interface SchoolDetailPayload extends SchoolSummaryPayload {
   url_address: string | null
@@ -54,6 +77,9 @@ export interface SchoolDetailPayload extends SchoolSummaryPayload {
   subjects_list: string[]
   cca_details: CcaPayload[]
   moe_programmes: string[]
+  programmes: ProgrammePayload[]
+  financial_aid: AidPayload[]
+  scholarships: ScholarshipPayload[]
 }
 
 interface SchoolPage {
@@ -159,9 +185,38 @@ function ccasOf(details: CcaPayload[]): CcaGroup[] {
     .sort((a, b) => a.category.localeCompare(b.category))
 }
 
+/** A fee the dataset leaves out (or that does not apply) is 0, which the fee table shows as a dash. */
+function coursesOf(programmes: ProgrammePayload[]): Course[] {
+  return programmes.map((programme) => ({
+    name: programme.name,
+    field: programme.field ?? '',
+    fees: {
+      sc: programme.fee_sc ?? 0,
+      pr: programme.fee_pr ?? 0,
+      intl: programme.fee_intl ?? 0,
+    },
+    miscFee: programme.misc_fee ?? 0,
+  }))
+}
+
+function aidOf(aid: AidPayload[]): FinancialAid[] {
+  return aid.map((item) => ({ name: item.name, note: item.note ?? '' }))
+}
+
+function scholarshipsOf(scholarships: ScholarshipPayload[]): Scholarship[] {
+  return scholarships.map((item) => ({
+    name: item.name,
+    source: item.source ?? '',
+    eligibility: item.eligibility ?? '',
+  }))
+}
+
 export function toSchoolProfile(payload: SchoolDetailPayload): SchoolProfile {
   return {
     ...toSchool(payload),
+    courses: coursesOf(payload.programmes),
+    aid: aidOf(payload.financial_aid),
+    scholarships: scholarshipsOf(payload.scholarships),
     website: payload.url_address ?? '',
     phone: payload.telephone_no ?? '',
     email: payload.email_address ?? '',

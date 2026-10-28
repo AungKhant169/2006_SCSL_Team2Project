@@ -79,8 +79,8 @@ export interface School {
   benchmark: BenchmarkSpec | null
   history: BenchmarkPoint[]
   /*
-   * The school dataset carries no fees, financial aid or scholarships, so these stay empty and
-   * the profile page says "Not available" (REQ-1.10) until a source for them exists.
+   * Filled on the profile page from the school datasets (empty in the directory). A school with
+   * none listed shows "Not available" (REQ-1.10).
    */
   courses: Course[]
   aid: FinancialAid[]
