@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { stubApi } from '@/test/fakeApi'
+import { useDirectoryStore } from '@/stores/directory'
 import { mountWithApp } from '@/test/helpers'
 import SchoolDetailView from '../SchoolDetailView.vue'
 
@@ -36,6 +37,7 @@ describe('SchoolDetailView (UC-1.2)', () => {
     expect(wrapper.get('h1').text()).toBe('Rosyth School')
     const headings = wrapper.findAll('h2').map((h) => h.text().replace(/\s+/g, ' '))
     expect(headings).toEqual([
+      'Location',
       'Programmes & fees',
       'Historical entry benchmarks',
       'Financial assistance',
@@ -72,6 +74,39 @@ describe('SchoolDetailView (UC-1.2)', () => {
   it('shows the distance from the directory’s reference postal code', async () => {
     const { wrapper } = await mountDetail('rosyth')
     expect(wrapper.text()).toMatch(/Distance\s*1\.\d km/)
+  })
+
+  describe('map of the school', () => {
+    const pins = (wrapper: Awaited<ReturnType<typeof mountDetail>>['wrapper']) =>
+      wrapper.findAll('.leaflet-marker-icon').map((pin) => pin.attributes('aria-label'))
+
+    it('pins the school, and the reference postal district the distance is measured from', async () => {
+      const { wrapper } = await mountDetail('rosyth')
+      expect(pins(wrapper)).toEqual(['Distance reference point', 'Rosyth School'])
+      expect(wrapper.get('figcaption').text()).toContain('postal district of 556000')
+    })
+
+    it('moves the reference point with the directory’s postal code', async () => {
+      const { wrapper, pinia } = await mountDetail('rosyth')
+      const directory = useDirectoryStore(pinia)
+      directory.setPostal('600000')
+      await flushPromises()
+      expect(wrapper.get('figcaption').text()).toContain('postal district of 600000')
+      expect(pins(wrapper)).toEqual(['Distance reference point', 'Rosyth School'])
+
+      // A postal code still being typed has no place yet, so only the school remains.
+      directory.setPostal('6000')
+      await flushPromises()
+      expect(pins(wrapper)).toEqual(['Rosyth School'])
+      expect(wrapper.find('figcaption').exists()).toBe(false)
+    })
+
+    it('shows each school’s own map when the key changes', async () => {
+      const { wrapper } = await mountDetail('rosyth')
+      await wrapper.setProps({ schoolKey: 'tao nan' })
+      await flushPromises()
+      expect(pins(wrapper)).toEqual(['Distance reference point', 'Tao Nan School'])
+    })
   })
 
   it('shows the bookmark control to signed-in students only', async () => {

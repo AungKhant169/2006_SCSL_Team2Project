@@ -5,6 +5,7 @@ import BenchmarkHistory from '@/components/schools/BenchmarkHistory.vue'
 import FeeTable from '@/components/schools/FeeTable.vue'
 import FinancialSupport from '@/components/schools/FinancialSupport.vue'
 import SchoolIdentityCard from '@/components/schools/SchoolIdentityCard.vue'
+import SchoolLocationCard from '@/components/schools/SchoolLocationCard.vue'
 import SchoolProgrammes from '@/components/schools/SchoolProgrammes.vue'
 import AlertMessage from '@/components/ui/AlertMessage.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
@@ -46,6 +47,9 @@ watch(() => props.schoolKey, load, { immediate: true })
 const school = computed(() =>
   profile.value ? location.withDistance(profile.value, directory.postal) : null,
 )
+
+/** Where that reference postal code is, for the map. */
+const origin = computed(() => location.originOf(directory.postal))
 </script>
 
 <template>
@@ -55,6 +59,8 @@ const school = computed(() =>
     </RouterLink>
 
     <SchoolIdentityCard :school="school" />
+
+    <SchoolLocationCard :school="school" :origin="origin" :postal="directory.postal" />
 
     <FeeTable :school="school" />
 
