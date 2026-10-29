@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import logo from '@/assets/logo.svg'
 import NavLinks from './NavLinks.vue'
 
 const menuOpen = ref(false)
@@ -21,12 +22,7 @@ watch(
         class="flex items-center gap-2.5 text-ink no-underline hover:text-ink hover:no-underline"
         aria-label="PathSG home"
       >
-        <span
-          class="flex size-[30px] items-center justify-center rounded-lg bg-primary text-[13px] font-bold text-white"
-          aria-hidden="true"
-        >
-          P
-        </span>
+        <img :src="logo" alt="" class="size-10 shrink-0" />
         <span class="flex flex-col leading-[1.1]">
           <span class="text-base font-bold tracking-tight">PathSG</span>
           <span class="text-[11px] text-muted">Education planning platform</span>

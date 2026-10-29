@@ -12,6 +12,13 @@ describe('AppHeader', () => {
     expect(brand.attributes('href')).toBe('/')
   })
 
+  it('puts the logo beside the brand name, as decoration only', async () => {
+    const { wrapper } = await mountWithApp(AppHeader)
+    const logo = wrapper.get('a[aria-label="PathSG home"] img')
+    expect(logo.attributes('src')).toMatch(/logo.*\.svg$/)
+    expect(logo.attributes('alt')).toBe('')
+  })
+
   it('always renders the main navigation for wide screens', async () => {
     const { wrapper } = await mountWithApp(AppHeader)
     expect(wrapper.findAll('nav')).toHaveLength(1)

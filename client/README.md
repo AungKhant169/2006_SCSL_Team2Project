@@ -71,6 +71,7 @@ filters, sorts and pages it in the browser.
 ```
 src/
   assets/styles/     Tailwind entry + shared style modules (see below)
+  assets/logo.svg    The PathSG logo: header brand and the browser tab icon
   assets/logos/      School badges, named after the school key (spaces as dashes)
   components/
     ui/              Reusable controls: buttons, fields, segmented switch, tiles, modal, cards
