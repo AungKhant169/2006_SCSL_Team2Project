@@ -51,4 +51,21 @@ describe('PlanNodeList', () => {
     expect(wrapper.find('ol').exists()).toBe(false)
     expect(wrapper.text()).toContain('No institutions are available for this stage yet.')
   })
+
+  it('says what it is told when there are no institutions to list', () => {
+    const empty = 'No schools are within 1 km of 556000. Try a larger distance.'
+    const wrapper = mount(PlanNodeList, { props: { nodes: [], from: 'x', empty } })
+    expect(wrapper.text()).toContain(empty)
+    expect(wrapper.text()).not.toContain('No institutions are available')
+  })
+
+  it('leaves out the detail of a school there is nothing to say of', () => {
+    const bare = [{ ...nodes[0]!, detail: '' }]
+    const wrapper = mount(PlanNodeList, { props: { nodes: bare, from: 'x' } })
+    // Only the choice's label and the school's name are left.
+    expect(wrapper.findAll('li .flex-col span').map((span) => span.text())).toEqual([
+      '1st choice',
+      'Rosyth School',
+    ])
+  })
 })

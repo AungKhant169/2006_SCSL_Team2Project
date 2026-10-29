@@ -1,4 +1,4 @@
-import type { PlanSource, SavedRoadmap } from '@/types/roadmap'
+import type { PlanSource, RuleSort, SavedRoadmap } from '@/types/roadmap'
 import type { School, TierId } from '@/types/school'
 import { authorizedRequest } from './authorizedRequest'
 import { ApiError } from './http'
@@ -14,6 +14,13 @@ export interface PlanRequest {
   postal: string
   /** The student's previous academic score for the stage, when they entered one. */
   score: number | null
+}
+
+/** What the rule-based plan is generated from: the same as any plan, and how to rank. */
+export interface RulePlanRequest extends PlanRequest {
+  sortBy: RuleSort
+  /** Schools further than this many km from the postal code are left out. null for no limit. */
+  maxDistanceKm: number | null
 }
 
 /** School ids in preference order, and the details of those schools. */
@@ -57,12 +64,12 @@ const toBody = ({ stage, postal, score }: PlanRequest) => ({
   previous_academic_score: score,
 })
 
-/** The rule-based plan: the server ranks the stage's schools by the official entry rules. */
-export async function generateRulePlan(request: PlanRequest): Promise<RoadmapPlan> {
+/** The rule-based plan: the server ranks the stage's schools by distance or by grade. */
+export async function generateRulePlan(request: RulePlanRequest): Promise<RoadmapPlan> {
   return toPlan(
     await authorizedRequest<PlanPayload>('/roadmap/generate-rule-roadmap', {
       method: 'POST',
-      body: toBody(request),
+      body: { ...toBody(request), sort_by: request.sortBy, max_distance_km: request.maxDistanceKm },
     }),
     request.stage,
   )

@@ -2,6 +2,9 @@ import type { TierId } from './school'
 
 export type PlanSource = 'Rule-Based Plan' | 'AI-Generated Plan'
 
+/** What the rule-based plan ranks by first. */
+export type RuleSort = 'distance' | 'grade'
+
 /** The single roadmap a student account may keep. Choices are school ids in preference order. */
 export interface SavedRoadmap {
   stage: TierId

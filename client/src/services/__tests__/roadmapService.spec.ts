@@ -17,16 +17,23 @@ const request = vi.mocked(authorizedRequest)
 
 const plan = { choices: [6, 5], schools: [SCHOOLS[5], SCHOOLS[4]] }
 const wanted = { stage: 'secondary', postal: '556000', score: 8 } as const
+const ranked = { ...wanted, sortBy: 'grade', maxDistanceKm: null } as const
 
 describe('roadmapService (matches the /roadmap API contract)', () => {
   beforeEach(() => request.mockReset())
 
-  it('asks for the rule-based plan with the stage, postal code and score', async () => {
+  it('asks for the rule-based plan with the stage, postal code, score and how to rank', async () => {
     request.mockResolvedValue(plan)
-    const result = await generateRulePlan(wanted)
+    const result = await generateRulePlan(ranked)
     expect(request).toHaveBeenCalledWith('/roadmap/generate-rule-roadmap', {
       method: 'POST',
-      body: { stage: 'secondary', postal: '556000', previous_academic_score: 8 },
+      body: {
+        stage: 'secondary',
+        postal: '556000',
+        previous_academic_score: 8,
+        sort_by: 'grade',
+        max_distance_km: null,
+      },
     })
     expect(result.choices).toEqual([6, 5])
     expect(result.schools.map((s) => s.name)).toEqual([
@@ -37,8 +44,27 @@ describe('roadmapService (matches the /roadmap API contract)', () => {
 
   it('sends no score when the student has none', async () => {
     request.mockResolvedValue({ choices: [], schools: [] })
-    await generateRulePlan({ ...wanted, score: null })
+    await generateRulePlan({ ...ranked, score: null })
     expect(request.mock.calls[0]![1]?.body).toMatchObject({ previous_academic_score: null })
+  })
+
+  it('asks for the plan by distance, within a distance limit', async () => {
+    request.mockResolvedValue({ choices: [], schools: [] })
+    await generateRulePlan({ ...ranked, sortBy: 'distance', maxDistanceKm: 5 })
+    expect(request.mock.calls[0]![1]?.body).toMatchObject({
+      sort_by: 'distance',
+      max_distance_km: 5,
+    })
+  })
+
+  it('does not tell the AI plan how the rule-based plan is ranked', async () => {
+    request.mockResolvedValue(plan)
+    await generateAiPlan(wanted)
+    expect(request.mock.calls[0]![1]?.body).toEqual({
+      stage: 'secondary',
+      postal: '556000',
+      previous_academic_score: 8,
+    })
   })
 
   it('asks for the AI plan with an abort signal', async () => {

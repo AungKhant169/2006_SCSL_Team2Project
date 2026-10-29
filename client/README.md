@@ -60,8 +60,11 @@ junior colleges and integrated schools; the University tier is empty). The PSLE 
 2017 T-score cut-off, and primary schools show the places taken up to Phase 2B.
 
 Distances are measured from the centre of the postal code's district, the point the server's
-rule-based roadmap also uses. The directory fetches a whole tier once and searches, filters, sorts
-and pages it in the browser.
+rule-based roadmap also uses. That is too rough to print, so the roadmap does not show a distance
+beside a school: the map shows where it is. The rule-based plan instead lets the student rank by
+distance or by grade, with a slider for the furthest distance they accept when ranking by grade, and
+an About dialog describing the method. The directory fetches a whole tier once and searches,
+filters, sorts and pages it in the browser.
 
 ## Structure
 

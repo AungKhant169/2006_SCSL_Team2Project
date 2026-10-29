@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { DISTANCE_LIMIT } from '@/data/ruleSort'
 import { stubApi } from '@/test/fakeApi'
 import type { FakeApi } from '@/test/fakeApi'
 import { signInAs } from '@/test/helpers'
@@ -78,9 +79,8 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
         'Raffles Institution',
         "Cedar Girls' Secondary School",
       ])
-      expect(r.rulePlan[0]?.detail).toMatch(
-        /^PSLE T-score cut-off: T-score ≥ 205 · \d\.\d km from 556000$/,
-      )
+      // Its distance is not shown: it is only measured from the centre of the postal district.
+      expect(r.rulePlan[0]?.detail).toBe('PSLE T-score cut-off: T-score ≥ 205')
     })
 
     it('[WB-AI-01] fills the AI plan when it arrives', async () => {
@@ -123,7 +123,7 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       profile.scoreA = '8'
       await generated()
       const expected = { stage: 'secondary', postal: '556000', previous_academic_score: 8 }
-      expect(api.callsTo(`POST ${RULE}`)[0]?.body).toEqual(expected)
+      expect(api.callsTo(`POST ${RULE}`)[0]?.body).toMatchObject(expected)
       expect(api.callsTo(`POST ${AI}`)[0]?.body).toEqual(expected)
     })
 
@@ -152,8 +152,8 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
         'Eunoia Junior College',
         'Temasek Junior College',
       ])
-      // Junior colleges have no entry figures in the dataset, so none is shown.
-      expect(r.rulePlan[0]?.detail).toMatch(/^\d\.\d km from 556000$/)
+      // Junior colleges have no entry figures in the dataset, so there is nothing to say of them.
+      expect(r.rulePlan[0]?.detail).toBe('')
     })
 
     it('has no institutions to plan with for a stage the dataset lacks', async () => {
@@ -164,6 +164,127 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       expect(r.ruleStatus).toBe('ready')
       expect(r.rulePlan).toEqual([])
       expect(r.aiPlan).toEqual([])
+    })
+  })
+
+  describe('rule-based sort and distance limit', () => {
+    /** The body of the nth request the rule-based plan was asked for. */
+    const asked = (api: FakeApi, n = 0) => api.callsTo(`POST ${RULE}`)[n]?.body
+
+    it('ranks by grade, with no distance limit, until told otherwise', async () => {
+      const r = await generated()
+      expect(r.ruleSort).toBe('grade')
+      expect(r.ruleLimitKm).toBeNull()
+      expect(asked(api)).toMatchObject({ sort_by: 'grade', max_distance_km: null })
+    })
+
+    it('sorting by distance asks for the rule-based plan again, and only that plan', async () => {
+      useProfileStore().scoreA = '8'
+      const r = await generated()
+      // AL 8 does not reach Raffles Institution, which grade ranks after the nearer schools.
+      expect(r.rulePlan.map((n) => n.schoolName)).toEqual([
+        "St. Gabriel's Secondary School",
+        "Cedar Girls' Secondary School",
+        'Bukit Panjang Govt. High School',
+      ])
+      r.setRuleSort('distance')
+      expect(r.ruleStatus).toBe('loading')
+      await flushPromises()
+      expect(asked(api, 1)).toMatchObject({ sort_by: 'distance', max_distance_km: null })
+      expect(r.rulePlan.map((n) => n.schoolName)).toEqual([
+        "St. Gabriel's Secondary School",
+        'Raffles Institution',
+        "Cedar Girls' Secondary School",
+      ])
+      expect(api.callsTo(`POST ${AI}`)).toHaveLength(1)
+    })
+
+    it('a distance limit leaves out the schools further away', async () => {
+      const r = await generated()
+      r.setRuleDistance(5)
+      await flushPromises()
+      expect(r.ruleLimitKm).toBe(5)
+      expect(asked(api, 1)).toMatchObject({ sort_by: 'grade', max_distance_km: 5 })
+      // Only St. Gabriel's is within 5 km of the postal district.
+      expect(r.rulePlan.map((n) => n.schoolName)).toEqual(["St. Gabriel's Secondary School"])
+    })
+
+    it('the top of the slider is no limit', async () => {
+      const r = await generated()
+      r.setRuleDistance(5)
+      r.setRuleDistance(DISTANCE_LIMIT.max)
+      await flushPromises()
+      expect(r.ruleLimitKm).toBeNull()
+      expect(asked(api, 2)).toMatchObject({ max_distance_km: null })
+    })
+
+    it('sorting by distance leaves the limit out, as the nearest schools are wanted anyway', async () => {
+      const r = await generated()
+      r.setRuleDistance(5)
+      r.setRuleSort('distance')
+      await flushPromises()
+      expect(r.ruleLimitKm).toBeNull()
+      expect(asked(api, 2)).toMatchObject({ sort_by: 'distance', max_distance_km: null })
+      // The student's slider position is kept for when they go back to grade.
+      expect(r.ruleDistance).toBe(5)
+      r.setRuleSort('grade')
+      expect(r.ruleLimitKm).toBe(5)
+    })
+
+    it('changing the sort before generating asks for nothing, and the choice is used when generating', async () => {
+      const r = useRoadmapStore()
+      r.setRuleSort('distance')
+      r.setRuleDistance(5)
+      expect(api.callsTo(`POST ${RULE}`)).toHaveLength(0)
+      expect(r.ruleStatus).toBe('idle')
+      r.generate()
+      await flushPromises()
+      expect(asked(api)).toMatchObject({ sort_by: 'distance', max_distance_km: null })
+    })
+
+    it('only the latest ranking counts when the student changes their mind quickly', async () => {
+      const r = await generated()
+      const release = api.hold(`POST ${RULE}`)
+      r.setRuleDistance(5)
+      r.setRuleDistance(DISTANCE_LIMIT.max)
+      release()
+      await flushPromises()
+      expect(r.ruleStatus).toBe('ready')
+      expect(r.rulePlan).toHaveLength(3)
+    })
+
+    it('has only distance to rank by where there is no grade, and goes back after', () => {
+      const r = useRoadmapStore()
+      expect(r.ruleSorts).toEqual(['distance', 'grade'])
+      r.selectStage('primary')
+      expect(r.ruleSorts).toEqual(['distance'])
+      expect(r.ruleSort).toBe('distance')
+      expect(r.ruleLimitKm).toBeNull()
+      r.selectStage('uni')
+      expect(r.ruleSorts).toEqual([])
+      r.selectStage('postsec')
+      expect(r.ruleSort).toBe('grade')
+    })
+
+    it('asks for distance in a stage without a grade, whatever was picked before', async () => {
+      const r = useRoadmapStore()
+      r.setRuleDistance(5)
+      r.selectStage('primary')
+      r.generate()
+      await flushPromises()
+      expect(asked(api)).toMatchObject({
+        stage: 'primary',
+        sort_by: 'distance',
+        max_distance_km: null,
+      })
+    })
+
+    it('reset puts the sort and the limit back', () => {
+      const r = useRoadmapStore()
+      r.setRuleSort('distance')
+      r.setRuleDistance(5)
+      r.reset()
+      expect([r.ruleSort, r.ruleDistance]).toEqual(['grade', DISTANCE_LIMIT.max])
     })
   })
 

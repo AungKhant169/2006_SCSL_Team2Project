@@ -247,7 +247,7 @@ describe('PathSG app journeys', () => {
       expect(text()).toContain('Bukit Panjang Govt. High School')
       await click('section button', 'Save Roadmap')
       expect(find('[role="status"]').textContent).toContain('Roadmap saved to your profile.')
-      expect(api.roadmaps['planner2026']?.choices).toEqual([8, 5, 6])
+      expect(api.roadmaps['planner2026']?.choices).toEqual([8, 6, 7])
 
       await click('nav a', 'Directory')
       await click('nav a', 'Roadmap')

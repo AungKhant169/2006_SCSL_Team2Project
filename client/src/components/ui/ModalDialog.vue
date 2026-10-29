@@ -37,7 +37,7 @@ watch(
         aria-modal="true"
         :aria-labelledby="titleId"
         tabindex="-1"
-        class="flex w-full max-w-[440px] flex-col gap-3.5 rounded-[14px] bg-white p-6 shadow-modal outline-none"
+        class="flex max-h-full w-full max-w-[440px] flex-col gap-3.5 overflow-y-auto rounded-[14px] bg-white p-6 shadow-modal outline-none"
       >
         <h3 :id="titleId" class="m-0 text-lg font-bold">{{ title }}</h3>
         <div class="text-sm leading-relaxed text-pretty text-soft">

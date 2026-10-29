@@ -7,16 +7,13 @@ import { choiceLabel } from './format'
 /** Number of choices a generated roadmap lists. */
 export const PLAN_LENGTH = 3
 
-function describe(school: School, stage: TierId, postal: string): string {
-  const parts: string[] = []
+/**
+ * What a school is known for in a plan. Its distance is left out: it is measured from the centre of
+ * the postal district, which is too rough to show, and the map places the school.
+ */
+function describe(school: School, stage: TierId): string {
   const benchmark = formatLatestBenchmark(school)
-  if (benchmark) parts.push(`${getTier(stage).benchmarkLabel}: ${benchmark}`)
-  parts.push(
-    school.distanceKm === null
-      ? 'Distance not available'
-      : `${school.distanceKm.toFixed(1)} km from ${postal}`,
-  )
-  return parts.join(' · ')
+  return benchmark ? `${getTier(stage).benchmarkLabel}: ${benchmark}` : ''
 }
 
 /**
@@ -27,7 +24,6 @@ export function planNodes(
   choices: number[],
   schools: Record<number, School>,
   stage: TierId,
-  postal: string,
 ): PlanNode[] {
   return choices.map((id, i) => {
     const school = schools[id]
@@ -35,7 +31,7 @@ export function planNodes(
       step: i + 1,
       label: choiceLabel(i),
       schoolName: school ? school.name : 'Not available',
-      detail: school ? describe(school, stage, postal) : 'Not available',
+      detail: school ? describe(school, stage) : 'Not available',
       latitude: school?.latitude ?? null,
       longitude: school?.longitude ?? null,
     }

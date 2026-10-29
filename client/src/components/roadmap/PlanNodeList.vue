@@ -8,8 +8,10 @@ withDefaults(
     from: string
     /** `ai` colours the step markers purple to tell the AI plan apart from the rule-based one. */
     tone?: 'primary' | 'ai'
+    /** What to say when there are no nodes. */
+    empty?: string
   }>(),
-  { tone: 'primary' },
+  { tone: 'primary', empty: 'No institutions are available for this stage yet.' },
 )
 </script>
 
@@ -23,9 +25,7 @@ withDefaults(
       <span class="text-[13px] text-soft">{{ from }} — currently enrolled, per your profile</span>
     </div>
 
-    <p v-if="nodes.length === 0" class="m-0 text-[13px] text-muted">
-      No institutions are available for this stage yet.
-    </p>
+    <p v-if="nodes.length === 0" class="m-0 text-[13px] text-muted">{{ empty }}</p>
 
     <ol v-else class="m-0 flex list-none flex-col gap-2.5 p-0">
       <li v-for="node in nodes" :key="node.step" class="flex items-start gap-3 panel px-3.5 py-3">
@@ -38,7 +38,7 @@ withDefaults(
         <div class="flex min-w-0 flex-col gap-[3px]">
           <span class="caps-label">{{ node.label }}</span>
           <span class="text-sm font-semibold">{{ node.schoolName }}</span>
-          <span class="text-xs text-muted">{{ node.detail }}</span>
+          <span v-if="node.detail" class="text-xs text-muted">{{ node.detail }}</span>
         </div>
       </li>
     </ol>

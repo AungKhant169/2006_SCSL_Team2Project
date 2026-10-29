@@ -11,8 +11,9 @@ import RoadmapView from '../RoadmapView.vue'
 
 /**
  * The roadmap page of a student whose stored profile targets S1 posting (AL 8, postal 556000).
- * The fake server ranks secondary schools by distance as St. Gabriel's, Raffles, Cedar Girls'
- * for the rule-based plan, and by name as Bukit Panjang, Cedar Girls', Raffles for the AI plan.
+ * The fake server ranks the schools AL 8 reaches by distance, so St. Gabriel's, Cedar Girls',
+ * Bukit Panjang, for the rule-based plan, and by name as Bukit Panjang, Cedar Girls', Raffles for
+ * the AI plan.
  */
 async function mountRoadmap(configure: (api: FakeApi) => void = () => {}) {
   const api = stubApi()
@@ -46,6 +47,10 @@ const schools = (panel: ReturnType<VueWrapper['get']>) =>
   panel.findAll('ol li span.font-semibold').map((s) => s.text())
 const panel = (w: VueWrapper, title: string) =>
   w.findAll('section').find((s) => s.find('h2')?.text() === title)!
+const saveButton = (w: VueWrapper, title: string) =>
+  panel(w, title)
+    .findAll('button')
+    .find((b) => b.text() === 'Save Roadmap')!
 
 async function generate(w: VueWrapper) {
   await click(w, 'Generate Roadmap')
@@ -136,20 +141,22 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       ])
     })
 
-    it('rule-based plan lists the three nearest eligible schools', async () => {
+    it('rule-based plan lists the three nearest schools the score reaches', async () => {
       const { wrapper } = await mountRoadmap()
       await generate(wrapper)
       const rule = panel(wrapper, 'Rule-Based Plan')
       expect(schools(rule)).toEqual([
         "St. Gabriel's Secondary School",
-        'Raffles Institution',
         "Cedar Girls' Secondary School",
+        'Bukit Panjang Govt. High School',
       ])
       expect(rule.text()).toContain('Starting from')
       expect(rule.text()).toContain(
         'Primary school (current) — currently enrolled, per your profile',
       )
-      expect(rule.text()).toMatch(/PSLE T-score cut-off: T-score ≥ 205 · \d\.\d km from 556000/)
+      expect(rule.text()).toContain('PSLE T-score cut-off: T-score ≥ 205')
+      // The distance is measured from the centre of the postal district, so it is not shown.
+      expect(rule.text()).not.toMatch(/\d km from/)
       expect(rule.text()).toContain('Applies the Primary → Secondary rule set')
     })
 
@@ -208,7 +215,7 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
         'No institutions are available for this stage yet.',
       )
       // There is nothing to save.
-      expect(panel(wrapper, 'Rule-Based Plan').get('button').attributes('disabled')).toBeDefined()
+      expect(saveButton(wrapper, 'Rule-Based Plan').attributes('disabled')).toBeDefined()
     })
 
     it('changing the stage discards a generated plan', async () => {
@@ -217,6 +224,163 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       await stageTile(wrapper, 'P1 Registration').trigger('click')
       expect(headings(wrapper)).not.toContain('Rule-Based Plan')
       expect(wrapper.text()).toContain('No roadmap saved yet')
+    })
+  })
+
+  describe('ranking the rule-based plan', () => {
+    const RULE = 'POST /roadmap/generate-rule-roadmap'
+    const AI = 'POST /roadmap/generate-ai-roadmap'
+    const rule = (w: VueWrapper) => panel(w, 'Rule-Based Plan')
+    const radios = (w: VueWrapper) => rule(w).findAll('input[type="radio"]')
+    const slider = (w: VueWrapper) => rule(w).find('input[type="range"]')
+    const dialog = () => document.body.querySelector('[role="dialog"]')
+    /** Drags the slider to a value and lets go of it. setValue would do both in one go. */
+    const drag = async (w: VueWrapper, km: number, letGo = true) => {
+      ;(slider(w).element as HTMLInputElement).value = String(km)
+      await slider(w).trigger('input')
+      if (letGo) await slider(w).trigger('change')
+      await flushPromises()
+    }
+
+    it('offers Distance or Grade, ranking by grade with any distance at first', async () => {
+      const { wrapper } = await mountRoadmap()
+      await generate(wrapper)
+      expect(
+        rule(wrapper)
+          .findAll('label')
+          .map((l) => l.text()),
+      ).toContain('Distance')
+      expect(radios(wrapper).map((r) => (r.element as HTMLInputElement).checked)).toEqual([
+        false,
+        true,
+      ])
+      expect(slider(wrapper).attributes('aria-valuetext')).toBe('Any distance')
+      expect(rule(wrapper).text()).toContain('Acceptable distance')
+      // Only the rule-based plan is ranked by these.
+      expect(panel(wrapper, 'AI-Generated Plan').find('input').exists()).toBe(false)
+    })
+
+    it('ranking by distance puts the nearest first and takes the slider away', async () => {
+      const { wrapper, api } = await mountRoadmap()
+      await generate(wrapper)
+      const aiBefore = panel(wrapper, 'AI-Generated Plan').html()
+      await radios(wrapper)[0]!.setValue()
+      await flushPromises()
+      expect(schools(rule(wrapper))).toEqual([
+        "St. Gabriel's Secondary School",
+        'Raffles Institution',
+        "Cedar Girls' Secondary School",
+      ])
+      expect(slider(wrapper).exists()).toBe(false)
+      expect(rule(wrapper).text()).toContain('schools nearest to 556000 first')
+      expect(api.callsTo(RULE)[1]?.body).toMatchObject({ sort_by: 'distance' })
+      // The AI plan is neither asked for again nor changed.
+      expect(api.callsTo(AI)).toHaveLength(1)
+      expect(panel(wrapper, 'AI-Generated Plan').html()).toBe(aiBefore)
+    })
+
+    it('shows the distance while the slider moves, and ranks again once it is let go', async () => {
+      const { wrapper, api } = await mountRoadmap()
+      await generate(wrapper)
+      await drag(wrapper, 5, false)
+      expect(rule(wrapper).text()).toContain('Within 5 km')
+      expect(api.callsTo(RULE)).toHaveLength(1)
+
+      await slider(wrapper).trigger('change')
+      await flushPromises()
+      expect(api.callsTo(RULE)[1]?.body).toMatchObject({ sort_by: 'grade', max_distance_km: 5 })
+      expect(schools(rule(wrapper))).toEqual(["St. Gabriel's Secondary School"])
+      expect(rule(wrapper).text()).toContain('within 5 km')
+      // The slider stays where the student left it.
+      expect((slider(wrapper).element as HTMLInputElement).value).toBe('5')
+    })
+
+    it('says so when no school is within the distance, and offers nothing to save', async () => {
+      const { wrapper } = await mountRoadmap()
+      await generate(wrapper)
+      await drag(wrapper, 1)
+      expect(rule(wrapper).text()).toContain(
+        'No schools are within 1 km of 556000. Try a larger distance.',
+      )
+      expect(rule(wrapper).text()).not.toContain('No institutions are available')
+      expect(saveButton(wrapper, 'Rule-Based Plan').attributes('disabled')).toBeDefined()
+    })
+
+    it('keeps the choice while the plan is loading, so it can be changed again', async () => {
+      const { wrapper, api } = await mountRoadmap()
+      await generate(wrapper)
+      const release = api.hold(RULE)
+      await radios(wrapper)[0]!.setValue()
+      expect(rule(wrapper).find('[role="status"]').exists()).toBe(true)
+      expect(radios(wrapper)).toHaveLength(2)
+      release()
+      await flushPromises()
+    })
+
+    it('has only distance to rank by where no score applies', async () => {
+      const { wrapper, api } = await mountRoadmap()
+      await stageTile(wrapper, 'P1 Registration').trigger('click')
+      await generate(wrapper)
+      expect(radios(wrapper)).toHaveLength(0)
+      expect(slider(wrapper).exists()).toBe(false)
+      expect(rule(wrapper).text()).toContain('Ranked by distance only')
+      expect(api.callsTo(RULE)[0]?.body).toMatchObject({ stage: 'primary', sort_by: 'distance' })
+    })
+
+    it('has nothing to rank by where the stage has no rule set', async () => {
+      const { wrapper } = await mountRoadmap()
+      await stageTile(wrapper, 'Autonomous University').trigger('click')
+      await generate(wrapper)
+      expect(radios(wrapper)).toHaveLength(0)
+      expect(
+        rule(wrapper)
+          .findAll('button')
+          .map((b) => b.text()),
+      ).toEqual(['Save Roadmap'])
+    })
+
+    describe('About', () => {
+      it('explains the weights and the method, and closes', async () => {
+        const { wrapper } = await mountRoadmap()
+        await generate(wrapper)
+        expect(dialog()).toBeNull()
+        await click(rule(wrapper) as unknown as VueWrapper, 'About')
+        expect(dialog()!.querySelector('h3')!.textContent).toBe('About the rule-based plan')
+        const text = dialog()!.textContent!
+        expect(text).toContain('Weight of each factor')
+        expect(text).toContain('100%')
+        expect(text).toContain('straight-line distance')
+        expect(text).toContain('PSLE AL score')
+        expect(text).toContain('Acceptable distance')
+
+        const close = [...dialog()!.querySelectorAll('button')].find(
+          (b) => b.textContent === 'Close',
+        )!
+        close.click()
+        await flushPromises()
+        expect(dialog()).toBeNull()
+        wrapper.unmount()
+      })
+
+      it('describes the stage that is being planned', async () => {
+        const { wrapper } = await mountRoadmap()
+        await stageTile(wrapper, 'JC / Polytechnic / ITE').trigger('click')
+        await generate(wrapper)
+        await click(rule(wrapper) as unknown as VueWrapper, 'About')
+        expect(dialog()!.textContent).toContain('no admission cut-offs')
+        expect(dialog()!.textContent).not.toContain('PSLE AL score')
+        wrapper.unmount()
+      })
+
+      it('says there is no grade to rank by for primary', async () => {
+        const { wrapper } = await mountRoadmap()
+        await stageTile(wrapper, 'P1 Registration').trigger('click')
+        await generate(wrapper)
+        await click(rule(wrapper) as unknown as VueWrapper, 'About')
+        expect(dialog()!.textContent).toContain('does not use a score')
+        expect(dialog()!.textContent).not.toContain('Acceptable distance')
+        wrapper.unmount()
+      })
     })
   })
 
@@ -230,8 +394,8 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       expect(pins(panel(wrapper, 'Rule-Based Plan'))).toEqual([
         'Your postal district',
         "1st choice: St. Gabriel's Secondary School",
-        '2nd choice: Raffles Institution',
-        "3rd choice: Cedar Girls' Secondary School",
+        "2nd choice: Cedar Girls' Secondary School",
+        '3rd choice: Bukit Panjang Govt. High School',
       ])
       expect(pins(panel(wrapper, 'AI-Generated Plan'))).toEqual([
         'Your postal district',
@@ -348,14 +512,14 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     it('saves the rule-based plan and shows it as the saved roadmap with a confirmation', async () => {
       const { wrapper, api } = await mountRoadmap()
       await generate(wrapper)
-      await panel(wrapper, 'Rule-Based Plan').get('button').trigger('click')
+      await saveButton(wrapper, 'Rule-Based Plan').trigger('click')
       await flushPromises()
       const saved = panel(wrapper, 'Saved roadmap')
       expect(saved.text()).toContain('Primary → Secondary · Rule-Based Plan')
       expect(schools(saved)).toEqual([
         "St. Gabriel's Secondary School",
-        'Raffles Institution',
         "Cedar Girls' Secondary School",
+        'Bukit Panjang Govt. High School',
       ])
       expect(saved.findAll('button').map((b) => b.text())).toEqual([
         'Edit Roadmap',
@@ -367,7 +531,7 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       expect(api.roadmaps['planner2026']).toEqual({
         stage: 'secondary',
         source: 'Rule-Based Plan',
-        choices: [8, 5, 6],
+        choices: [8, 6, 7],
       })
     })
 
@@ -387,7 +551,7 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       api.override('PUT /roadmap', () => {
         throw new TypeError('Failed to fetch')
       })
-      await panel(wrapper, 'Rule-Based Plan').get('button').trigger('click')
+      await saveButton(wrapper, 'Rule-Based Plan').trigger('click')
       await flushPromises()
       expect(useUiStore().notice).toMatch(/Unable to complete your request/)
       expect(headings(wrapper)).toContain('Rule-Based Plan')
@@ -466,13 +630,13 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     it('Save Changes stores the new choices and confirms', async () => {
       const { wrapper, api } = await withSaved()
       await click(wrapper, 'Edit Roadmap')
-      await wrapper.findAll('select')[0]!.setValue('7')
+      await wrapper.findAll('select')[0]!.setValue('5')
       await wrapper.get('form').trigger('submit')
       await flushPromises()
-      expect(schools(panel(wrapper, 'Saved roadmap'))[0]).toBe('Bukit Panjang Govt. High School')
+      expect(schools(panel(wrapper, 'Saved roadmap'))[0]).toBe('Raffles Institution')
       expect(wrapper.find('select').exists()).toBe(false)
       expect(useUiStore().notice).toBe('Roadmap updated.')
-      expect(api.roadmaps['planner2026']?.choices).toEqual([7, 5, 6])
+      expect(api.roadmaps['planner2026']?.choices).toEqual([5, 6, 7])
     })
 
     it('tells the student when the changes could not be saved, and keeps the editor open', async () => {

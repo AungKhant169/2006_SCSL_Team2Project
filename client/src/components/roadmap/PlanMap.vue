@@ -31,7 +31,7 @@ const pins = computed<MapPin[]>(() => [
     mark: node.step,
     label: `${node.label}: ${node.schoolName}`,
     heading: node.schoolName,
-    lines: [node.label, node.detail],
+    lines: [node.label, node.detail].filter(Boolean),
   })),
 ])
 </script>

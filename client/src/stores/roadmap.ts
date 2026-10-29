@@ -1,9 +1,10 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { DISTANCE_LIMIT, distanceLimitKm, RULE_SORTS } from '@/data/ruleSort'
 import { ApiError, GENERIC_ERROR } from '@/services/http'
 import * as roadmapService from '@/services/roadmapService'
-import type { PlanRequest, StoredRoadmap } from '@/services/roadmapService'
-import type { PlanSource, PlanStatus, SavedRoadmap } from '@/types/roadmap'
+import type { PlanRequest, RulePlanRequest, StoredRoadmap } from '@/services/roadmapService'
+import type { PlanSource, PlanStatus, RuleSort, SavedRoadmap } from '@/types/roadmap'
 import type { School, TierId } from '@/types/school'
 import { planNodes, PLAN_LENGTH } from '@/utils/roadmapPlan'
 import { useDirectoryStore } from './directory'
@@ -25,6 +26,10 @@ export const useRoadmapStore = defineStore('roadmap', () => {
   const generated = ref(false)
   const ruleStatus = ref<PlanStatus>('idle')
   const ruleChoices = ref<number[]>([])
+  /** Kept when the stage changes, so a student who prefers one sort need not pick it again. */
+  const wantedSort = ref<RuleSort>('grade')
+  /** The acceptable-distance slider; its top end is no limit. */
+  const ruleDistance = ref<number>(DISTANCE_LIMIT.max)
   const aiStatus = ref<PlanStatus>('idle')
   const aiChoices = ref<number[]>([])
   const saved = ref<SavedRoadmap | null>(null)
@@ -38,40 +43,36 @@ export const useRoadmapStore = defineStore('roadmap', () => {
   let ruleRun = 0
   let aiRun = 0
 
-  /** The schools described for a stage, with their distance from the profile's postal code. */
+  /** The schools described for a stage. */
   function schoolsOf(stage: TierId): Record<number, School> {
     return Object.fromEntries(
       Object.values(described.value)
         .filter((school) => school.tier === stage)
-        .map((school) => [school.id, location.withDistance(school, profile.postal)]),
+        .map((school) => [school.id, school]),
     )
   }
 
   const rulePlan = computed(() =>
-    planNodes(
-      ruleChoices.value.slice(0, PLAN_LENGTH),
-      schoolsOf(stage.value),
-      stage.value,
-      profile.postal,
-    ),
+    planNodes(ruleChoices.value.slice(0, PLAN_LENGTH), schoolsOf(stage.value), stage.value),
   )
   const aiPlan = computed(() =>
-    planNodes(
-      aiChoices.value.slice(0, PLAN_LENGTH),
-      schoolsOf(stage.value),
-      stage.value,
-      profile.postal,
-    ),
+    planNodes(aiChoices.value.slice(0, PLAN_LENGTH), schoolsOf(stage.value), stage.value),
   )
   const savedPlan = computed(() =>
     saved.value
-      ? planNodes(
-          saved.value.choices,
-          schoolsOf(saved.value.stage),
-          saved.value.stage,
-          profile.postal,
-        )
+      ? planNodes(saved.value.choices, schoolsOf(saved.value.stage), saved.value.stage)
       : [],
+  )
+
+  /** What the rule-based plan can be ranked by for the stage; none where it has no rule set. */
+  const ruleSorts = computed(() => RULE_SORTS[stage.value])
+  /** The sort the student picked. Where it does not apply to the stage, distance is used. */
+  const ruleSort = computed<RuleSort>(() =>
+    ruleSorts.value.includes(wantedSort.value) ? wantedSort.value : 'distance',
+  )
+  /** The furthest a school may be, in km. Only grade sorting has one. */
+  const ruleLimitKm = computed(() =>
+    ruleSort.value === 'grade' ? distanceLimitKm(ruleDistance.value) : null,
   )
 
   /** Where the profile's postal code is placed, once the server has located it. */
@@ -121,12 +122,16 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     }
   }
 
+  function ruleRequest(): RulePlanRequest {
+    return { ...planRequest(), sortBy: ruleSort.value, maxDistanceKm: ruleLimitKm.value }
+  }
+
   /** Requests the rule-based plan on its own, so it can fail or retry without touching the AI plan. */
   async function runRule() {
     const run = ++ruleRun
     ruleStatus.value = 'loading'
     try {
-      const plan = await roadmapService.generateRulePlan(planRequest())
+      const plan = await roadmapService.generateRulePlan(ruleRequest())
       if (run !== ruleRun) return
       remember(plan.schools)
       ruleChoices.value = plan.choices
@@ -151,6 +156,21 @@ export const useRoadmapStore = defineStore('roadmap', () => {
       if (run !== aiRun) return
       aiStatus.value = 'error'
     }
+  }
+
+  /** Ranks the rule-based plan again, leaving the AI plan as it is. Nothing to do before a plan is generated. */
+  function rerankRule() {
+    if (generated.value) void runRule()
+  }
+
+  function setRuleSort(sort: RuleSort) {
+    wantedSort.value = sort
+    rerankRule()
+  }
+
+  function setRuleDistance(km: number) {
+    ruleDistance.value = km
+    rerankRule()
   }
 
   /**
@@ -251,6 +271,8 @@ export const useRoadmapStore = defineStore('roadmap', () => {
 
   function reset() {
     stageOverride.value = null
+    wantedSort.value = 'grade'
+    ruleDistance.value = DISTANCE_LIMIT.max
     generated.value = false
     saved.value = null
     editing.value = false
@@ -264,6 +286,10 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     stage,
     generated,
     ruleStatus,
+    ruleSorts,
+    ruleSort,
+    ruleDistance,
+    ruleLimitKm,
     aiStatus,
     saved,
     editing,
@@ -278,6 +304,8 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     showEmpty,
     selectStage,
     generate,
+    setRuleSort,
+    setRuleDistance,
     runRule,
     runAi,
     load,

@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 
+import { haversineKm } from '@/utils/distance'
 import { HOME, SCHOOLS } from './fixtures'
 import type { ServerSchool } from './fixtures'
 
@@ -382,9 +383,19 @@ export class FakeApi {
     return choices.flatMap((id) => this.schools.filter((s) => s.id === id))
   }
 
-  /** The rule plan ranks the stage's schools by distance from the postal code; the AI plan is name order, so the two differ. */
+  /**
+   * The rule plan ranks the stage's schools by distance from the postal code, or by whether the
+   * score reaches their cut-off first, within the distance limit. The AI plan is name order, so the
+   * two differ.
+   */
   private generate(call: Call, kind: 'rule' | 'ai') {
-    const request = call.body as { stage: string; postal: string | null }
+    const request = call.body as {
+      stage: string
+      postal: string | null
+      previous_academic_score: number | null
+      sort_by?: 'distance' | 'grade'
+      max_distance_km?: number | null
+    }
     if (kind === 'ai' && this.ai === 'error') {
       return problem(503, 'Unable to generate AI recommendation at this time. Please try again.')
     }
@@ -396,17 +407,39 @@ export class FakeApi {
       })
     }
     const origin = request.postal ? SECTORS[request.postal.slice(0, 2)] : undefined
-    const pool = this.schools.filter((s) => s.stages.includes(request.stage as never))
+    const stagePool = this.schools.filter((s) => s.stages.includes(request.stage as never))
     const distance = (s: ServerSchool) =>
       origin && s.latitude !== null && s.longitude !== null
-        ? Math.hypot(s.latitude - origin.latitude, s.longitude - origin.longitude)
-        : 0
+        ? haversineKm(origin, { latitude: s.latitude, longitude: s.longitude })
+        : null
+    const limit = request.max_distance_km ?? null
+    const pool = stagePool.filter(
+      (s) => limit === null || !origin || (distance(s) ?? Infinity) <= limit,
+    )
+
+    // The cut-offs are scaled across the whole stage, so the limit does not change what a score reaches.
+    const cutoffs = stagePool.flatMap((s) =>
+      s.psle_2017_cutoff === null ? [] : [s.psle_2017_cutoff],
+    )
+    const [lowest, highest] = [Math.min(...cutoffs), Math.max(...cutoffs)]
+    const score = request.previous_academic_score
+    const strength = score === null ? null : (32 - Math.min(Math.max(score, 4), 32)) / 28
+    /** 0 when the score reaches the school, 1 when its cut-off is not known, above 2 when out of reach. */
+    const reach = (s: ServerSchool) => {
+      if (request.stage !== 'secondary' || strength === null) return 0
+      if (s.psle_2017_cutoff === null) return 1
+      const scaled = (s.psle_2017_cutoff - lowest) / (highest - lowest)
+      return strength >= scaled ? 0 : 2 + scaled
+    }
+    const byDistance = (a: ServerSchool, b: ServerSchool) =>
+      (distance(a) ?? Infinity) - (distance(b) ?? Infinity) ||
+      a.school_name.localeCompare(b.school_name)
     const ordered =
-      kind === 'rule'
-        ? pool.sort(
-            (a, b) => distance(a) - distance(b) || a.school_name.localeCompare(b.school_name),
-          )
-        : pool.sort((a, b) => a.school_name.localeCompare(b.school_name))
+      kind === 'ai'
+        ? pool.sort((a, b) => a.school_name.localeCompare(b.school_name))
+        : request.sort_by === 'distance'
+          ? pool.sort(byDistance)
+          : pool.sort((a, b) => reach(a) - reach(b) || byDistance(a, b))
     const choices = ordered.slice(0, 3).map((s) => s.id)
     return jsonResponse({ choices, schools: this.details(choices) })
   }
