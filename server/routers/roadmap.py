@@ -8,6 +8,7 @@ from models.school_record import SchoolInfo
 from schemas.roadmap import (
     CreateRoadmapRequest,
     CreateRoadmapResponse,
+    CreateRuleRoadmapRequest,
     RoadmapEdit,
     RoadmapResponse,
     RoadmapSave,
@@ -45,7 +46,7 @@ def generate_ai_roadmap(data: CreateRoadmapRequest, user: Requester):
 
 
 @router.post("/generate-rule-roadmap", response_model=CreateRoadmapResponse)
-def generate_rule_roadmap(data: CreateRoadmapRequest, user: Requester):
+def generate_rule_roadmap(data: CreateRuleRoadmapRequest, user: Requester):
     return to_plan(RuleRoadmapGenerator.generate(user, data))
 
 

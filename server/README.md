@@ -157,10 +157,18 @@ preference order, and an account keeps at most one. Every roadmap response lists
 schools' details (`schools`, in the same order as `choices`; an id whose school no longer exists is
 left out).
 
-- **Rule-based** ([`core/roadmap_rules.py`](core/roadmap_rules.py)). Primary ranks by distance from
-  the student's postal district. Secondary ranks schools the student's PSLE AL score reaches against
-  their 2017 cut-off first, then by distance. Post-secondary ranks by subjects and CCAs offered.
-  There is no rule-based plan for `uni`.
+- **Rule-based** ([`core/roadmap_rules.py`](core/roadmap_rules.py)). The student chooses what it
+  ranks by with `sort_by`, and may set `max_distance_km`:
+  - `distance` ranks every stage by straight-line distance from the student's postal district,
+    nearest first, and ignores the score.
+  - `grade` (the default) ranks by fit with the grades, then by distance. Secondary ranks schools
+    the student's PSLE AL score reaches against their 2017 cut-off first. Post-secondary ranks by
+    subjects and CCAs offered. Primary has no grade, so it ranks by distance.
+  - `max_distance_km` leaves out schools further than that from the postal district, before ranking,
+    including schools of unknown position. It is ignored without a postal code. The cut-offs are
+    still scaled against all the candidates, so the limit does not change what a score reaches.
+
+  There is no rule-based plan for `preschool` or `uni`.
 - **AI** ([`core/roadmap_ai.py`](core/roadmap_ai.py)). Sends the candidate schools for the stage to
   OpenAI with a strict JSON schema, then keeps only valid, unique ids. The username is never sent.
   It gives up after 14 seconds (504), so it answers before the client's 15 second limit, and any other failure or unusable answer is a 503.

@@ -223,6 +223,179 @@ class TestGenerateRule:
         assert response.json()["choices"] == [near.id, far.id]
 
 
+def secondary(key, latitude, longitude, cutoff=200):
+    return SchoolInfo.create(
+        school_key=key,
+        school_name=key,
+        mainlevel_code="SECONDARY (S1-S5)",
+        latitude=latitude,
+        longitude=longitude,
+        psle_2017_cutoff=cutoff,
+    )
+
+
+def rule_choices(authenticated, **payload):
+    response = client.post(
+        "/roadmap/generate-rule-roadmap",
+        json={"stage": "secondary", "postal": "556000", **payload},
+        headers=headers(authenticated),
+    )
+    assert response.status_code == status.HTTP_200_OK
+    return response.json()["choices"]
+
+
+class TestRuleSortAndDistanceLimit:
+    """Postal sector 55 is the Hougang district, centred at (1.37, 103.893)."""
+
+    @staticmethod
+    def schools():
+        # About 0.3 km, 4.3 km and 17 km from the centre. The nearer the school, the more selective.
+        near = secondary("near", 1.37, 103.89, cutoff=250)
+        mid = secondary("mid", 1.37, 103.85, cutoff=200)
+        far = secondary("far", 1.33, 103.74, cutoff=150)
+        return near, mid, far
+
+    def test_sorting_by_distance_ignores_the_score(self, authenticated):
+        near, mid, far = self.schools()
+        choices = rule_choices(
+            authenticated, previous_academic_score=32, sort_by="distance"
+        )
+        assert choices == [near.id, mid.id, far.id]
+
+    def test_sorting_by_grade_puts_the_schools_a_weak_score_reaches_first(
+        self, authenticated
+    ):
+        near, mid, far = self.schools()
+        choices = rule_choices(
+            authenticated, previous_academic_score=32, sort_by="grade"
+        )
+        # Only the least selective school is within reach; the rest follow, the easier first.
+        assert choices == [far.id, mid.id, near.id]
+
+    def test_grade_is_the_default_sort(self, authenticated):
+        near, mid, far = self.schools()
+        assert rule_choices(authenticated, previous_academic_score=32) == [
+            far.id,
+            mid.id,
+            near.id,
+        ]
+
+    def test_the_limit_leaves_out_schools_that_are_further(self, authenticated):
+        near, mid, _ = self.schools()
+        choices = rule_choices(
+            authenticated,
+            previous_academic_score=32,
+            sort_by="grade",
+            max_distance_km=10,
+        )
+        assert choices == [mid.id, near.id]
+
+    def test_the_limit_does_not_change_what_a_score_reaches(self, authenticated):
+        near = secondary("near", 1.37, 103.89, cutoff=250)
+        mid = secondary("mid", 1.37, 103.85, cutoff=200)
+        # Beyond the limit, but they set the range the cut-offs are measured against.
+        secondary("easy", 1.33, 103.74, cutoff=100)
+        secondary("hard", 1.30, 103.70, cutoff=300)
+        # AL 9 reaches both nearby schools among all four, so the nearer comes first. Measured only
+        # against the two nearby schools, the nearer would be out of reach and the other first.
+        choices = rule_choices(
+            authenticated,
+            previous_academic_score=9,
+            sort_by="grade",
+            max_distance_km=10,
+        )
+        assert choices == [near.id, mid.id]
+
+    def test_the_limit_applies_to_sorting_by_distance_too(self, authenticated):
+        near, mid, _ = self.schools()
+        choices = rule_choices(authenticated, sort_by="distance", max_distance_km=5)
+        assert choices == [near.id, mid.id]
+
+    def test_nothing_within_the_limit_gives_an_empty_plan(self, authenticated):
+        self.schools()
+        assert rule_choices(authenticated, sort_by="grade", max_distance_km=0.1) == []
+
+    def test_a_school_of_unknown_position_is_left_out_by_a_limit(self, authenticated):
+        near, mid, far = self.schools()
+        unplaced = secondary("unplaced", None, None, cutoff=150)
+        everyone = rule_choices(authenticated, previous_academic_score=32)
+        assert everyone == [far.id, unplaced.id, mid.id]
+        limited = rule_choices(
+            authenticated, previous_academic_score=32, max_distance_km=100
+        )
+        assert limited == [far.id, mid.id, near.id]
+
+    def test_the_limit_needs_a_postal_code_to_measure_from(self, authenticated):
+        near, mid, far = self.schools()
+        choices = rule_choices(
+            authenticated, postal=None, previous_academic_score=32, max_distance_km=1
+        )
+        assert sorted(choices) == sorted([near.id, mid.id, far.id])
+
+    def test_primary_has_no_grade_so_both_sorts_give_the_nearest(self, authenticated):
+        def primary(key, longitude):
+            return SchoolInfo.create(
+                school_key=key,
+                school_name=key,
+                mainlevel_code="PRIMARY",
+                latitude=1.37,
+                longitude=longitude,
+            )
+
+        far, near = primary("far", 103.74), primary("near", 103.89)
+        for sort_by in ("grade", "distance"):
+            choices = rule_choices(authenticated, stage="primary", sort_by=sort_by)
+            assert choices == [near.id, far.id]
+
+    def test_post_secondary_sorts_by_distance_when_asked(self, authenticated):
+        def college(key, longitude, subjects):
+            school = SchoolInfo.create(
+                school_key=key,
+                school_name=key,
+                mainlevel_code="JUNIOR COLLEGE",
+                latitude=1.37,
+                longitude=longitude,
+            )
+            with SessionLocal() as session:
+                session.add_all(
+                    SchoolSubject(school_id=school.id, name=f"Subject {n}")
+                    for n in range(subjects)
+                )
+                session.commit()
+            return school
+
+        near, broad = college("near", 103.89, subjects=1), college("broad", 103.74, 3)
+        assert rule_choices(authenticated, stage="postsec", sort_by="grade") == [
+            broad.id,
+            near.id,
+        ]
+        assert rule_choices(authenticated, stage="postsec", sort_by="distance") == [
+            near.id,
+            broad.id,
+        ]
+
+    def test_a_stage_without_a_rule_set_gives_an_empty_plan(self, authenticated):
+        SchoolInfo.create(
+            school_key="uni", school_name="Uni", mainlevel_code="UNIVERSITY"
+        )
+        assert rule_choices(authenticated, stage="uni", sort_by="distance") == []
+
+    def test_rejects_an_unknown_sort_or_a_limit_that_is_not_positive(
+        self, authenticated
+    ):
+        for payload in (
+            {"sort_by": "name"},
+            {"max_distance_km": 0},
+            {"max_distance_km": -2},
+        ):
+            response = client.post(
+                "/roadmap/generate-rule-roadmap",
+                json={"stage": "secondary", **payload},
+                headers=headers(authenticated),
+            )
+            assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
 class TestSavedRoadmap:
     def test_none_saved(self, authenticated):
         response = client.get("/roadmap", headers=headers(authenticated))
