@@ -18,7 +18,7 @@ watch(
   <header class="border-b border-line bg-white">
     <div class="flex flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
       <RouterLink
-        :to="{ name: 'directory' }"
+        :to="{ name: 'home' }"
         class="flex items-center gap-2.5 text-ink no-underline hover:text-ink hover:no-underline"
         aria-label="PathSG home"
       >

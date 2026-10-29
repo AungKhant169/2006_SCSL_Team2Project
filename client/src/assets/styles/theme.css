@@ -20,6 +20,9 @@
   --color-primary-tint: #e3eef3;
   --color-primary-faint: #f4f8fa;
 
+  /* The peach of the logo's path nodes: marks "you are here" on the home page route. */
+  --color-marker: #f9b981;
+
   --color-ai: #5a4a6e;
   --color-ai-dark: #483a59;
   --color-ai-tint: #f0ecf5;

@@ -21,7 +21,7 @@ async function settle() {
 }
 
 /** Starts the app on a fake server that already holds two reviews and the planner's two bookmarks. */
-async function launch(route = '/') {
+async function launch(route = '/directory') {
   const api: FakeApi = stubApi()
   api.addReview({
     school_id: 2,
@@ -92,12 +92,25 @@ describe('PathSG app journeys', () => {
     mounted = undefined
   })
 
-  it('opens on the school directory', async () => {
-    const { router } = await launch()
+  it('opens on the home page, with the same menu as everywhere else', async () => {
+    const { router } = await launch('/')
+    expect(router.currentRoute.value.name).toBe('home')
+    expect(find('h1').textContent!.trim()).toBe("Plan your path through Singapore's schools")
+    expect(navLabels()).toEqual(['Directory', 'Roadmap', 'Log in'])
+  })
+
+  it('opens the school directory from the menu', async () => {
+    const { router } = await launch('/')
+    await click('nav a', 'Directory')
     expect(router.currentRoute.value.name).toBe('directory')
     expect(text()).toContain('School Directory')
     expect(text()).toContain('4 schools · Primary')
-    expect(navLabels()).toEqual(['Directory', 'Roadmap', 'Log in'])
+  })
+
+  it('returns to the home page from the logo', async () => {
+    const { router } = await launch('/schools/rosyth')
+    await click('header a[aria-label="PathSG home"]')
+    expect(router.currentRoute.value.name).toBe('home')
   })
 
   describe('guest', () => {

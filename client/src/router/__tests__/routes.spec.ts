@@ -16,7 +16,16 @@ describe('route table', () => {
 
   it('names every page of the app', () => {
     const names = routes.map((r) => r.name).filter(Boolean)
-    expect(names).toEqual(['directory', 'school', 'roadmap', 'login', 'profile', 'saved', 'admin'])
+    expect(names).toEqual([
+      'home',
+      'directory',
+      'school',
+      'roadmap',
+      'login',
+      'profile',
+      'saved',
+      'admin',
+    ])
   })
 
   it('lazy-loads a component for every page', async () => {
@@ -45,10 +54,10 @@ describe('route table', () => {
     expect(router.currentRoute.value.params.schoolKey).toBe('nanyang primary')
   })
 
-  it('sends unknown addresses to the directory', async () => {
+  it('sends unknown addresses to the home page', async () => {
     const router = realRouter()
     await router.push('/no/such/page')
-    expect(router.currentRoute.value.name).toBe('directory')
+    expect(router.currentRoute.value.name).toBe('home')
   })
 
   it('protects the same pages the design gates behind an account', async () => {

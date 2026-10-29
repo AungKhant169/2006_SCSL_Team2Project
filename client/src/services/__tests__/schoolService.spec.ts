@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { SCHOOLS } from '@/test/fixtures'
 import { ApiError, apiRequest } from '../http'
-import { fetchSchoolProfile, fetchSchoolsOfTier, toSchool, toSchoolProfile } from '../schoolService'
+import {
+  fetchSchoolProfile,
+  fetchSchoolsOfTier,
+  fetchTierCounts,
+  toSchool,
+  toSchoolProfile,
+} from '../schoolService'
 
 vi.mock('../http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../http')>()),
@@ -191,5 +197,29 @@ describe('fetchSchoolProfile', () => {
   it('passes other failures on', async () => {
     request.mockRejectedValueOnce(new ApiError(500, 'oops'))
     await expect(fetchSchoolProfile('rosyth')).rejects.toMatchObject({ status: 500 })
+  })
+})
+
+describe('fetchTierCounts', () => {
+  beforeEach(() => {
+    request.mockReset()
+  })
+
+  it('reads each directory tier’s total from a one-school page', async () => {
+    request.mockImplementation(async (path: string) => {
+      const totals: Record<string, number> = { primary: 180, secondary: 135, postsec: 40, uni: 6 }
+      return { total: totals[new URL(path, 'http://x').searchParams.get('stage')!], items: [] }
+    })
+    expect(await fetchTierCounts()).toEqual({ primary: 180, secondary: 135, postsec: 40, uni: 6 })
+    expect(request).toHaveBeenCalledWith('/school-api?stage=primary&limit=1')
+    expect(request).toHaveBeenCalledTimes(4)
+  })
+
+  it('leaves out a tier that fails and keeps the rest', async () => {
+    request.mockImplementation(async (path: string) => {
+      if (path.includes('stage=secondary')) throw new ApiError(500, 'Server error')
+      return { total: 7, items: [] }
+    })
+    expect(await fetchTierCounts()).toEqual({ primary: 7, postsec: 7, uni: 7 })
   })
 })

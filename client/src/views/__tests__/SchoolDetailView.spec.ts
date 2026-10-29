@@ -164,7 +164,7 @@ describe('SchoolDetailView (UC-1.2)', () => {
     const { wrapper } = await mountDetail('nowhere')
     expect(wrapper.get('h3').text()).toBe('School not found')
     expect(wrapper.find('h1').exists()).toBe(false)
-    expect(wrapper.get('a').attributes('href')).toBe('/')
+    expect(wrapper.get('a').attributes('href')).toBe('/directory')
   })
 
   it('says when the school cannot be loaded and offers to try again', async () => {

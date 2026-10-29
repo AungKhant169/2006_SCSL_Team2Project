@@ -59,6 +59,10 @@ export const DIRECTORY_TIERS: Tier[] = TIERS.filter((t) =>
   (DIRECTORY_TIER_IDS as TierId[]).includes(t.id),
 )
 
+export function isDirectoryTier(id: TierId): id is DirectoryTierId {
+  return (DIRECTORY_TIER_IDS as TierId[]).includes(id)
+}
+
 export function getTier(id: TierId): Tier {
   const tier = TIERS.find((t) => t.id === id)
   if (!tier) throw new Error(`Unknown tier: ${id}`)

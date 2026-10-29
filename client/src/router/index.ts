@@ -5,6 +5,11 @@ import { installGuards } from './guards'
 export const routes: RouteRecordRaw[] = [
   {
     path: '/',
+    name: 'home',
+    component: () => import('@/views/HomeView.vue'),
+  },
+  {
+    path: '/directory',
     name: 'directory',
     component: () => import('@/views/DirectoryView.vue'),
   },
@@ -44,7 +49,7 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/AdminView.vue'),
     meta: { requiresAdmin: true },
   },
-  { path: '/:pathMatch(.*)*', redirect: { name: 'directory' } },
+  { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ]
 
 /** Builds the app router. Tests pass a memory history and, where needed, their own routes. */

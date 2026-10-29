@@ -11,6 +11,7 @@ import type {
   SchoolProfile,
   TierId,
 } from '@/types/school'
+import { DIRECTORY_TIER_IDS } from '@/data/education'
 import { formatSchoolName, schoolAcronym } from '@/utils/schoolName'
 import { ApiError, apiRequest } from './http'
 
@@ -243,6 +244,25 @@ export async function fetchSchoolsOfTier(tier: DirectoryTierId): Promise<School[
     schools.push(...page.items.map((item) => toSchool(item, tier)))
     if (page.items.length === 0 || schools.length >= page.total) return schools
   }
+}
+
+/**
+ * How many schools each tier holds, without fetching the schools. A tier whose request fails is
+ * left out, so the others still show.
+ */
+export async function fetchTierCounts(): Promise<Partial<Record<DirectoryTierId, number>>> {
+  const counts = await Promise.all(
+    DIRECTORY_TIER_IDS.map(async (tier) => {
+      const query = new URLSearchParams({ stage: tier, limit: '1' })
+      try {
+        const page = await apiRequest<SchoolPage>(`/school-api?${query}`)
+        return [tier, page.total] as const
+      } catch {
+        return null
+      }
+    }),
+  )
+  return Object.fromEntries(counts.filter((entry) => entry !== null))
 }
 
 /** One school's full profile, or null when no school has the key. */

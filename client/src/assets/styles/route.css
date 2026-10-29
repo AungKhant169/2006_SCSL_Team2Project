@@ -1,0 +1,216 @@
+/*
+ * The education route on the home page: a transit-style line with one stop per stage, drawn on the
+ * dark hero. Stacked down the left on phones, laid out left to right from the md breakpoint.
+ * Each stop carries data-state (past | here | next | ahead) and its rail data-rail (past | hop | ahead).
+ */
+@layer components {
+  .route-line {
+    --dot: 22px;
+    --rail: 6px;
+    --dash: 180deg;
+    @apply m-0 list-none p-0;
+  }
+
+  .route-stop {
+    @apply relative min-h-14;
+  }
+
+  .route-pick {
+    @apply relative flex min-h-11 items-start gap-3.5 text-white;
+  }
+
+  label.route-pick {
+    @apply cursor-pointer;
+  }
+
+  /* Visually hidden, but still the focusable radio behind the stop */
+  .route-input {
+    @apply absolute size-0 opacity-0;
+  }
+
+  .route-dot {
+    @apply relative z-10 mt-[11px] box-border shrink-0 rounded-full border-[3px] border-white/55 bg-primary-dark transition-[background-color,border-color,box-shadow] duration-200;
+    width: var(--dot);
+    height: var(--dot);
+    animation: route-pop 0.3s ease-out both;
+    animation-delay: calc(var(--i) * 0.14s);
+  }
+
+  .route-input:focus-visible + .route-dot {
+    @apply outline-2 outline-offset-4 outline-white;
+  }
+
+  .route-pick:hover .route-dot {
+    @apply border-white;
+  }
+
+  [data-state='past'] .route-dot {
+    @apply border-transparent bg-white/60;
+  }
+
+  [data-state='here'] .route-dot {
+    @apply border-white bg-marker;
+    box-shadow: 0 0 0 6px rgb(249 185 129 / 0.28);
+  }
+
+  [data-state='next'] .route-dot {
+    @apply border-marker bg-white;
+  }
+
+  .route-text {
+    @apply flex flex-wrap items-baseline gap-x-2 pt-[11px] leading-[22px];
+  }
+
+  .route-name {
+    @apply text-[15px] font-semibold text-white/75 transition-colors;
+  }
+
+  [data-state='here'] .route-name,
+  [data-state='next'] .route-name {
+    @apply text-white;
+  }
+
+  [data-state='next'] .route-name {
+    @apply font-bold;
+  }
+
+  .route-count {
+    @apply text-[13px] text-white/70;
+  }
+
+  .route-here {
+    @apply rounded-full bg-marker px-2.5 py-0.5 text-xs leading-4 font-bold text-ink;
+    animation: route-fade 0.25s ease-out both;
+  }
+
+  /* On first load the tag lands last, once the line has been drawn */
+  .route-line[data-intro] .route-here {
+    animation-duration: 0.4s;
+    animation-delay: 0.9s;
+  }
+
+  .route-rail {
+    @apply pointer-events-none absolute z-0 transition-colors duration-200;
+    left: calc((var(--dot) - var(--rail)) / 2);
+    top: calc(var(--dot) / 2 + 11px);
+    width: var(--rail);
+    height: 100%;
+    transform-origin: top;
+    animation: route-draw-y 0.5s ease-out both;
+    animation-delay: calc(var(--i) * 0.14s);
+  }
+
+  /* Rails not yet travelled are dashed, like a line still to be built on a transit map */
+  [data-rail='ahead'] {
+    background: repeating-linear-gradient(
+      var(--dash),
+      rgb(255 255 255 / 0.45) 0 8px,
+      transparent 8px 14px
+    );
+  }
+
+  [data-rail='past'] {
+    @apply bg-white/60;
+  }
+
+  [data-rail='hop'] {
+    @apply bg-marker;
+  }
+
+  /* Swapping the panel after a different stop is chosen */
+  .route-swap-enter-active,
+  .route-swap-leave-active {
+    @apply transition duration-150 ease-out;
+  }
+
+  .route-swap-enter-from,
+  .route-swap-leave-to {
+    @apply translate-y-1.5 opacity-0;
+  }
+
+  @media (min-width: 48rem) {
+    .route-line {
+      --dash: 90deg;
+      @apply grid grid-cols-6 pt-10;
+    }
+
+    .route-stop {
+      @apply min-h-0;
+    }
+
+    .route-pick {
+      @apply min-h-0 flex-col items-center gap-2.5 text-center;
+    }
+
+    .route-dot {
+      @apply mt-0;
+    }
+
+    .route-text {
+      @apply flex-col items-center gap-x-0 gap-y-0.5 px-1 pt-0;
+    }
+
+    /* "Post-secondary" must not break at its hyphen when the columns get narrow */
+    .route-name {
+      @apply text-[13px] whitespace-nowrap lg:text-[15px];
+    }
+
+    .route-here {
+      @apply absolute bottom-full left-1/2 mb-3 -translate-x-1/2 whitespace-nowrap;
+    }
+
+    /* A small pointer from the tag down to the dot */
+    .route-here::after {
+      content: '';
+      @apply absolute top-full left-1/2 -ml-1 size-2 -translate-y-1 rotate-45 bg-marker;
+      z-index: -1;
+    }
+
+    .route-rail {
+      left: 50%;
+      top: calc(var(--dot) / 2 - var(--rail) / 2);
+      width: 100%;
+      height: var(--rail);
+      transform-origin: left;
+      animation-name: route-draw-x;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .route-dot,
+    .route-rail,
+    .route-here {
+      animation: none;
+    }
+
+    .route-swap-enter-active,
+    .route-swap-leave-active {
+      transition: none;
+    }
+  }
+
+  @keyframes route-draw-x {
+    from {
+      transform: scaleX(0);
+    }
+  }
+
+  @keyframes route-draw-y {
+    from {
+      transform: scaleY(0);
+    }
+  }
+
+  @keyframes route-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.4);
+    }
+  }
+
+  @keyframes route-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}

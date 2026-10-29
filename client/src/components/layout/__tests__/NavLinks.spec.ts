@@ -76,7 +76,7 @@ describe('NavLinks', () => {
   it('highlights the entry for the current page only', async () => {
     const api = stubApi()
     api.bookmark('planner2026', 2, 9)
-    const { wrapper, router } = await mountWithApp(NavLinks, { api })
+    const { wrapper, router } = await mountWithApp(NavLinks, { api, route: '/directory' })
     const active = () => wrapper.findAll('.nav-link-active').map((a) => a.text())
     expect(active()).toEqual(['Directory'])
     await signInAs('planner2026')
