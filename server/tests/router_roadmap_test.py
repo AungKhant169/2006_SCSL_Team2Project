@@ -16,7 +16,7 @@ PAYLOAD = {"stage": "secondary", "postal": "556000", "previous_academic_score": 
 
 def error(response):
     body = response.status_code, response.json()["detail"]
-    return next((e for e in RoadmapAIError if e.args == body), None)
+    return next((e for e in RoadmapAIError if e.value == body), None)
 
 
 def generate(authenticated, payload=PAYLOAD):
@@ -28,7 +28,7 @@ class TestGenerateAI:
     def test_requires_authentication(self):
         response = client.post("/roadmap/generate-ai-roadmap", json=PAYLOAD)
         body = response.status_code, response.json()["detail"]
-        assert UserError.ACCESS_TOKEN_INVALID.args == body
+        assert UserError.ACCESS_TOKEN_INVALID.value == body
 
     def test_invalid_stage(self, authenticated):
         response = generate(authenticated, {"stage": "kindergarten"})
@@ -133,14 +133,14 @@ class TestGenerateAI:
 
     def test_ai_unavailable(self, authenticated, monkeypatch):
         def fail(user, request):
-            raise RoadmapAIError.AI_UNAVAILABLE
+            raise RoadmapAIError.AI_UNAVAILABLE()
 
         monkeypatch.setattr(AIRoadmapGenerator, "generate", fail)
         assert error(generate(authenticated)) == RoadmapAIError.AI_UNAVAILABLE
 
     def test_ai_timeout(self, authenticated, monkeypatch):
         def fail(user, request):
-            raise RoadmapAIError.AI_TIMEOUT
+            raise RoadmapAIError.AI_TIMEOUT()
 
         monkeypatch.setattr(AIRoadmapGenerator, "generate", fail)
         assert error(generate(authenticated)) == RoadmapAIError.AI_TIMEOUT

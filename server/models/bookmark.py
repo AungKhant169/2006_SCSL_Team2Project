@@ -28,7 +28,7 @@ class Bookmark(Base, Persistable):
     def add(cls, user_id: int, school_id: int) -> None:
         """Bookmark a school. Does nothing if it is already bookmarked."""
         if SchoolInfo.get_by_id(school_id) is None:
-            raise SchoolInfoError.SCHOOL_NOT_FOUND
+            raise SchoolInfoError.SCHOOL_NOT_FOUND()
         if not cls.get_by_key(user_id=user_id, school_id=school_id):
             cls.create(user_id=user_id, school_id=school_id)
 

@@ -245,9 +245,9 @@ this time.` when the database is unreachable or holds no schools. The code is in
 
 ### Errors
 
-Failures return `{"detail": "<message>"}`. Domain errors are enums that extend `HttpError`
+Failures return `{"detail": "<message>"}`. Domain errors are enums that extend `BaseError`
 ([`core/exceptions.py`](core/exceptions.py)), each member being a `(status code, message)` pair that
-`main.py` turns into a response. Raise a member (`raise UserError.ADMIN_REQUIRED`) rather than
+`main.py` turns into a response. Raise a called member (`raise UserError.ADMIN_REQUIRED()`) rather than
 building an `HTTPException`. Request bodies that fail pydantic validation get FastAPI's standard
 422.
 
@@ -306,7 +306,7 @@ schemas/         Pydantic request and response models
 models/          SQLAlchemy models. Each also holds its own queries and business rules
 core/
   authenticator.py   Bearer-token dependencies (Requester, admin guard)
-  exceptions.py      HttpError base and its response handler
+  exceptions.py      BaseError base, HttpError and its response handler
   roadmap_*.py       Candidate pool, rule-based and AI roadmap generators
   geolocation.py     Postal districts and distance
   school_cleaning.py Raw school CSVs to clean records (pandas)

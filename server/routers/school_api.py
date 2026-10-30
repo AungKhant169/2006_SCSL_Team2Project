@@ -39,7 +39,7 @@ def refresh_school_data(
     are taken from the last upload. Everything is cleaned and written in one transaction,
     or nothing is changed. Unlike /admin/*, this also accepts the ADMIN_USERNAMES accounts."""
     if not user.is_admin:
-        raise SchoolInfoError.NOT_ADMIN
+        raise SchoolInfoError.NOT_ADMIN()
     return SchoolDatasetUpdater.run(files or [])
 
 

@@ -138,7 +138,7 @@
 <rect x="1432" y="300" width="192" height="90" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.6"/>
 <rect x="1436" y="304" width="184" height="82" rx="7" fill="none" stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3 3"/>
 <text x="1528.0" y="333.5" font-size="13.5" font-weight="700" fill="#1e293b" text-anchor="middle" data-c="c15">Error Handler</text>
-<text x="1528.0" y="350.5" font-size="12" font-weight="400" fill="#334155" text-anchor="middle" data-c="c15">HttpError enums →</text>
+<text x="1528.0" y="350.5" font-size="12" font-weight="400" fill="#334155" text-anchor="middle" data-c="c15">BaseError enums →</text>
 <text x="1528.0" y="367.0" font-size="12" font-weight="400" fill="#334155" text-anchor="middle" data-c="c15">{ &quot;detail&quot;: msg } + status</text>
 <rect x="1032" y="424" width="592" height="136" rx="10" fill="#ffffff" stroke="#334155" stroke-width="1.6"/>
 <rect x="1036" y="428" width="584" height="128" rx="7" fill="none" stroke="#94a3b8" stroke-width="0.9" stroke-dasharray="3 3"/>
@@ -301,7 +301,7 @@
 <text x="792" y="1432" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">•</text>
 <text x="806" y="1432" font-size="12.5" font-weight="400" fill="#ffffff" text-anchor="start" data-c="r2_3">Single responsibility: thin routers, rules in models</text>
 <text x="792" y="1457" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">•</text>
-<text x="806" y="1457" font-size="12.5" font-weight="400" fill="#ffffff" text-anchor="start" data-c="r2_4">Reuse: shared UI components, HttpError enums</text>
+<text x="806" y="1457" font-size="12.5" font-weight="400" fill="#ffffff" text-anchor="start" data-c="r2_4">Reuse: shared UI components, BaseError enums</text>
 <rect x="1144" y="1303" width="356" height="190" rx="16" fill="#b4540a"/>
 <text x="1162" y="1331" font-size="15.5" font-weight="700" fill="#ffffff" text-anchor="start">Design Patterns</text>
 <text x="1162" y="1357" font-size="12.5" font-weight="700" fill="#ffffff" text-anchor="start">•</text>

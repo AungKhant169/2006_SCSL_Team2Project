@@ -12,7 +12,7 @@ from sqlalchemy import Index, String, func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from models.base import Base, Persistable
 from models.refresh_token import RefreshToken
 
@@ -36,7 +36,7 @@ class Role(StrEnum):
     ADMIN = "admin"
 
 
-class UserError(HttpError):
+class UserError(BaseError):
     ACCESS_TOKEN_INVALID = (
         status.HTTP_401_UNAUTHORIZED,
         "Your session is invalid. Please log in again.",
@@ -114,13 +114,13 @@ class User(Base, Persistable):
     @validates("username")
     def username_validator(self, key: str, value: str) -> str:
         if not USERNAME_PATTERN.fullmatch(value):
-            raise UserError.REGISTER_INVALID_USERNAME
+            raise UserError.REGISTER_INVALID_USERNAME()
         return value
 
     @validates("password")
     def password_validator(self, key: str, value: str) -> str:
         if not PASSWORD_PATTERN.fullmatch(value):
-            raise UserError.REGISTER_INVALID_PASSWORD
+            raise UserError.REGISTER_INVALID_PASSWORD()
         return bcrypt.hashpw(value.encode(), bcrypt.gensalt()).decode()
 
     @classmethod
@@ -128,17 +128,17 @@ class User(Base, Persistable):
         try:
             payload = jwt.decode(access_token, SECRET_KEY, algorithms=["HS256"])
         except jwt.PyJWTError:
-            raise UserError.ACCESS_TOKEN_INVALID
+            raise UserError.ACCESS_TOKEN_INVALID()
         if not (user := cls.get_by_id(int(payload["sub"]))):
-            raise UserError.USER_NOT_FOUND
+            raise UserError.USER_NOT_FOUND()
         return user
 
     @classmethod
     def refresh(cls, refresh_token: str) -> tuple[str, str]:
         if (user_id := RefreshToken.consume(refresh_token)) is None:
-            raise UserError.REFRESH_TOKEN_INVALID
+            raise UserError.REFRESH_TOKEN_INVALID()
         if not (user := cls.get_by_id(user_id)):
-            raise UserError.USER_NOT_FOUND
+            raise UserError.USER_NOT_FOUND()
         return user.create_tokens()
 
     @classmethod
@@ -146,15 +146,15 @@ class User(Base, Persistable):
         try:
             user = cls.create(username=username, password=password)
         except IntegrityError:
-            raise UserError.USER_ALREADY_EXISTS
+            raise UserError.USER_ALREADY_EXISTS()
         return user.create_tokens()
 
     @classmethod
     def login(cls, username: str, password: str) -> tuple[str, str]:
         if not (user := cls.get_by_key(username=username)):
-            raise UserError.LOGIN_INVALID_USERNAME
+            raise UserError.LOGIN_INVALID_USERNAME()
         if not bcrypt.checkpw(password.encode()[:72], user.password.encode()):
-            raise UserError.LOGIN_INVALID_PASSWORD
+            raise UserError.LOGIN_INVALID_PASSWORD()
         return user.create_tokens()
 
     @classmethod

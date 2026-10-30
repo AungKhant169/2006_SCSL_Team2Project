@@ -6,7 +6,7 @@ from sqlalchemy import DateTime, ForeignKey, Text, UniqueConstraint, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from models.base import Base, Persistable, SessionLocal, utc_now
 from models.school_record import SchoolInfo, SchoolInfoError
 from models.user import User
@@ -15,7 +15,7 @@ MAX_REVIEW_WORDS = 200
 TAG_PATTERN = re.compile(r"<[^>]*>")
 
 
-class ReviewError(HttpError):
+class ReviewError(BaseError):
     REVIEW_NOT_FOUND = (
         status.HTTP_404_NOT_FOUND,
         "This review could not be found.",
@@ -54,9 +54,9 @@ class Review(Base, Persistable):
     def text_validator(self, key: str, value: str) -> str:
         value = TAG_PATTERN.sub("", value).strip()
         if not value:
-            raise ReviewError.REVIEW_BLANK
+            raise ReviewError.REVIEW_BLANK()
         if len(value.split()) > MAX_REVIEW_WORDS:
-            raise ReviewError.REVIEW_TOO_LONG
+            raise ReviewError.REVIEW_TOO_LONG()
         return value
 
     @classmethod
@@ -75,13 +75,13 @@ class Review(Base, Persistable):
     def submit(cls, user_id: int, school_id: int, text: str) -> "Review":
         """Store a new review. An account may review each school only once."""
         if SchoolInfo.get_by_id(school_id) is None:
-            raise SchoolInfoError.SCHOOL_NOT_FOUND
+            raise SchoolInfoError.SCHOOL_NOT_FOUND()
         if cls.get_by_key(user_id=user_id, school_id=school_id):
-            raise ReviewError.REVIEW_ALREADY_EXISTS
+            raise ReviewError.REVIEW_ALREADY_EXISTS()
         try:
             return cls.create(user_id=user_id, school_id=school_id, text=text)
         except IntegrityError:
-            raise ReviewError.REVIEW_ALREADY_EXISTS
+            raise ReviewError.REVIEW_ALREADY_EXISTS()
 
     @classmethod
     def edit(cls, user_id: int, review_id: int, text: str) -> "Review":
@@ -98,7 +98,7 @@ class Review(Base, Persistable):
     @classmethod
     def _get_owned(cls, user_id: int, review_id: int) -> "Review":
         if not (review := cls.get_by_id(review_id)):
-            raise ReviewError.REVIEW_NOT_FOUND
+            raise ReviewError.REVIEW_NOT_FOUND()
         if review.user_id != user_id:
-            raise ReviewError.REVIEW_FORBIDDEN
+            raise ReviewError.REVIEW_FORBIDDEN()
         return review

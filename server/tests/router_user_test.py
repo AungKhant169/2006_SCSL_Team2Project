@@ -12,7 +12,7 @@ from tests.conftest import USER, client
 
 def error(response):
     body = response.status_code, response.json()["detail"]
-    return next((e for e in UserError if e.args == body), None)
+    return next((e for e in UserError if e.value == body), None)
 
 
 def identity(access_token):

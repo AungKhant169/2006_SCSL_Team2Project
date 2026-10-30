@@ -11,7 +11,7 @@ def headers(auth):
 
 def error(response):
     body = response.status_code, response.json()["detail"]
-    return next((e for e in ReviewError if e.args == body), None)
+    return next((e for e in ReviewError if e.value == body), None)
 
 
 def submit(auth, school, text="Great school"):

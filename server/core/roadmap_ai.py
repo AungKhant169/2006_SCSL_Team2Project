@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from fastapi import status
 from openai import APITimeoutError, OpenAI, OpenAIError
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from core.roadmap_pool import candidate_pool
 from models.roadmap import PLAN_LENGTH
 from models.school_record import SchoolInfo
@@ -111,7 +111,7 @@ Follow these criteria:
 Respond with JSON only."""
 
 
-class RoadmapAIError(HttpError):
+class RoadmapAIError(BaseError):
     AI_UNAVAILABLE = (
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "Unable to generate AI recommendation at this time. Please try again.",
@@ -166,7 +166,7 @@ class AIRoadmapGenerator:
 
         # An empty key (docker compose passes one through) would only earn a 401 from OpenAI.
         if not os.environ.get("OPENAI_API_KEY"):
-            raise RoadmapAIError.AI_UNAVAILABLE
+            raise RoadmapAIError.AI_UNAVAILABLE()
 
         try:
             client = OpenAI(timeout=AI_TIMEOUT_SECONDS, max_retries=0)
@@ -177,10 +177,10 @@ class AIRoadmapGenerator:
                 reasoning_effort="low",
             )
         except APITimeoutError:
-            raise RoadmapAIError.AI_TIMEOUT
+            raise RoadmapAIError.AI_TIMEOUT()
         except OpenAIError:
             # Covers API errors, connection failures and a missing OPENAI_API_KEY.
-            raise RoadmapAIError.AI_UNAVAILABLE
+            raise RoadmapAIError.AI_UNAVAILABLE()
 
         choices = cls._parse_choices(completion.choices[0].message.content, set(pool))
 
@@ -215,7 +215,7 @@ class AIRoadmapGenerator:
             raw = json.loads(content)["choices"]
             choices = list(dict.fromkeys(i for i in raw if i in valid))[:PLAN_LENGTH]
         except (TypeError, ValueError, KeyError):
-            raise RoadmapAIError.AI_UNAVAILABLE
+            raise RoadmapAIError.AI_UNAVAILABLE()
         if not choices:
-            raise RoadmapAIError.AI_UNAVAILABLE
+            raise RoadmapAIError.AI_UNAVAILABLE()
         return choices

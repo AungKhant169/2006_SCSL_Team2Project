@@ -12,11 +12,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from models.base import Base, Persistable, SessionLocal
 
 
-class SchoolInfoError(HttpError):
+class SchoolInfoError(BaseError):
     SCHOOL_NOT_FOUND = (
         status.HTTP_404_NOT_FOUND,
         "This school could not be found.",
@@ -406,7 +406,7 @@ class SchoolInfo(Base, Persistable):
         )
         with SessionLocal() as db:
             if not (school := db.scalars(stmt).first()):
-                raise SchoolInfoError.SCHOOL_NOT_FOUND
+                raise SchoolInfoError.SCHOOL_NOT_FOUND()
             return school
 
 

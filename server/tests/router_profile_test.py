@@ -12,7 +12,7 @@ def headers(auth):
 
 def error(response):
     body = response.status_code, response.json()["detail"]
-    return next((e for e in ProfileError if e.args == body), None)
+    return next((e for e in ProfileError if e.value == body), None)
 
 
 def save(auth, **fields):
@@ -24,7 +24,7 @@ class TestGetProfile:
     def test_requires_authentication(self):
         response = client.get("/profile")
         body = response.status_code, response.json()["detail"]
-        assert body == UserError.ACCESS_TOKEN_INVALID.args
+        assert body == UserError.ACCESS_TOKEN_INVALID.value
 
     def test_new_account_gets_the_starting_values(self, authenticated):
         response = client.get("/profile", headers=headers(authenticated))

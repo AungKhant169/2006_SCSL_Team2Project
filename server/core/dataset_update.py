@@ -4,7 +4,7 @@ import threading
 from fastapi import UploadFile, status
 
 from core import school_import
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from core.school_cleaning import SchoolDataError
 from core.school_import import DatabaseUnavailableError, InvalidUploadError
 
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 SUCCESS_MESSAGE = "Database updated successfully with the latest Singapore school data"
 
 
-class DatasetUpdateError(HttpError):
+class DatasetUpdateError(BaseError):
     ALREADY_RUNNING = (
         status.HTTP_409_CONFLICT,
         "A database update is already running. Please wait for it to finish.",
@@ -50,18 +50,18 @@ class SchoolDatasetUpdater:
         """Load the files and return the summary of what changed."""
         uploads = cls.read_uploads(files)
         if not cls._lock.acquire(blocking=False):
-            raise DatasetUpdateError.ALREADY_RUNNING
+            raise DatasetUpdateError.ALREADY_RUNNING()
         try:
             return {**school_import.refresh(uploads), "message": SUCCESS_MESSAGE}
         except InvalidUploadError as error:
             log.warning("School update rejected: %s", error)
-            raise DatasetUpdateError.INVALID_FILE
+            raise DatasetUpdateError.INVALID_FILE()
         except SchoolDataError as error:
             log.warning("School update failed: %s", error)
-            raise DatasetUpdateError.PARSE_FAILURE
+            raise DatasetUpdateError.PARSE_FAILURE()
         except DatabaseUnavailableError:
             # The driver could not reach or use the database (REQ-5.10).
-            raise DatasetUpdateError.DATABASE_UNAVAILABLE
+            raise DatasetUpdateError.DATABASE_UNAVAILABLE()
         finally:
             cls._lock.release()
 
@@ -69,7 +69,7 @@ class SchoolDatasetUpdater:
     def read_uploads(cls, files: list[UploadFile]) -> dict[str, bytes]:
         """Return {file name: contents}. Each file must be a non-empty .csv within the size limit (REQ-5.8)."""
         if not files or any(not f.filename for f in files):
-            raise DatasetUpdateError.NO_FILE_SELECTED
+            raise DatasetUpdateError.NO_FILE_SELECTED()
         uploads = {}
         for file in files:
             # Read one byte past the limit, so an oversized file is rejected without loading all of it.
@@ -77,6 +77,6 @@ class SchoolDatasetUpdater:
             try:
                 school_import.validate_upload(file.filename, content)
             except InvalidUploadError:
-                raise DatasetUpdateError.INVALID_FILE
+                raise DatasetUpdateError.INVALID_FILE()
             uploads[file.filename] = content
         return uploads

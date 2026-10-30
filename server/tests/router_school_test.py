@@ -125,7 +125,7 @@ class TestSchoolDetail:
     def test_unknown_key(self):
         response = client.get("/school-api/missing")
         assert (response.status_code, response.json()["detail"]) == (
-            SchoolInfoError.SCHOOL_NOT_FOUND.args
+            SchoolInfoError.SCHOOL_NOT_FOUND.value
         )
 
 

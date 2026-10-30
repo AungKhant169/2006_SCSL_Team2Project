@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import status
 from sqlalchemy.exc import SQLAlchemyError
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from models.school_record import SchoolInfo
 
 log = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ LIST_SEPARATOR = "; "
 PART_SEPARATOR = " | "
 
 
-class DatasetExportError(HttpError):
+class DatasetExportError(BaseError):
     EXPORT_FAILED = (
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "Export Failed: Unable to retrieve school data at this time.",
@@ -58,10 +58,10 @@ class SchoolDatasetExporter:
             schools = SchoolInfo.all_with_details()
         except SQLAlchemyError as error:
             log.warning("School export: could not read the database: %s", error)
-            raise DatasetExportError.EXPORT_FAILED
+            raise DatasetExportError.EXPORT_FAILED()
         if not schools:
             log.warning("School export: there are no schools to export")
-            raise DatasetExportError.EXPORT_FAILED
+            raise DatasetExportError.EXPORT_FAILED()
         return cls.filename(now), cls.to_csv(schools)
 
     @staticmethod

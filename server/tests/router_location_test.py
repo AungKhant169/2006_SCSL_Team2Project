@@ -19,7 +19,7 @@ class TestLocatePostalCode:
     def test_postal_code_in_no_district(self):
         response = client.get("/location/990000")
         assert (response.status_code, response.json()["detail"]) == (
-            LocationError.POSTAL_NOT_FOUND.args
+            LocationError.POSTAL_NOT_FOUND.value
         )
 
     def test_malformed_postal_code(self):

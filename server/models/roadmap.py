@@ -2,7 +2,7 @@ from fastapi import status
 from sqlalchemy import JSON, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from models.base import Base, Persistable
 
 STAGES = {"preschool", "primary", "secondary", "postsec", "uni"}
@@ -10,7 +10,7 @@ SOURCES = {"Rule-Based Plan", "AI-Generated Plan"}
 PLAN_LENGTH = 3
 
 
-class RoadmapError(HttpError):
+class RoadmapError(BaseError):
     ROADMAP_NOT_FOUND = (
         status.HTTP_404_NOT_FOUND,
         "No saved roadmap was found for this account.",
@@ -44,13 +44,13 @@ class Roadmap(Base, Persistable):
     @validates("stage")
     def stage_validator(self, key: str, value: str) -> str:
         if value not in STAGES:
-            raise RoadmapError.INVALID_STAGE
+            raise RoadmapError.INVALID_STAGE()
         return value
 
     @validates("source")
     def source_validator(self, key: str, value: str) -> str:
         if value not in SOURCES:
-            raise RoadmapError.INVALID_SOURCE
+            raise RoadmapError.INVALID_SOURCE()
         return value
 
     @validates("choices")
@@ -58,13 +58,13 @@ class Roadmap(Base, Persistable):
         if not 1 <= len(value) <= PLAN_LENGTH or not all(
             isinstance(v, int) for v in value
         ):
-            raise RoadmapError.INVALID_CHOICES
+            raise RoadmapError.INVALID_CHOICES()
         return value
 
     @classmethod
     def get_for_user(cls, user_id: int) -> "Roadmap":
         if not (roadmap := cls.get_by_key(user_id=user_id)):
-            raise RoadmapError.ROADMAP_NOT_FOUND
+            raise RoadmapError.ROADMAP_NOT_FOUND()
         return roadmap
 
     @classmethod

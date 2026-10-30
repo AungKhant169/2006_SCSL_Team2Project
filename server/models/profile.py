@@ -4,7 +4,7 @@ from fastapi import status
 from sqlalchemy import Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from core.exceptions import HttpError
+from core.exceptions import BaseError
 from models.base import Base, Persistable
 
 POSTAL_PATTERN = re.compile(r"\d{6}")
@@ -16,7 +16,7 @@ def _invalid_score(message: str) -> str:
     return f"Invalid academic score! {message}"
 
 
-class ProfileError(HttpError):
+class ProfileError(BaseError):
     INVALID_POSTAL = (
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         "Please enter a valid 6-digit Singapore postal code.",
@@ -66,23 +66,23 @@ def validate_scores(
     match level:
         case "secondary":
             if not _whole_between(score_a, 4, 32):
-                raise ProfileError.INVALID_PSLE
+                raise ProfileError.INVALID_PSLE()
             return score_a, None
         case "postsec":
             if score_a is None and score_b is None:
-                raise ProfileError.MISSING_O_LEVEL
+                raise ProfileError.MISSING_O_LEVEL()
             if score_a is not None and not _whole_between(score_a, 2, 54):
-                raise ProfileError.INVALID_L1R5
+                raise ProfileError.INVALID_L1R5()
             if score_b is not None and not _whole_between(score_b, 0, float("inf")):
-                raise ProfileError.INVALID_ELR2B2
+                raise ProfileError.INVALID_ELR2B2()
             return score_a, score_b
         case "uni":
             if score_a is None and score_b is None:
-                raise ProfileError.MISSING_UNI_SCORE
+                raise ProfileError.MISSING_UNI_SCORE()
             if score_a is not None and not 0 <= score_a <= 4:
-                raise ProfileError.INVALID_GPA
+                raise ProfileError.INVALID_GPA()
             if score_b is not None and not 0 <= score_b <= 90:
-                raise ProfileError.INVALID_RANK_POINTS
+                raise ProfileError.INVALID_RANK_POINTS()
             return score_a, score_b
         case _:
             return None, None
@@ -128,7 +128,7 @@ class Profile(Base, Persistable):
     ) -> "Profile":
         """Validate and store the user's profile, replacing the previous one."""
         if not POSTAL_PATTERN.fullmatch(postal):
-            raise ProfileError.INVALID_POSTAL
+            raise ProfileError.INVALID_POSTAL()
         score_a, score_b = validate_scores(level, score_a, score_b)
         values = {
             "level": level,

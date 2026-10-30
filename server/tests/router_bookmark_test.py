@@ -17,7 +17,7 @@ class TestBookmarks:
     def test_requires_authentication(self):
         response = client.get("/bookmark")
         body = response.status_code, response.json()["detail"]
-        assert body == UserError.ACCESS_TOKEN_INVALID.args
+        assert body == UserError.ACCESS_TOKEN_INVALID.value
 
     def test_starts_empty(self, authenticated):
         response = client.get("/bookmark", headers=headers(authenticated))
@@ -43,7 +43,7 @@ class TestBookmarks:
     def test_unknown_school(self, authenticated):
         response = client.put("/bookmark/999", headers=headers(authenticated))
         assert (response.status_code, response.json()["detail"]) == (
-            SchoolInfoError.SCHOOL_NOT_FOUND.args
+            SchoolInfoError.SCHOOL_NOT_FOUND.value
         )
 
     def test_remove_is_idempotent(self, authenticated):

@@ -31,7 +31,7 @@ MOE_CSV = school_import.BUNDLED_DIR / "moe.csv"
 
 def error(response, errors):
     body = response.status_code, response.json()["detail"]
-    return next((e for e in errors if e.args == body), None)
+    return next((e for e in errors if e.value == body), None)
 
 
 def headers(auth):

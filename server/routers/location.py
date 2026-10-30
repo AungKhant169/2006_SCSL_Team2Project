@@ -10,7 +10,7 @@ router = APIRouter(prefix="/location", tags=["location"])
 def locate_postal_code(postal: str):
     """Where distances from a postal code are measured from: the centre of its postal district."""
     if (district := Geolocation.postal_district(postal)) is None:
-        raise LocationError.POSTAL_NOT_FOUND
+        raise LocationError.POSTAL_NOT_FOUND()
     area = Geolocation.DISTRICTS[district]
     latitude, longitude = area.centroid
     return Location(
