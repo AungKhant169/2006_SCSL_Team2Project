@@ -23,7 +23,7 @@ from models.school_record import (
     SchoolSubject,
 )
 from models.user import UserError
-from tests.conftest import client
+from tests.conftest import USER, client
 
 CSV = ("schools.csv", b"school_key,school_name\na,A\n", "text/csv")
 MOE_CSV = school_import.BUNDLED_DIR / "moe.csv"
@@ -66,6 +66,23 @@ class TestAccess:
     def test_the_older_route_rejects_plain_users(self, authenticated):
         response = update(authenticated, CSV, path="/school-api/admin/refresh")
         assert error(response, [SchoolInfoError.NOT_ADMIN]) == SchoolInfoError.NOT_ADMIN
+
+    def test_listed_username_is_admin_on_the_older_route(self, monkeypatch):
+        monkeypatch.setenv("ADMIN_USERNAMES", "boss")
+        tokens = client.post("/user/register", json={**USER, "username": "boss"}).json()
+        response = client.post(
+            "/school-api/admin/refresh",
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            files=[("files", CSV)],
+        )
+        # Past the admin check; the placeholder CSV is then rejected as an unknown dataset.
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    def test_listed_username_cannot_be_registered_in_another_case(self, monkeypatch):
+        monkeypatch.setenv("ADMIN_USERNAMES", "boss")
+        client.post("/user/register", json={**USER, "username": "boss"})
+        response = client.post("/user/register", json={**USER, "username": "BOSS"})
+        assert response.status_code == status.HTTP_409_CONFLICT
 
 
 class TestUploadValidation:

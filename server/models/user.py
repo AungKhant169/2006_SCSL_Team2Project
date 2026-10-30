@@ -8,7 +8,7 @@ import bcrypt
 import jwt
 from dotenv import load_dotenv
 from fastapi import status
-from sqlalchemy import String
+from sqlalchemy import Index, String, func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
@@ -77,6 +77,11 @@ class UserError(HttpError):
 
 class User(Base, Persistable):
     __tablename__ = "users"
+    # Usernames are unique ignoring case, so "BOSS" cannot be registered next to "boss";
+    # is_admin compares ADMIN_USERNAMES case-insensitively and relies on this.
+    __table_args__ = (
+        Index("ix_users_username_lower", func.lower(text("username")), unique=True),
+    )
 
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     password: Mapped[str] = mapped_column(String, nullable=False)

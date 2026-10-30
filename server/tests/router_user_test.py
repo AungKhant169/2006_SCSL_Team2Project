@@ -88,6 +88,11 @@ class TestRegister:
         response = client.post("/user/register", json=USER)
         assert error(response) == UserError.USER_ALREADY_EXISTS
 
+    def test_duplicate_ignoring_case(self, authenticated):
+        credentials = {**USER, "username": USER["username"].upper()}
+        response = client.post("/user/register", json=credentials)
+        assert error(response) == UserError.USER_ALREADY_EXISTS
+
     @pytest.mark.parametrize(
         "username",
         [
