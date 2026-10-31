@@ -5,6 +5,7 @@ from fastapi import status
 
 from core import roadmap_ai
 from core.roadmap_ai import AIRoadmapGenerator, RoadmapAIError
+from core.settings import settings
 from models.base import SessionLocal
 from models.school_record import SchoolInfo, SchoolSubject
 from models.user import UserError
@@ -68,7 +69,7 @@ class TestGenerateAI:
                 create = lambda **request: completion
                 self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
 
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setattr(settings, "openai_api_key", "test-key")
         monkeypatch.setattr(roadmap_ai, "OpenAI", FakeOpenAI)
         body = generate(authenticated).json()
         assert body["choices"] == [school.id]
@@ -90,7 +91,7 @@ class TestGenerateAI:
                 create = lambda **request: completion
                 self.chat = SimpleNamespace(completions=SimpleNamespace(create=create))
 
-        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setattr(settings, "openai_api_key", "test-key")
         monkeypatch.setattr(roadmap_ai, "OpenAI", FakeOpenAI)
         generate(authenticated)
         # The client aborts after 15 seconds (PERF-7); a longer wait only leaves it with a dropped request.
@@ -127,7 +128,7 @@ class TestGenerateAI:
                 raise AssertionError("OpenAI must not be called without a key")
 
         # docker compose passes an empty key through when none is configured.
-        monkeypatch.setenv("OPENAI_API_KEY", "")
+        monkeypatch.setattr(settings, "openai_api_key", "")
         monkeypatch.setattr(roadmap_ai, "OpenAI", NeverCalled)
         assert error(generate(authenticated)) == RoadmapAIError.AI_UNAVAILABLE
 

@@ -1,18 +1,15 @@
 import json
-import os
 
-from dotenv import load_dotenv
 from fastapi import status
 from openai import APITimeoutError, OpenAI, OpenAIError
 
 from core.exceptions import BaseError
 from core.roadmap_pool import candidate_pool
+from core.settings import settings
 from models.roadmap import PLAN_LENGTH
 from models.school_record import SchoolInfo
 from models.user import User
 from schemas.roadmap import CreateRoadmapRequest
-
-load_dotenv()
 
 # The client gives up after 15 seconds (PERF-7), so stop slightly earlier than that.
 AI_TIMEOUT_SECONDS = 14
@@ -165,13 +162,17 @@ class AIRoadmapGenerator:
         prompt = cls._build_prompt(request, list(pool.values()))
 
         # An empty key (docker compose passes one through) would only earn a 401 from OpenAI.
-        if not os.environ.get("OPENAI_API_KEY"):
+        if not settings.openai_api_key:
             raise RoadmapAIError.AI_UNAVAILABLE()
 
         try:
-            client = OpenAI(timeout=AI_TIMEOUT_SECONDS, max_retries=0)
+            client = OpenAI(
+                api_key=settings.openai_api_key,
+                timeout=AI_TIMEOUT_SECONDS,
+                max_retries=0,
+            )
             completion = client.chat.completions.create(
-                model=os.environ.get("OPENAI_MODEL") or "gpt-5.5",
+                model=settings.openai_model,
                 messages=[{"role": "user", "content": prompt}],
                 response_format=RESPONSE_FORMAT,
                 reasoning_effort="low",

@@ -1,10 +1,8 @@
-import os
-
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from core.exceptions import HttpError, http_error_handler
+from core.settings import settings
 from routers import (
     admin_router,
     bookmark_router,
@@ -16,11 +14,9 @@ from routers import (
     user_router,
 )
 
-load_dotenv()
-
 app = FastAPI()
 
-frontend_origin = os.environ["FRONTEND_ORIGIN"]
+frontend_origin = settings.frontend_origin
 
 app.add_middleware(
     CORSMiddleware,

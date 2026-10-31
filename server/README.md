@@ -45,8 +45,10 @@ as `make_admin` without `--remove`.
 
 ## Configuration
 
-Read from the environment, and from `server/.env` when present (`python-dotenv`). `SECRET_KEY` and
-`FRONTEND_ORIGIN` have no default: the server fails to start without them.
+Defined in [`core/settings.py`](core/settings.py) with `pydantic-settings`. Values come from the
+process environment first, then from `server/.env` for anything not set there. `SECRET_KEY` and
+`FRONTEND_ORIGIN` have no default: the server fails to start without them. An empty value for
+`FRONTEND_ORIGIN` or a `SECRET_KEY` shorter than 32 characters are also rejected.
 
 | Variable              | Default                 | Purpose                                                                          |
 | --------------------- | ----------------------- | -------------------------------------------------------------------------------- |

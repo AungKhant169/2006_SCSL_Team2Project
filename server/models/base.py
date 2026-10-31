@@ -1,14 +1,15 @@
-import os
 from datetime import datetime, timezone
 
 from sqlalchemy import Integer, create_engine, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
+from core.settings import settings
+
 # ------------------------------
 # Database Setup
 # ------------------------------
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./main.db")
+DATABASE_URL = settings.database_url
 
 # connect_args are required for SQLite to avoid sqlite3.ProgammingError
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

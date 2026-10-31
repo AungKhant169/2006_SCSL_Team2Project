@@ -1,4 +1,3 @@
-import os
 import re
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
@@ -6,18 +5,17 @@ from typing import Self
 
 import bcrypt
 import jwt
-from dotenv import load_dotenv
 from fastapi import status
 from sqlalchemy import Index, String, func, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from core.exceptions import BaseError
+from core.settings import settings
 from models.base import Base, Persistable
 from models.refresh_token import RefreshToken
 
-load_dotenv()
-SECRET_KEY = os.environ["SECRET_KEY"]
+SECRET_KEY = settings.secret_key.get_secret_value()
 
 USERNAME_PATTERN = re.compile(r"[A-Za-z0-9]{1,36}")
 PASSWORD_PATTERN = re.compile(r"(?=.*\d)(?=.*[^A-Za-z0-9])[\x20-\x7E]{8,36}")
@@ -27,8 +25,7 @@ ROLE_ADMIN = "admin"
 
 def always_admin_usernames() -> set[str]:
     """Usernames in ADMIN_USERNAMES (.env, comma separated) are admins whatever their role."""
-    names = os.environ.get("ADMIN_USERNAMES", "")
-    return {n.strip().lower() for n in names.split(",") if n.strip()}
+    return settings.admin_username_set
 
 
 class Role(StrEnum):

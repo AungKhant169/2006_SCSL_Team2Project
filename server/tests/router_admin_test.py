@@ -10,6 +10,7 @@ from sqlalchemy.exc import OperationalError
 from core import school_import
 from core.dataset_export import DatasetExportError, SchoolDatasetExporter
 from core.dataset_update import DatasetUpdateError, SchoolDatasetUpdater
+from core.settings import settings
 from models.base import SessionLocal
 from models.school_record import (
     SchoolAid,
@@ -68,7 +69,7 @@ class TestAccess:
         assert error(response, [SchoolInfoError.NOT_ADMIN]) == SchoolInfoError.NOT_ADMIN
 
     def test_listed_username_is_admin_on_the_older_route(self, monkeypatch):
-        monkeypatch.setenv("ADMIN_USERNAMES", "boss")
+        monkeypatch.setattr(settings, "admin_usernames", "boss")
         tokens = client.post("/user/register", json={**USER, "username": "boss"}).json()
         response = client.post(
             "/school-api/admin/refresh",
@@ -79,7 +80,7 @@ class TestAccess:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_listed_username_cannot_be_registered_in_another_case(self, monkeypatch):
-        monkeypatch.setenv("ADMIN_USERNAMES", "boss")
+        monkeypatch.setattr(settings, "admin_usernames", "boss")
         client.post("/user/register", json={**USER, "username": "boss"})
         response = client.post("/user/register", json={**USER, "username": "BOSS"})
         assert response.status_code == status.HTTP_409_CONFLICT

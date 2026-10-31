@@ -5,7 +5,6 @@ line script (python -m scripts.refresh_school_data).
 """
 
 import logging
-import os
 from pathlib import Path
 
 from sqlalchemy import delete, insert, select
@@ -19,6 +18,7 @@ from core.school_cleaning import (
     identify_frame,
     read_csv_bytes,
 )
+from core.settings import settings
 from models.base import SessionLocal
 from models.dataset_update import DatasetUpdate
 from models.school_record import (
@@ -35,9 +35,7 @@ from models.school_record import (
 log = logging.getLogger(__name__)
 
 # Largest accepted upload, per file (the spec leaves this TBD).
-MAX_UPLOAD_BYTES = int(
-    float(os.environ.get("SCHOOL_MAX_UPLOAD_MB", "20")) * 1024 * 1024
-)
+MAX_UPLOAD_BYTES = int(settings.school_max_upload_mb * 1024 * 1024)
 
 
 class InvalidUploadError(ValueError):
@@ -52,7 +50,7 @@ class DatabaseUnavailableError(RuntimeError):
 BUNDLED_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 # Where files uploaded by an admin are kept. In Docker, point SCHOOL_RAW_DIR at the
 # /data volume (the app user can only write there, and it survives rebuilds).
-RAW_DIR = Path(os.environ.get("SCHOOL_RAW_DIR", BUNDLED_DIR))
+RAW_DIR = settings.school_raw_dir or BUNDLED_DIR
 
 
 def stored_files() -> dict[str, bytes]:
