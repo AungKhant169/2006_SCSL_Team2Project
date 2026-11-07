@@ -142,9 +142,9 @@ function clear() {
     </div>
 
     <p id="dataset-files-hint" class="m-0 text-xs leading-relaxed text-muted">
-      Add any of the general, primary, secondary, sdp, moe, ccas and subjects files. Each is
-      recognised by its columns, so file names do not matter, and any you leave out keep their last
-      upload.
+      Add any of the general, primary, secondary, sdp, moe, ccas, subjects, programmes,
+      financial_aid, scholarships and benchmarks files. Each is recognised by its columns, so file
+      names do not matter, and any you leave out keep their last upload.
     </p>
 
     <div aria-live="polite">
