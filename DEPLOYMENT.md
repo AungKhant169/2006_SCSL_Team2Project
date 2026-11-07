@@ -24,17 +24,30 @@ docker compose up -d
 The site is then at <http://localhost:8080>. To build the images from the checkout instead of
 pulling them, use `docker compose up -d --build`.
 
-| Setting           | Default                                         | Purpose                                              |
-| ----------------- | ----------------------------------------------- | ---------------------------------------------------- |
-| `SECRET_KEY`      | none, required                                  | Signs login tokens. Keep it stable and secret        |
-| `FRONTEND_ORIGIN` | `http://localhost:8080`                         | Address users open, for the API's CORS allow-list    |
-| `HTTP_PORT`       | `8080`                                          | Host port the site is published on                   |
-| `IMAGE_TAG`       | `latest`                                        | Image tag to run: `latest`, `1.2.3`, `sha-<commit>`  |
-| `IMAGE_PREFIX`    | `ghcr.io/aungkhant169/2006_scsl_team2project`   | Registry namespace, change if you run a fork         |
+| Setting                 | Default                                         | Purpose                                                                              |
+| ----------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `SECRET_KEY`            | none, required                                  | Signs login tokens. Keep it stable and secret                                        |
+| `FRONTEND_ORIGIN`       | `http://localhost:8080`                         | Address users open, for the API's CORS allow-list                                    |
+| `HTTP_PORT`             | `8080`                                          | Host port the site is published on                                                   |
+| `IMAGE_TAG`             | `latest`                                        | Image tag to run: `latest`, `1.2.3`, `sha-<commit>`                                  |
+| `IMAGE_PREFIX`          | `ghcr.io/aungkhant169/2006_scsl_team2project`   | Registry namespace, change if you run a fork                                         |
+| `ADMIN_USERNAMES`       | empty                                           | Comma-separated usernames treated as administrators. Register the accounts first     |
+| `OPENAI_API_KEY`        | empty                                           | Key for the AI-generated roadmap. Without it that plan answers 503                   |
+| `OPENAI_MODEL`          | `gpt-5.5`                                       | Model used for the AI-generated roadmap. Leaving it empty uses the default           |
+| `AI_RATE_LIMIT`         | `10`                                            | AI roadmaps one account may generate per window                                      |
+| `AI_RATE_WINDOW`        | `300`                                           | Length of that window, in seconds                                                    |
+| `LOGIN_RATE_LIMIT`      | `5`                                             | Login attempts per username and address per window                                   |
+| `LOGIN_RATE_WINDOW`     | `300`                                           | Length of that window, in seconds                                                    |
+| `TRUSTED_PROXY_HOPS`    | `1`                                             | Proxies in front of the server (the client's nginx is the first)                     |
+
+These are read from the `.env` file next to `docker-compose.yml`, or from the shell. Only
+`SECRET_KEY` is required. The client container also takes `CLIENT_MAX_BODY_SIZE` (default `200m`),
+the largest request nginx forwards to the API. The school data update uploads up to ten CSV files
+of 20 MB each, so keep it at least that large: nginx's own default of 1 MB would reject them.
 
 Data is kept in the `pathsg-data` volume (a SQLite file), so it survives `docker compose down`
-and upgrades. `docker compose down -v` deletes it. The server must run as a single instance:
-the database is SQLite and the school data update lock is held in memory.
+and upgrades. `docker compose down -v` deletes it. The server must run as a
+single instance: the database is SQLite and the school data update lock is held in memory.
 
 To serve over HTTPS, put a TLS-terminating proxy in front of the client container and set
 `FRONTEND_ORIGIN` to the public `https://` address. Also, set `TRUSTED_PROXY_HOPS=2` so the

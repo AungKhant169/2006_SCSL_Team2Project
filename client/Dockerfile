@@ -28,6 +28,9 @@ COPY --from=build /app/dist /usr/share/nginx/html
 
 # Where /api/ requests are forwarded.
 ENV API_UPSTREAM=http://server:8000
+# Largest request body forwarded to the API: the school data update sends up to ten CSV files,
+# each limited to 20 MB by the server. Keep it at least that large.
+ENV CLIENT_MAX_BODY_SIZE=200m
 
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

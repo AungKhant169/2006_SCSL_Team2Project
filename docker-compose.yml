@@ -17,6 +17,7 @@ services:
       SCHOOL_RAW_DIR: /data/school_raw
       # For AI roadmaps; without a key the endpoint answers 503.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Empty when unset; the server then uses its default model.
       OPENAI_MODEL: ${OPENAI_MODEL:-}
       # Rate Limits
       AI_RATE_LIMIT: ${AI_RATE_LIMIT:-10}

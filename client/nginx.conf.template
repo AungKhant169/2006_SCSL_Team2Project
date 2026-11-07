@@ -21,6 +21,10 @@ server {
 
     # The API, same-origin: /api/user/login -> ${API_UPSTREAM}/user/login
     location /api/ {
+        # nginx allows 1 MB by default, which is less than the school CSVs an admin uploads in one
+        # update (up to ten files of 20 MB each, see SCHOOL_MAX_UPLOAD_MB on the server).
+        client_max_body_size ${CLIENT_MAX_BODY_SIZE};
+
         proxy_pass ${API_UPSTREAM}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

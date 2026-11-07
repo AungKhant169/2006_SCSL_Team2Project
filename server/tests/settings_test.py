@@ -41,6 +41,23 @@ def test_admin_usernames_are_split_and_lowercased(env):
     assert Settings(_env_file=None).admin_username_set == {"boss", "ann"}
 
 
+def test_openai_model_defaults_when_unset(env):
+    env.delenv("OPENAI_MODEL", raising=False)
+    assert Settings(_env_file=None).openai_model == "gpt-5.5"
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_empty_openai_model_falls_back_to_the_default(env, value):
+    """docker compose turns an unset OPENAI_MODEL into an empty string."""
+    env.setenv("OPENAI_MODEL", value)
+    assert Settings(_env_file=None).openai_model == "gpt-5.5"
+
+
+def test_openai_model_can_be_set(env):
+    env.setenv("OPENAI_MODEL", " gpt-test ")
+    assert Settings(_env_file=None).openai_model == "gpt-test"
+
+
 def test_dotenv_values_are_read(env, tmp_path):
     """Regression: DATABASE_URL in .env used to be ignored."""
     env.delenv("DATABASE_URL", raising=False)
