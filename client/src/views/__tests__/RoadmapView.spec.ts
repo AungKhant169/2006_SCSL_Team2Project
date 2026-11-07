@@ -207,15 +207,25 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
       expect(panel(wrapper, 'Rule-Based Plan').text()).toContain('Secondary school (current)')
     })
 
-    it('says so when the chosen stage has no institutions yet', async () => {
+    it('says there is no rule-based plan for a stage without a rule set (REQ-3.19)', async () => {
       const { wrapper } = await mountRoadmap()
       await stageTile(wrapper, 'Autonomous University').trigger('click')
       await generate(wrapper)
-      expect(panel(wrapper, 'Rule-Based Plan').text()).toContain(
-        'No institutions are available for this stage yet.',
+      const rule = panel(wrapper, 'Rule-Based Plan')
+      expect(rule.get('[data-testid="no-rule-plan"]').text()).toBe(
+        'There is no Rule-Based Plan for Post-Secondary → University. Only the AI-Generated Plan is made for this stage.',
       )
-      // There is nothing to save.
-      expect(saveButton(wrapper, 'Rule-Based Plan').attributes('disabled')).toBeDefined()
+      // The rule set is not claimed, and there is nothing to save.
+      expect(rule.text()).not.toContain('rule set')
+      expect(rule.findAll('button')).toHaveLength(0)
+    })
+
+    it('does the same for preschool placement', async () => {
+      const { wrapper } = await mountRoadmap()
+      await stageTile(wrapper, 'Preschool placement').trigger('click')
+      await generate(wrapper)
+      expect(panel(wrapper, 'Rule-Based Plan').text()).toContain('There is no Rule-Based Plan for')
+      expect(panel(wrapper, 'AI-Generated Plan').exists()).toBe(true)
     })
 
     it('changing the stage discards a generated plan', async () => {
@@ -328,15 +338,12 @@ describe('RoadmapView (UC-3.1 to UC-3.4)', () => {
     })
 
     it('has nothing to rank by where the stage has no rule set', async () => {
-      const { wrapper } = await mountRoadmap()
+      const { wrapper, api } = await mountRoadmap()
       await stageTile(wrapper, 'Autonomous University').trigger('click')
       await generate(wrapper)
       expect(radios(wrapper)).toHaveLength(0)
-      expect(
-        rule(wrapper)
-          .findAll('button')
-          .map((b) => b.text()),
-      ).toEqual(['Save Roadmap'])
+      expect(rule(wrapper).findAll('button')).toHaveLength(0)
+      expect(api.callsTo(RULE)).toHaveLength(0)
     })
 
     describe('About', () => {

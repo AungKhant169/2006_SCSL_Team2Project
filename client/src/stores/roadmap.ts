@@ -135,6 +135,12 @@ export const useRoadmapStore = defineStore('roadmap', () => {
   /** Requests the rule-based plan on its own, so it can fail or retry without touching the AI plan. */
   async function runRule() {
     const run = ++ruleRun
+    // Preschool and university have no rule set (REQ-3.19), so there is nothing to ask the server.
+    if (ruleSorts.value.length === 0) {
+      ruleChoices.value = []
+      ruleStatus.value = 'ready'
+      return
+    }
     ruleStatus.value = 'loading'
     try {
       const plan = await roadmapService.generateRulePlan(ruleRequest())

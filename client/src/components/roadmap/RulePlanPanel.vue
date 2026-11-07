@@ -17,6 +17,9 @@ const roadmap = useRoadmapStore()
 const profile = useProfileStore()
 const aboutOpen = ref(false)
 
+/** Preschool and university are left to the AI plan (REQ-3.19). */
+const hasRules = computed(() => roadmap.ruleSorts.length > 0)
+
 const summary = computed(() => {
   if (roadmap.ruleSort === 'distance') return `schools nearest to ${profile.postal} first.`
   const limit = roadmap.ruleLimitKm === null ? '' : `, within ${roadmap.ruleLimitKm} km`
@@ -37,11 +40,11 @@ const empty = computed(() =>
       <BaseButton variant="outline" size="sm" @click="aboutOpen = true">About</BaseButton>
     </template>
 
-    <p class="m-0 text-[13px] text-muted">
+    <p v-if="hasRules" class="m-0 text-[13px] text-muted">
       Applies the {{ getLevel(roadmap.stage).tag }} rule set: {{ summary }}
     </p>
 
-    <RuleSortControl />
+    <RuleSortControl v-if="hasRules" />
 
     <!-- Loading and failure stay inside this panel so the AI plan is never affected. -->
     <div
@@ -70,6 +73,15 @@ const empty = computed(() =>
         Retry
       </BaseButton>
     </div>
+
+    <p
+      v-else-if="roadmap.ruleStatus === 'ready' && !hasRules"
+      class="m-0 text-[13px] text-muted"
+      data-testid="no-rule-plan"
+    >
+      There is no Rule-Based Plan for {{ getLevel(roadmap.stage).tag }}. Only the AI-Generated Plan
+      is made for this stage.
+    </p>
 
     <template v-else-if="roadmap.ruleStatus === 'ready'">
       <PlanNodeList :nodes="roadmap.rulePlan" :from="getLevel(roadmap.stage).from" :empty="empty" />

@@ -201,6 +201,20 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       expect(r.rulePlan).toEqual([])
       expect(r.aiPlan).toEqual([])
     })
+
+    it.each(['preschool', 'uni'] as const)(
+      'does not ask the server for a rule-based plan for %s (REQ-3.19)',
+      async (stage) => {
+        const r = useRoadmapStore()
+        r.selectStage(stage)
+        r.generate()
+        await flushPromises()
+        expect(r.ruleStatus).toBe('ready')
+        expect(r.rulePlan).toEqual([])
+        expect(api.callsTo(`POST ${RULE}`)).toHaveLength(0)
+        expect(api.callsTo(`POST ${AI}`)).toHaveLength(1)
+      },
+    )
   })
 
   describe('rule-based sort and distance limit', () => {
