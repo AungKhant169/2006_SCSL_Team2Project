@@ -1,7 +1,11 @@
+import asyncio
+from contextlib import asynccontextmanager, suppress
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
+from core.backup import DatabaseBackup
 from core.exceptions import HttpError, http_error_handler, rw_error_handler
 from core.settings import settings
 from routers import (
@@ -15,7 +19,20 @@ from routers import (
     user_router,
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # The daily database backup (SAFE-1) runs for as long as the server does.
+    backups = asyncio.create_task(DatabaseBackup.schedule())
+    try:
+        yield
+    finally:
+        backups.cancel()
+        with suppress(asyncio.CancelledError):
+            await backups
+
+
+app = FastAPI(lifespan=lifespan)
 
 frontend_origin = settings.frontend_origin
 

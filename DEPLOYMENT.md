@@ -39,6 +39,8 @@ pulling them, use `docker compose up -d --build`.
 | `LOGIN_RATE_LIMIT`      | `5`                                             | Login attempts per username and address per window                                   |
 | `LOGIN_RATE_WINDOW`     | `300`                                           | Length of that window, in seconds                                                    |
 | `TRUSTED_PROXY_HOPS`    | `1`                                             | Proxies in front of the server (the client's nginx is the first)                     |
+| `BACKUP_INTERVAL_HOURS` | `24`                                            | Hours between database backups. `0` turns them off                                   |
+| `BACKUP_KEEP`           | `7`                                             | How many backups to keep. The oldest are deleted                                     |
 
 These are read from the `.env` file next to `docker-compose.yml`, or from the shell. Only
 `SECRET_KEY` is required. The client container also takes `CLIENT_MAX_BODY_SIZE` (default `200m`),
@@ -46,13 +48,40 @@ the largest request nginx forwards to the API. The school data update uploads up
 of 20 MB each, so keep it at least that large: nginx's own default of 1 MB would reject them.
 
 Data is kept in the `pathsg-data` volume (a SQLite file), so it survives `docker compose down`
-and upgrades. `docker compose down -v` deletes it. The server must run as a
+and upgrades. `docker compose down -v` deletes it, backups included. The server must run as a
 single instance: the database is SQLite and the school data update lock is held in memory.
 
 To serve over HTTPS, put a TLS-terminating proxy in front of the client container and set
 `FRONTEND_ORIGIN` to the public `https://` address. Also, set `TRUSTED_PROXY_HOPS=2` so the
 login limit sees each visitor's actual address, which requires the proxy to append the
 `X-Forwarded-For` header.
+
+## Backups
+
+The server copies the database to `/data/backups` (in the same volume) once every 24 hours, as
+`pathsg-YYYYMMDD-HHMMSS.db` (UTC), and keeps the newest seven. The copy is made while the site is
+running. It is also made when the server starts if the newest one is more than 24 hours old, so a
+server that was down for a day backs up as soon as it is back. Change the interval and the number
+kept with `BACKUP_INTERVAL_HOURS` and `BACKUP_KEEP`.
+
+The backups protect against crashes and restarts, and against a bad school data update. They live
+on the same volume, so they do not protect against losing the volume or the host: copy them
+elsewhere if that matters.
+
+To restore one, stop the server, put the backup in place of the database, and start it again:
+
+```sh
+docker compose stop server
+docker compose run --rm --no-deps --entrypoint cp server \
+  /data/backups/pathsg-YYYYMMDD-HHMMSS.db /data/main.db
+docker compose start server
+```
+
+To copy the newest backup to the host:
+
+```sh
+docker compose cp server:/data/backups ./backups
+```
 
 ## Upgrade
 

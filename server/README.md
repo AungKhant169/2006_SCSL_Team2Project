@@ -65,6 +65,9 @@ process environment first, then from `server/.env` for anything not set there. `
 | `LOGIN_RATE_LIMIT`    | `5`                     | Login attempts allowed per (username, address) in each window                    |
 | `LOGIN_RATE_WINDOW`   | `300`                   | Length of that window in seconds                                                 |
 | `TRUSTED_PROXY_HOPS`  | `0`                     | Reverse proxies in front of the server (see [Rate limits](#rate-limits))         |
+| `BACKUP_INTERVAL_HOURS` | `24`                  | Hours between database backups. `0` turns them off (see [Backups](#backups))     |
+| `BACKUP_KEEP`         | `7`                     | Backups kept; the oldest are deleted                                             |
+| `BACKUP_DIR`          | `backups/` beside the database | Where the backups are written. Docker: `/data/backups`                    |
 
 `.env` is git-ignored. Only `.env.example` is tracked.
 
@@ -147,6 +150,19 @@ memory ([`core/rate_limit.py`](core/rate_limit.py)) and reset when the server re
 
 The client address is the `X-Forwarded-For` entry `TRUSTED_PROXY_HOPS` from the right, as anything
 further left was sent by the client. The default, `0`, ignores the header.
+
+### Backups
+
+While the server runs it copies the SQLite database once every 24 hours (SAFE-1), using SQLite's
+online backup so the copy is consistent while requests are writing. The copies are
+`pathsg-YYYYMMDD-HHMMSS.db` (UTC) files in `BACKUP_DIR`, and only the newest `BACKUP_KEEP` are
+kept. The age of the newest copy decides when the next is due, so a restart does not reset the
+clock: a server that was down for a day backs up as soon as it starts. A failed backup is logged
+and tried again after 10 minutes. Nothing is backed up for a database that is not a SQLite file.
+The code is in [`core/backup.py`](core/backup.py), started by the app's lifespan in
+[`main.py`](main.py), so `TestClient(app)` without a `with` block does not run it.
+
+To restore, stop the server and copy a backup over the database file (`main.db`).
 
 ### School search
 
@@ -326,6 +342,7 @@ core/
   authenticator.py   Bearer-token dependencies (Requester, admin guard)
   exceptions.py      BaseError base, HttpError and its response handler
   roadmap_*.py       Candidate pool, rule-based and AI roadmap generators
+  backup.py          Daily SQLite backup
   geolocation.py     Postal districts and distance
   rate_limit.py      In-memory rate limits
   school_cleaning.py Raw school CSVs to clean records (pandas)

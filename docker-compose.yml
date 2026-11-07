@@ -24,6 +24,9 @@ services:
       AI_RATE_WINDOW: ${AI_RATE_WINDOW:-300}
       LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-5}
       LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-300}
+      # Daily database backup, kept in /data/backups on the volume (0 hours turns it off).
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
       # Security
       ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-${PUBLIC_ORIGIN:-http://localhost:8080}}  # Origin the browser loads the site from for the API's CORS allow-list.

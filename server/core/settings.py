@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from pydantic import NonNegativeInt, SecretStr, field_validator
+from pydantic import (
+    NonNegativeFloat,
+    NonNegativeInt,
+    PositiveInt,
+    SecretStr,
+    field_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -16,6 +22,11 @@ class Settings(BaseSettings):
     admin_usernames: str = ""
     ai_rate_limit: int = 10
     ai_rate_window: int = 300
+    # Daily backup of the SQLite database (SAFE-1). 0 hours turns it off. Without a directory,
+    # the copies go in a "backups" folder next to the database file.
+    backup_dir: Path | None = None
+    backup_interval_hours: NonNegativeFloat = 24
+    backup_keep: PositiveInt = 7
     database_url: str = "sqlite:///./main.db"
     frontend_origin: str
     login_rate_limit: int = 5
