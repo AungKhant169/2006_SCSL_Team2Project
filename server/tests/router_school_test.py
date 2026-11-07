@@ -3,6 +3,7 @@ from fastapi import status
 from models.base import SessionLocal
 from models.school_record import (
     SchoolAid,
+    SchoolBenchmark,
     SchoolInfo,
     SchoolInfoError,
     SchoolProgramme,
@@ -121,6 +122,34 @@ class TestSchoolDetail:
         assert body["scholarships"] == [
             {"name": "Gold", "source": "School", "eligibility": "Top students"}
         ]
+
+    def test_lists_the_yearly_benchmarks_latest_year_first(self):
+        school = make_school()
+        with SessionLocal() as db:
+            db.add_all(
+                [
+                    SchoolBenchmark(
+                        school_id=school.id, year=2024, measure="L1R5", low=4, high=7
+                    ),
+                    SchoolBenchmark(
+                        school_id=school.id, year=2025, measure="L1R5", low=5, high=8
+                    ),
+                    SchoolBenchmark(
+                        school_id=school.id, year=2025, measure="GPA", low=3.4, high=3.9
+                    ),
+                ]
+            )
+            db.commit()
+        body = client.get("/school-api/first").json()
+        assert body["benchmarks"] == [
+            {"year": 2025, "measure": "GPA", "low": 3.4, "high": 3.9},
+            {"year": 2025, "measure": "L1R5", "low": 5.0, "high": 8.0},
+            {"year": 2024, "measure": "L1R5", "low": 4.0, "high": 7.0},
+        ]
+
+    def test_a_school_without_benchmarks_lists_none(self):
+        make_school()
+        assert client.get("/school-api/first").json()["benchmarks"] == []
 
     def test_unknown_key(self):
         response = client.get("/school-api/missing")

@@ -3,6 +3,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer
 
+from core.benchmarks import Measure
+
 Stage = Literal["preschool", "primary", "secondary", "postsec", "uni"]
 
 
@@ -121,6 +123,15 @@ class ScholarshipDetail(BaseModel):
     eligibility: str | None = None
 
 
+class BenchmarkDetail(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    year: int
+    measure: Measure
+    low: float = Field(description="The best figure, or the 10th percentile for GPA")
+    high: float = Field(description="The cut-off, or the 90th percentile for GPA")
+
+
 class SchoolInfoDetail(SchoolInfoSummary):
     url_address: str | None = None
     telephone_no: str | None = None
@@ -152,6 +163,9 @@ class SchoolInfoDetail(SchoolInfoSummary):
     programmes: list[ProgrammeDetail] = []
     financial_aid: list[AidDetail] = []
     scholarships: list[ScholarshipDetail] = []
+    benchmarks: list[BenchmarkDetail] = Field(
+        [], description="Yearly entry figures, the latest year first"
+    )
 
 
 class SchoolPage(BaseModel):
@@ -186,4 +200,5 @@ class SchoolUpdateResult(BaseModel):
     programmes: int = 0
     financial_aid: int = 0
     scholarships: int = 0
+    benchmarks: int = 0
     warnings: list[str]

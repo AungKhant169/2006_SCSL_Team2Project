@@ -12,6 +12,7 @@ from sqlalchemy.exc import InterfaceError, OperationalError
 
 from core.school_cleaning import (
     FILE_KEYS,
+    OPTIONAL_FILES,
     CleanDataset,
     SchoolDataError,
     clean_schools,
@@ -23,6 +24,7 @@ from models.base import SessionLocal
 from models.dataset_update import DatasetUpdate
 from models.school_record import (
     SchoolAid,
+    SchoolBenchmark,
     SchoolBus,
     SchoolCca,
     SchoolInfo,
@@ -176,6 +178,16 @@ def _write_database(dataset: CleanDataset) -> dict:
                     for r in dataset.scholarships
                 ],
             ),
+            (
+                SchoolBenchmark,
+                [
+                    {
+                        "school_id": ids[r["school_key"]],
+                        **{k: v for k, v in r.items() if k != "school_key"},
+                    }
+                    for r in dataset.benchmarks
+                ],
+            ),
         ):
             session.execute(delete(model))
             if rows:
@@ -200,6 +212,7 @@ def _write_database(dataset: CleanDataset) -> dict:
         "programmes": len(dataset.programmes),
         "financial_aid": len(dataset.financial_aid),
         "scholarships": len(dataset.scholarships),
+        "benchmarks": len(dataset.benchmarks),
         "warnings": dataset.warnings,
     }
 
@@ -209,7 +222,9 @@ def refresh(uploads: dict[str, bytes] | None = None) -> dict:
     not uploaded is taken from RAW_DIR. Nothing is saved unless everything is valid."""
     sorted_uploads = sort_uploads(uploads or {})
     files = stored_files() | sorted_uploads
-    missing = [key for key in FILE_KEYS if key not in files]
+    missing = [
+        key for key in FILE_KEYS if key not in files and key not in OPTIONAL_FILES
+    ]
     if missing:
         raise SchoolDataError(
             "Still missing: "

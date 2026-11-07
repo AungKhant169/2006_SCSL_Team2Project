@@ -186,7 +186,9 @@ offer in dropdowns.
 ### Roadmaps
 
 A request carries `stage` (`preschool`, `primary`, `secondary`, `postsec` or `uni`), and optionally
-`postal` (6-digit postal code) and `previous_academic_score`. A roadmap holds 1 to 3 school ids in
+`postal` (6-digit postal code) and `previous_academic_score`: the PSLE AL for `secondary`, the
+O-Level L1R5 for `postsec` and the polytechnic GPA for `uni`. `postsec` also takes
+`previous_academic_score_b`, the O-Level ELR2B2. A roadmap holds 1 to 3 school ids in
 preference order, and an account keeps at most one. Every roadmap response lists the chosen
 schools' details (`schools`, in the same order as `choices`; an id whose school no longer exists is
 left out).
@@ -196,13 +198,18 @@ left out).
   - `distance` ranks every stage by straight-line distance from the student's postal district,
     nearest first, and ignores the score.
   - `grade` (the default) ranks by fit with the grades, then by distance. Secondary ranks schools
-    the student's PSLE AL score reaches against their 2017 cut-off first. Post-secondary ranks by
-    subjects and CCAs offered. Primary has no grade, so it ranks by distance.
+    the student's PSLE AL score reaches against their 2017 cut-off first. Post-secondary compares
+    the student's L1R5 (junior colleges and Millennia Institute) and ELR2B2 (polytechnics and ITE)
+    with each school's latest JAE cut-off from its [benchmarks](#benchmarks): schools the
+    aggregate is within come first, then schools with no cut-off for an aggregate the student
+    gave, then the rest by how little they are missed by. Without a postal code or any grade the
+    plan is the same as by distance. Primary has no grade, so it ranks by distance.
   - `max_distance_km` leaves out schools further than that from the postal district, before ranking,
     including schools of unknown position. It is ignored without a postal code. The cut-offs are
     still scaled against all the candidates, so the limit does not change what a score reaches.
 
-  There is no rule-based plan for `preschool` or `uni`.
+  There is no rule-based plan for `preschool` or `uni`: there are no preschools in the data, and
+  the SRS (REQ-3.19) leaves both stages to the AI plan.
 - **AI** ([`core/roadmap_ai.py`](core/roadmap_ai.py)). Sends the candidate schools for the stage to
   OpenAI with a strict JSON schema, then keeps only valid, unique ids. The username is never sent.
   It gives up after 14 seconds (504), so it answers before the client's 15 second limit, and any other failure or unusable answer is a 503.
@@ -223,18 +230,19 @@ level does not use are dropped. Only these fields are stored, never a name or NR
 
 ## School data
 
-The schools come from ten raw CSV files in [`data/raw/`](data/raw/): `general`, `primary`,
-`secondary`, `sdp`, `moe`, `ccas`, `subjects`, `programmes`, `financial_aid` and `scholarships`.
-`programmes` holds each programme with its fees (citizens, permanent residents, international
-students, and a misc fee); `financial_aid` and `scholarships` hold what a school lists. The `general`
+The schools come from eleven raw CSV files in [`data/raw/`](data/raw/): `general`, `primary`,
+`secondary`, `sdp`, `moe`, `ccas`, `subjects`, `programmes`, `financial_aid`, `scholarships` and
+`benchmarks`. `programmes` holds each programme with its fees (citizens, permanent residents,
+international students, and a misc fee); `financial_aid` and `scholarships` hold what a school
+lists. `benchmarks` is optional (see [Benchmarks](#benchmarks)). The `general`
 file may also carry `latitude` and `longitude`, which are used only where the primary and secondary
 files do not place the school (the post-secondary institutions do this).
 [`core/school_cleaning.py`](core/school_cleaning.py) (pandas, no database access) turns them into
 clean records, and [`core/school_import.py`](core/school_import.py) writes them. The `schools` table
-holds one row per school. Subjects, CCAs, MOE programmes, bus services, programmes, aid and
-scholarships are in the child tables `school_subjects`, `school_ccas`, `school_moe_programmes`,
-`school_buses`, `school_programmes`, `school_aid` and `school_scholarships`, which are rebuilt on
-every refresh.
+holds one row per school. Subjects, CCAs, MOE programmes, bus services, programmes, aid,
+scholarships and benchmarks are in the child tables `school_subjects`, `school_ccas`,
+`school_moe_programmes`, `school_buses`, `school_programmes`, `school_aid`, `school_scholarships`
+and `school_benchmarks`, which are rebuilt on every refresh.
 
 There are three ways to refresh, and all use the same code:
 
@@ -258,12 +266,37 @@ A refresh is all or nothing: the files are validated and cleaned first, and ever
 one transaction. Schools already in the database but missing from the files are kept and counted as
 `not_in_files`. Uploaded files are saved to `SCHOOL_RAW_DIR` only after the database update
 succeeds. The response summarises the run (`schools`, `added`, `updated`, `not_in_files`, `subjects`,
-`ccas`, `moe_programmes`, `buses`, `warnings`).
+`ccas`, `moe_programmes`, `buses`, `programmes`, `financial_aid`, `scholarships`, `benchmarks`,
+`warnings`).
 
 Failures: 403 when the caller is not an admin, 409 when another update is running, 422 when no file
 is sent, a file is not a non-empty `.csv` within `SCHOOL_MAX_UPLOAD_MB`, or the data cannot be
 processed, and 503 when the database is unreachable. The request handling and the lock are in
 [`core/dataset_update.py`](core/dataset_update.py).
+
+### Benchmarks
+
+Multi-year entry figures (REQ-1.13) are loaded from the optional `benchmarks` file, one row per
+school, year and measure, and shown on the school's profile (`benchmarks` in
+`GET /school-api/{school_key}`, the latest year first). The columns are `school_name`, `year` (a
+whole number), `measure`, `low` and `high`; a blank `high` means a single figure. The measures are:
+
+| `measure` | Figure                                                                  | `low`             | `high`                  |
+| --------- | ----------------------------------------------------------------------- | ----------------- | ----------------------- |
+| `PSLE_AL` | PSLE AL scores of the students posted to a secondary school             | best (smallest)   | worst, the cut-off      |
+| `L1R5`    | net L1R5 of the students admitted to a junior college or MI by the JAE  | best              | cut-off                 |
+| `ELR2B2`  | net ELR2B2 of the students admitted to a polytechnic or ITE by the JAE  | best              | cut-off                 |
+| `GPA`     | GPA of the students admitted to a polytechnic or university             | 10th percentile   | 90th percentile         |
+
+The measure is read ignoring case, with spaces or hyphens for underscores. A row with a missing or
+non-whole year, a missing `low`, a measure that is not listed, or a `low` above `high` refuses the
+whole file. Rows for a school the `general` file does not have are skipped with a warning, and when
+a school repeats a year and measure the last row is kept. Without the file the table is emptied.
+The post-secondary rule-based plan ranks by the latest `L1R5` and `ELR2B2` cut-offs, and the AI
+prompt carries each candidate's latest figures. [`data/raw/benchmarks.csv`](data/raw/benchmarks.csv)
+is the header only: **no entry figures are bundled**, so until an administrator uploads a file, the
+only figures shown are the primary places taken up to Phase 2B and the 2017 secondary PSLE T-score
+cut-off in the `primary` and `secondary` files, and the post-secondary plan ranks by distance.
 
 ### Export
 
@@ -272,7 +305,9 @@ processed, and 503 when the database is unreachable. The request handling and th
 exposes so the client can read it). There is one row per school, ordered by name. The columns are
 every column of the `schools` table except its internal `id`, followed by the child tables:
 `subjects`, `moe_programmes` and `bus_numbers` hold their entries separated by `; `, and each entry of
-`ccas` is `grouping | section | category | customised name`. Nothing about accounts, saved roadmaps,
+`ccas` is `grouping | section | category | customised name`. `programmes`, `financial_aid`,
+`scholarships` and `benchmarks` (`year | measure | low | high`) hold their entries the same way.
+Nothing about accounts, saved roadmaps,
 bookmarks or reviews is read. Fails with 503 and `Export Failed: Unable to retrieve school data at
 this time.` when the database is unreachable or holds no schools. The code is in
 [`core/dataset_export.py`](core/dataset_export.py).

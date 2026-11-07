@@ -9,7 +9,7 @@ from core.geolocation import LocationError
 from core.roadmap_ai import AIRoadmapGenerator, RoadmapAIError
 from core.settings import settings
 from models.base import SessionLocal
-from models.school_record import SchoolInfo, SchoolSubject
+from models.school_record import SchoolBenchmark, SchoolInfo, SchoolSubject
 from models.user import UserError
 from schemas.roadmap import CreateRoadmapRequest
 from tests.conftest import client
@@ -20,6 +20,13 @@ PAYLOAD = {"stage": "secondary", "postal": "556000", "previous_academic_score": 
 def error(response):
     body = response.status_code, response.json()["detail"]
     return next((e for e in RoadmapAIError if e.value == body), None)
+
+
+def pool_of(*schools):
+    """The schools as the generators receive them: read back with their entry figures loaded."""
+    ids = {school.id for school in schools}
+    found, _ = SchoolInfo.search(limit=100, load_benchmarks=True)
+    return [school for school in found if school.id in ids]
 
 
 def generate(authenticated, payload=PAYLOAD):
@@ -113,12 +120,48 @@ class TestGenerateAI:
             llp_title="Service",
         )
         request = CreateRoadmapRequest(stage="secondary", postal="556000")
-        prompt = AIRoadmapGenerator._build_prompt(request, [school])
+        prompt = AIRoadmapGenerator._build_prompt(request, pool_of(school))
         # Every candidate is sent, so the long free text is left out to keep the answer fast.
         for left_out in ("1 LONG ROAD", "Robotics", "Service", "Mixed"):
             assert left_out not in prompt
         for kept in ("First", "556000", "250"):
             assert kept in prompt
+        # A school with no entry figures sends none.
+        assert "entry_figures" not in prompt.split("Candidate schools (JSON):")[1]
+
+    def test_prompt_carries_the_latest_entry_figures_of_a_school(self):
+        school = SchoolInfo.create(
+            school_key="first", school_name="First JC", mainlevel_code="JUNIOR COLLEGE"
+        )
+        with SessionLocal() as session:
+            session.add_all(
+                SchoolBenchmark(
+                    school_id=school.id, year=year, measure="L1R5", low=low, high=high
+                )
+                for year, low, high in ((2024, 3, 9), (2025, 4, 8))
+            )
+            session.commit()
+        request = CreateRoadmapRequest(
+            stage="postsec", previous_academic_score=10, previous_academic_score_b=14
+        )
+        prompt = AIRoadmapGenerator._build_prompt(request, pool_of(school))
+        assert '"entry_figures":{"L1R5":{"year":2025,"low":4.0,"high":8.0}}' in prompt
+        assert "Previous academic score: L1R5 10, ELR2B2 14\n" in prompt
+
+    @pytest.mark.parametrize(
+        ("scores", "written"),
+        [
+            ({"previous_academic_score": 10}, "L1R5 10"),
+            ({"previous_academic_score_b": 14}, "ELR2B2 14"),
+            ({}, "not provided"),
+        ],
+    )
+    def test_the_post_secondary_prompt_names_each_aggregate_given(
+        self, scores, written
+    ):
+        request = CreateRoadmapRequest(stage="postsec", **scores)
+        prompt = AIRoadmapGenerator._build_prompt(request, [])
+        assert f"Previous academic score: {written}\n" in prompt
 
     def test_without_an_api_key_openai_is_not_called(self, authenticated, monkeypatch):
         SchoolInfo.create(
@@ -175,26 +218,6 @@ class TestGenerateRule:
             headers=headers(authenticated),
         )
         assert response.json() == {"choices": [], "schools": []}
-
-    def test_post_secondary_prefers_schools_with_more_subjects(self, authenticated):
-        few = SchoolInfo.create(
-            school_key="few", school_name="Few JC", mainlevel_code="JUNIOR COLLEGE"
-        )
-        many = SchoolInfo.create(
-            school_key="many", school_name="Many JC", mainlevel_code="JUNIOR COLLEGE"
-        )
-        with SessionLocal() as session:
-            session.add(SchoolSubject(school_id=few.id, name="Art"))
-            session.add_all(
-                SchoolSubject(school_id=many.id, name=name) for name in ("Art", "Music")
-            )
-            session.commit()
-        response = client.post(
-            "/roadmap/generate-rule-roadmap",
-            json={"stage": "postsec"},
-            headers=headers(authenticated),
-        )
-        assert response.json()["choices"] == [many.id, few.id]
 
     def test_secondary_prefers_the_nearest_school_for_a_top_score(self, authenticated):
         # Postal sector 55 is the Hougang district (north-east); sector 60 is Jurong (west).
@@ -350,33 +373,6 @@ class TestRuleSortAndDistanceLimit:
             choices = rule_choices(authenticated, stage="primary", sort_by=sort_by)
             assert choices == [near.id, far.id]
 
-    def test_post_secondary_sorts_by_distance_when_asked(self, authenticated):
-        def college(key, longitude, subjects):
-            school = SchoolInfo.create(
-                school_key=key,
-                school_name=key,
-                mainlevel_code="JUNIOR COLLEGE",
-                latitude=1.37,
-                longitude=longitude,
-            )
-            with SessionLocal() as session:
-                session.add_all(
-                    SchoolSubject(school_id=school.id, name=f"Subject {n}")
-                    for n in range(subjects)
-                )
-                session.commit()
-            return school
-
-        near, broad = college("near", 103.89, subjects=1), college("broad", 103.74, 3)
-        assert rule_choices(authenticated, stage="postsec", sort_by="grade") == [
-            broad.id,
-            near.id,
-        ]
-        assert rule_choices(authenticated, stage="postsec", sort_by="distance") == [
-            near.id,
-            broad.id,
-        ]
-
     def test_a_stage_without_a_rule_set_gives_an_empty_plan(self, authenticated):
         SchoolInfo.create(
             school_key="uni", school_name="Uni", mainlevel_code="UNIVERSITY"
@@ -531,3 +527,144 @@ class TestPostalValidation:
         response = generate(authenticated, {"stage": "secondary", "postal": postal})
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
         assert f"Residential postal code: {sent}\n" in prompts[0]
+
+
+def college(key, longitude=103.89, level="JUNIOR COLLEGE", **cutoffs):
+    """A post-secondary school at (1.37, longitude) with its latest cut-off per measure, as
+    {measure: high} or {measure: {year: high}}."""
+    school = SchoolInfo.create(
+        school_key=key,
+        school_name=key,
+        mainlevel_code=level,
+        latitude=1.37,
+        longitude=longitude,
+    )
+    rows = []
+    for measure, value in cutoffs.items():
+        years = value if isinstance(value, dict) else {2025: value}
+        rows += [
+            SchoolBenchmark(
+                school_id=school.id, year=year, measure=measure, low=1, high=high
+            )
+            for year, high in years.items()
+        ]
+    with SessionLocal() as session:
+        session.add_all(rows)
+        session.commit()
+    return school
+
+
+def postsec(authenticated, **payload):
+    return rule_choices(authenticated, stage="postsec", **payload)
+
+
+class TestPostSecondaryByJaeCutoff:
+    """Postal sector 55 is the Hougang district, centred at (1.37, 103.893)."""
+
+    def test_schools_whose_cutoff_the_l1r5_is_within_come_first(self, authenticated):
+        hard = college("hard", L1R5=8)
+        easy = college("easy", L1R5=12)
+        assert postsec(authenticated, previous_academic_score=10) == [easy.id, hard.id]
+
+    def test_a_better_aggregate_reaches_every_school_so_distance_decides(
+        self, authenticated
+    ):
+        near = college("near", 103.89, L1R5=8)
+        far = college("far", 103.74, L1R5=12)
+        assert postsec(authenticated, previous_academic_score=5) == [near.id, far.id]
+
+    def test_an_aggregate_equal_to_the_cutoff_is_within_reach(self, authenticated):
+        far = college("far", 103.74, L1R5=10)
+        near = college("near", 103.89, L1R5=9)
+        assert postsec(authenticated, previous_academic_score=10) == [far.id, near.id]
+
+    def test_schools_out_of_reach_follow_the_nearest_miss_first(self, authenticated):
+        close = college("close", L1R5=15)
+        distant = college("distant", L1R5=10)
+        reachable = college("reachable", L1R5=30)
+        assert postsec(authenticated, previous_academic_score=20) == [
+            reachable.id,
+            close.id,
+            distant.id,
+        ]
+
+    def test_a_school_without_a_cutoff_comes_between_the_two(self, authenticated):
+        out = college("out", L1R5=5)
+        unknown = college("unknown")
+        within = college("within", L1R5=20)
+        assert postsec(authenticated, previous_academic_score=10) == [
+            within.id,
+            unknown.id,
+            out.id,
+        ]
+
+    def test_the_most_recent_year_decides(self, authenticated):
+        changed = college("changed", L1R5={2023: 30, 2025: 5})
+        steady = college("steady", L1R5={2025: 20})
+        assert postsec(authenticated, previous_academic_score=10) == [
+            steady.id,
+            changed.id,
+        ]
+
+    def test_polytechnics_are_compared_on_the_elr2b2(self, authenticated):
+        hard = college("hard", level="POLYTECHNIC", ELR2B2=12)
+        easy = college("easy", level="POLYTECHNIC", ELR2B2=24)
+        assert postsec(authenticated, previous_academic_score_b=15) == [
+            easy.id,
+            hard.id,
+        ]
+
+    def test_each_aggregate_is_only_compared_with_its_own_cutoff(self, authenticated):
+        # An ELR2B2 of 6 would be within the junior college's cut-off of 8 if the two were mixed up.
+        jc = college("jc", L1R5=8)
+        poly = college("poly", level="POLYTECHNIC", ELR2B2=10)
+        assert postsec(
+            authenticated, previous_academic_score=20, previous_academic_score_b=6
+        ) == [poly.id, jc.id]
+
+    def test_a_school_with_no_cutoff_for_the_aggregate_given_is_unknown(
+        self, authenticated
+    ):
+        poly = college("poly", level="POLYTECHNIC", ELR2B2=25)
+        jc = college("jc", 103.74, L1R5=15)
+        # Only an L1R5 was given, which says nothing about the polytechnic.
+        assert postsec(authenticated, previous_academic_score=10) == [jc.id, poly.id]
+
+    def test_the_better_fit_of_a_school_with_both_cutoffs_counts(self, authenticated):
+        both = college("both", L1R5=5, ELR2B2=20)
+        other = college("other", 103.74, L1R5=15)
+        assert postsec(
+            authenticated, previous_academic_score=10, previous_academic_score_b=12
+        ) == [both.id, other.id]
+
+    def test_without_an_aggregate_the_nearest_comes_first(self, authenticated):
+        near = college("near", 103.89, L1R5=2)
+        far = college("far", 103.74, L1R5=40)
+        assert postsec(authenticated, sort_by="grade") == [near.id, far.id]
+
+    def test_sorting_by_distance_ignores_the_cutoffs(self, authenticated):
+        near = college("near", 103.89, L1R5=2)
+        far = college("far", 103.74, L1R5=40)
+        assert postsec(
+            authenticated, sort_by="distance", previous_academic_score=20
+        ) == [near.id, far.id]
+
+    def test_the_number_of_subjects_no_longer_counts(self, authenticated):
+        few = college("few", 103.89)
+        many = college("many", 103.74)
+        with SessionLocal() as session:
+            session.add_all(
+                SchoolSubject(school_id=many.id, name=f"Subject {n}") for n in range(5)
+            )
+            session.commit()
+        assert postsec(authenticated, sort_by="grade") == [few.id, many.id]
+
+    def test_the_distance_limit_applies_before_the_cutoffs(self, authenticated):
+        near = college("near", 103.89, L1R5=12)
+        college("far", 103.74, L1R5=20)
+        assert postsec(
+            authenticated,
+            previous_academic_score=15,
+            sort_by="grade",
+            max_distance_km=10,
+        ) == [near.id]

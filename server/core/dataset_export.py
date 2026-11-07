@@ -35,7 +35,8 @@ class SchoolDatasetExporter:
     their entries separated by "; ", and each entry of `ccas` is
     "grouping | section | category | customised name". `programmes` (name, field, fee for
     citizens, permanent residents, international students, misc fee), `financial_aid` (name,
-    note) and `scholarships` (name, source, eligibility) hold their entries the same way.
+    note) and `scholarships` (name, source, eligibility) hold their entries the same way, as
+    does `benchmarks` (year, measure, low, high), the latest year first.
     Nothing about users, saved roadmaps or reviews is read (REQ-5.13).
     """
 
@@ -49,6 +50,7 @@ class SchoolDatasetExporter:
         "programmes",
         "financial_aid",
         "scholarships",
+        "benchmarks",
     )
 
     @classmethod
@@ -111,5 +113,8 @@ class SchoolDatasetExporter:
             ),
             LIST_SEPARATOR.join(
                 cls._entry(s.name, s.source, s.eligibility) for s in school.scholarships
+            ),
+            LIST_SEPARATOR.join(
+                cls._entry(b.year, b.measure, b.low, b.high) for b in school.benchmarks
             ),
         ]

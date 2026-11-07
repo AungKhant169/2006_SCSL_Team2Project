@@ -3,6 +3,7 @@ import json
 from fastapi import status
 from openai import APITimeoutError, OpenAI, OpenAIError
 
+from core.benchmarks import Measure
 from core.exceptions import BaseError
 from core.geolocation import validate_postal
 from core.rate_limit import RateLimitError, ai_limiter
@@ -43,15 +44,20 @@ STAGE_NOTES = {
         "which is on a different scale (higher is more selective). Compare them by "
         "position: AL 4 matches the highest cut-off among the candidates and AL 32 the "
         "lowest. The cut-off is only indicative. Schools without a cut-off are unknown "
-        "quantities."
+        "quantities. Where entry_figures has PSLE_AL, it is the AL range of the students "
+        "posted to the school in a year (low is the best, high the cut-off)."
     ),
     "postsec": (
-        "The score is an O-Level aggregate (lower is better), but there are no cut-offs "
-        "in the data. Junior colleges and polytechnics suit different students."
+        "The scores are O-Level aggregates (lower is better): L1R5 is for junior colleges "
+        "and Millennia Institute, ELR2B2 for polytechnics and ITE. entry_figures lists the "
+        "latest JAE cut-off of a school by measure: a student whose aggregate is at most "
+        "high has been admitted before. Schools without entry_figures are unknown "
+        "quantities. Junior colleges and polytechnics suit different students."
     ),
     "uni": (
-        "The score is the student's polytechnic GPA (0 to 4, higher is better). There "
-        "are no admission cut-offs in the data."
+        "The score is the student's polytechnic GPA (0 to 4, higher is better). Where "
+        "entry_figures has GPA, low and high are the 10th and 90th percentile GPA of the "
+        "students admitted. Schools without entry_figures are unknown quantities."
     ),
 }
 
@@ -80,13 +86,18 @@ STAGE_CRITERIA = {
     ],
     "postsec": [
         (
-            "Use the score only as a rough guide to how selective the choices should be, "
-            "and mix junior colleges and polytechnics where possible."
+            "Rank realistic fits first: schools whose latest cut-off in entry_figures the "
+            "student's aggregate is within. Where possible mix junior colleges and "
+            "polytechnics, and include one slightly ambitious choice."
         ),
         "Do not consider distance; choose on programmes and fit only.",
     ],
     "uni": [
-        "Use the score only as a rough guide to how selective the choices should be.",
+        (
+            "Rank realistic fits first: schools whose GPA range in entry_figures the "
+            "student's GPA reaches. Otherwise use the score only as a rough guide to how "
+            "selective the choices should be."
+        ),
         "Do not consider distance; choose on programmes and fit only.",
     ],
 }
@@ -140,6 +151,12 @@ def _describe(school: SchoolInfo) -> dict:
         # The IB column holds Y or N, the others Yes or No.
         if (value or "").strip().lower() in ("yes", "y")
     ]
+    # The latest year of each entry figure the school has, as {measure: {year, low, high}}.
+    figures = {
+        measure: {"year": row.year, "low": row.low, "high": row.high}
+        for measure in Measure
+        if (row := school.latest_benchmark(measure))
+    }
     details = {
         "id": school.id,
         "name": school.school_name,
@@ -148,9 +165,12 @@ def _describe(school: SchoolInfo) -> dict:
         "zone": school.zone,
         "postal_code": school.postal_code,
         "psle_2017_cutoff": school.psle_2017_cutoff,
+        "entry_figures": figures,
         "programmes": flags,
     }
-    return {key: value for key, value in details.items() if value not in (None, "", [])}
+    return {
+        key: value for key, value in details.items() if value not in (None, "", [], {})
+    }
 
 
 class AIRoadmapGenerator:
@@ -199,7 +219,7 @@ class AIRoadmapGenerator:
 
     @staticmethod
     def _build_prompt(request: CreateRoadmapRequest, schools: list[SchoolInfo]) -> str:
-        score = request.previous_academic_score
+        score = AIRoadmapGenerator._score_text(request)
         criteria = [
             "Only use ids that appear in the candidate list. Never invent or repeat an id.",
             *STAGE_CRITERIA[request.stage],
@@ -208,13 +228,29 @@ class AIRoadmapGenerator:
         ]
         return PROMPT.format(
             stage=request.stage,
-            score="not provided" if score is None else score,
+            score=score,
             postal=request.postal or "not provided",
             note=STAGE_NOTES[request.stage],
             schools=json.dumps([_describe(s) for s in schools], separators=(",", ":")),
             length=PLAN_LENGTH,
             criteria="\n".join(f"{n}. {text}" for n, text in enumerate(criteria, 1)),
         )
+
+    @staticmethod
+    def _score_text(request: CreateRoadmapRequest) -> str | float:
+        """What the student scored. Post-secondary has two aggregates, so each is named."""
+        first, second = (
+            request.previous_academic_score,
+            request.previous_academic_score_b,
+        )
+        if request.stage == "postsec":
+            named = (
+                f"{name} {score:g}"
+                for name, score in (("L1R5", first), ("ELR2B2", second))
+                if score is not None
+            )
+            return ", ".join(named) or "not provided"
+        return "not provided" if first is None else first
 
     @staticmethod
     def _parse_choices(content: str | None, valid: set[int]) -> list[int]:

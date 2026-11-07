@@ -12,6 +12,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, selectinload
 
+from core.benchmarks import Measure
 from core.exceptions import BaseError
 from models.base import Base, Persistable, SessionLocal
 
@@ -121,6 +122,9 @@ class SchoolInfo(Base, Persistable):
     scholarship_rows: Mapped[list["SchoolScholarship"]] = relationship(
         cascade="all, delete-orphan"
     )
+    benchmark_rows: Mapped[list["SchoolBenchmark"]] = relationship(
+        cascade="all, delete-orphan"
+    )
 
     @property
     def stages(self) -> list[str]:
@@ -160,6 +164,16 @@ class SchoolInfo(Base, Persistable):
     @property
     def scholarships(self) -> list["SchoolScholarship"]:
         return sorted(self.scholarship_rows, key=lambda r: r.name)
+
+    @property
+    def benchmarks(self) -> list["SchoolBenchmark"]:
+        """Every yearly entry figure of the school, the latest year first."""
+        return sorted(self.benchmark_rows, key=lambda r: (-r.year, r.measure))
+
+    def latest_benchmark(self, measure: Measure) -> "SchoolBenchmark | None":
+        """The figure of the most recent year for the measure, if the school has one."""
+        rows = [r for r in self.benchmark_rows if r.measure == measure]
+        return max(rows, key=lambda r: r.year, default=None)
 
     @property
     def bus_numbers(self) -> list[str]:
@@ -215,14 +229,14 @@ class SchoolInfo(Base, Persistable):
         places_max=None,
         limit=50,
         offset=0,
-        load_programmes=False,
+        load_benchmarks=False,
     ):
         """Every filter given must match. For the repeatable ones (bus, subject, cca,
-        moe_programme) the school must have ALL the values listed. With load_programmes
-        the subjects and CCAs are loaded too, so subjects_count and cca_count can be read."""
+        moe_programme) the school must have ALL the values listed. With load_benchmarks
+        the yearly entry figures are loaded too, so benchmarks can be read."""
         stmt = select(cls)
-        if load_programmes:
-            stmt = stmt.options(selectinload(cls.subjects), selectinload(cls.ccas))
+        if load_benchmarks:
+            stmt = stmt.options(selectinload(cls.benchmark_rows))
 
         def add(condition):
             nonlocal stmt
@@ -384,6 +398,7 @@ class SchoolInfo(Base, Persistable):
                 selectinload(cls.programme_rows),
                 selectinload(cls.aid_rows),
                 selectinload(cls.scholarship_rows),
+                selectinload(cls.benchmark_rows),
             )
         )
         with SessionLocal() as db:
@@ -402,6 +417,7 @@ class SchoolInfo(Base, Persistable):
                 selectinload(cls.programme_rows),
                 selectinload(cls.aid_rows),
                 selectinload(cls.scholarship_rows),
+                selectinload(cls.benchmark_rows),
             )
         )
         with SessionLocal() as db:
@@ -489,3 +505,17 @@ class SchoolScholarship(Base):
     name: Mapped[str] = mapped_column(String(200))
     source: Mapped[str | None] = mapped_column(String(200))
     eligibility: Mapped[str | None] = mapped_column(String(500))
+
+
+class SchoolBenchmark(Base):
+    """One year of one entry figure of a school: see core.benchmarks.Measure."""
+
+    __tablename__ = "school_benchmarks"
+
+    school_id: Mapped[int] = mapped_column(
+        ForeignKey("schools.id", ondelete="CASCADE"), index=True
+    )
+    year: Mapped[int] = mapped_column(Integer)
+    measure: Mapped[str] = mapped_column(String(10))
+    low: Mapped[float] = mapped_column(Float)
+    high: Mapped[float] = mapped_column(Float)

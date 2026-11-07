@@ -11,7 +11,10 @@ RuleSort = Literal["distance", "grade"]
 class CreateRoadmapRequest(BaseModel):
     stage: Stage
     postal: str | None = None
+    # The PSLE AL (secondary), the O-Level L1R5 (post-secondary) or the polytechnic GPA (university).
     previous_academic_score: float | None = None
+    # The O-Level ELR2B2 (post-secondary), for the polytechnics and ITE that admit on it.
+    previous_academic_score_b: float | None = None
 
 
 class CreateRuleRoadmapRequest(CreateRoadmapRequest):

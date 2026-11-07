@@ -1,6 +1,12 @@
 import pandas as pd
+import pytest
 
-from core.school_cleaning import REQUIRED_COLUMNS, clean_schools, identify_frame
+from core.school_cleaning import (
+    REQUIRED_COLUMNS,
+    SchoolDataError,
+    clean_schools,
+    identify_frame,
+)
 
 
 def frame(key, rows=()):
@@ -202,3 +208,131 @@ class TestProgrammesAidAndScholarships:
             identify_frame(frame("scholarships", [{"school_name": "A"}]))
             == "scholarships"
         )
+
+
+def bench(**fields):
+    return {
+        "school_name": "ALPHA POLYTECHNIC",
+        "year": 2025,
+        "measure": "ELR2B2",
+        **fields,
+    }
+
+
+class TestBenchmarks:
+    def test_rows_become_numbers_for_the_school(self):
+        dataset = clean(
+            GENERAL,
+            benchmarks=[bench(low="5", high="22"), bench(year="2024", low=6, high=24)],
+        )
+        assert dataset.benchmarks == [
+            {
+                "school_key": "alpha polytechnic",
+                "year": 2025,
+                "measure": "ELR2B2",
+                "low": 5.0,
+                "high": 22.0,
+            },
+            {
+                "school_key": "alpha polytechnic",
+                "year": 2024,
+                "measure": "ELR2B2",
+                "low": 6.0,
+                "high": 24.0,
+            },
+        ]
+
+    def test_a_blank_high_is_a_single_figure(self):
+        dataset = clean(GENERAL, benchmarks=[bench(measure="L1R5", low=7)])
+        assert (dataset.benchmarks[0]["low"], dataset.benchmarks[0]["high"]) == (7, 7)
+
+    @pytest.mark.parametrize(
+        ("written", "measure"),
+        [
+            ("elr2b2", "ELR2B2"),
+            (" L1R5 ", "L1R5"),
+            ("PSLE AL", "PSLE_AL"),
+            ("psle-al", "PSLE_AL"),
+            ("gpa", "GPA"),
+        ],
+    )
+    def test_the_measure_may_be_written_loosely(self, written, measure):
+        dataset = clean(GENERAL, benchmarks=[bench(measure=written, low=1, high=2)])
+        assert dataset.benchmarks[0]["measure"] == measure
+
+    @pytest.mark.parametrize(
+        "row",
+        [
+            {"measure": "CGPA"},
+            {"measure": None},
+            {"year": "last year"},
+            {"year": 2025.5},
+            {"year": None},
+            {"low": None},
+            {"low": "n/a"},
+        ],
+        ids=[
+            "unknown-measure",
+            "no-measure",
+            "text-year",
+            "fractional-year",
+            "no-year",
+            "no-low",
+            "text-low",
+        ],
+    )
+    def test_a_row_that_cannot_be_used_refuses_the_file(self, row):
+        with pytest.raises(SchoolDataError, match="benchmarks"):
+            clean(GENERAL, benchmarks=[bench(**{"low": 5, "high": 22, **row})])
+
+    def test_the_error_names_the_line_of_the_file(self):
+        rows = [
+            bench(low=5, high=22),
+            bench(year=2024, low=5, high=22),
+            bench(measure="X", low=1),
+        ]
+        with pytest.raises(SchoolDataError, match="line 4"):
+            clean(GENERAL, benchmarks=rows)
+
+    def test_a_low_figure_above_the_high_one_refuses_the_file(self):
+        with pytest.raises(SchoolDataError, match="low figure is above"):
+            clean(GENERAL, benchmarks=[bench(low=30, high=22)])
+
+    def test_rows_for_unknown_schools_are_skipped_with_a_warning(self):
+        dataset = clean(GENERAL, benchmarks=[bench(school_name="GHOST", low=1, high=2)])
+        assert dataset.benchmarks == []
+        assert any(
+            "'benchmarks': 1 name(s) match no school" in w for w in dataset.warnings
+        )
+
+    def test_a_repeated_year_keeps_the_last_row_and_warns(self):
+        dataset = clean(
+            GENERAL, benchmarks=[bench(low=5, high=22), bench(low=6, high=23)]
+        )
+        assert [(b["low"], b["high"]) for b in dataset.benchmarks] == [(6, 23)]
+        assert any("repeated" in w for w in dataset.warnings)
+
+    def test_an_empty_file_is_fine(self):
+        assert clean(GENERAL, benchmarks=[]).benchmarks == []
+
+    def test_the_file_may_be_left_out_altogether(self):
+        raw = {key: frame(key) for key in REQUIRED_COLUMNS if key != "benchmarks"}
+        raw["general"] = frame("general", GENERAL)
+        raw["sdp"] = pd.DataFrame(
+            columns=[
+                "school_name",
+                "alp_domain",
+                "alp_title",
+                "llp_domain1",
+                "llp_title",
+            ]
+        )
+        assert len(clean_schools(raw).schools) == 1
+
+    def test_other_files_may_not_be_left_out(self):
+        raw = {key: frame(key) for key in REQUIRED_COLUMNS if key != "moe"}
+        with pytest.raises(SchoolDataError, match="moe"):
+            clean_schools(raw)
+
+    def test_the_file_is_recognised_by_its_headers(self):
+        assert identify_frame(frame("benchmarks", [bench()])) == "benchmarks"

@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from enum import IntEnum
 
+from core.benchmarks import Measure
 from core.geolocation import Geolocation, validate_postal
 from core.roadmap_pool import candidate_pool
 from models.roadmap import PLAN_LENGTH
@@ -13,7 +14,8 @@ RULE_STAGES = ("primary", "secondary", "postsec")
 
 
 class Reach(IntEnum):
-    """Comparison of a score to the cutoff of a school using T-score spanned over 2017 cutoff as the basis."""
+    """Comparison of a score to the cutoff of a school: the 2017 PSLE T-score cutoff (spanned over
+    the candidates) for secondary schools, the latest JAE cutoff for post-secondary ones."""
 
     WITHIN = 0  # within reach
     UNKNOWN = 1  # missing school data
@@ -63,8 +65,12 @@ class RuleRoadmapGenerator:
                 )
                 return lambda s: cls._reach_key(strength, cls._scaled_score(s, bounds))
             case "postsec":
-                # TODO: Add more vectors to better fit the recommendations.
-                return cls._programme_key
+                # The L1R5 is for junior colleges, the ELR2B2 for polytechnics and ITE.
+                scores = {
+                    Measure.L1R5: request.previous_academic_score,
+                    Measure.ELR2B2: request.previous_academic_score_b,
+                }
+                return lambda s: cls._jae_key(s, scores)
 
     @classmethod
     def _within(
@@ -100,9 +106,28 @@ class RuleRoadmapGenerator:
         distance = cls._distance_km(school, origin)
         return (distance is None, distance or 0.0)
 
-    @staticmethod
-    def _programme_key(school: SchoolInfo) -> tuple[int, int]:
-        return (-(school.subjects_count or 0), -(school.cca_count or 0))
+    @classmethod
+    def _jae_key(
+        cls, school: SchoolInfo, scores: dict[Measure, float | None]
+    ) -> tuple[Reach, float]:
+        """How the student's O-Level aggregates compare with the school's latest JAE cut-off.
+
+        An aggregate within the cut-off (lower is better) is within reach; otherwise the schools
+        that are only a little out of reach come first. A school with no cut-off for an aggregate
+        the student has is unknown. Without any aggregate, no school is ranked above another."""
+        if all(score is None for score in scores.values()):
+            return (Reach.WITHIN, 0.0)
+
+        fits = []
+        for measure, score in scores.items():
+            cutoff = school.latest_benchmark(measure)
+            if score is None or cutoff is None:
+                continue
+            if score <= cutoff.high:
+                fits.append((Reach.WITHIN, 0.0))
+            else:
+                fits.append((Reach.BEYOND, score - cutoff.high))
+        return min(fits, default=(Reach.UNKNOWN, 0.0))
 
     @staticmethod
     def _reach_key(

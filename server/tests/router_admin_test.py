@@ -3,6 +3,7 @@ import io
 import re
 from datetime import datetime, timezone
 
+import pandas as pd
 import pytest
 from fastapi import status
 from sqlalchemy.exc import OperationalError
@@ -14,6 +15,7 @@ from core.settings import settings
 from models.base import SessionLocal
 from models.school_record import (
     SchoolAid,
+    SchoolBenchmark,
     SchoolBus,
     SchoolCca,
     SchoolInfo,
@@ -135,6 +137,46 @@ class TestUpdateDataset:
         assert (raw_dir / "moe.csv").read_bytes() == MOE_CSV.read_bytes()
         assert not SchoolDatasetUpdater._lock.locked()
 
+    def test_loads_the_yearly_benchmarks_of_an_uploaded_file(self, admin, raw_dir):
+        general = pd.read_csv(school_import.BUNDLED_DIR / "general.csv")
+        name = general.school_name[general.mainlevel_code == "POLYTECHNIC"].iloc[0]
+        benchmarks = (
+            "school_name,year,measure,low,high\n"
+            f"{name},2024,ELR2B2,6,24\n"
+            f"{name},2025,elr2b2,5,22\n"
+        ).encode()
+
+        body = update(admin, ("benchmarks.csv", benchmarks, "text/csv")).json()
+
+        assert body["benchmarks"] == 2
+        with SessionLocal() as db:
+            years = [
+                (b.year, b.measure, b.low, b.high) for b in db.query(SchoolBenchmark)
+            ]
+        assert sorted(years) == [(2024, "ELR2B2", 6, 24), (2025, "ELR2B2", 5, 22)]
+        assert (raw_dir / "benchmarks.csv").read_bytes() == benchmarks
+
+    def test_a_later_update_without_benchmarks_uses_the_stored_file(
+        self, admin, raw_dir
+    ):
+        general = pd.read_csv(school_import.BUNDLED_DIR / "general.csv")
+        name = general.school_name[general.mainlevel_code == "POLYTECHNIC"].iloc[0]
+        benchmarks = f"school_name,year,measure,low,high\n{name},2025,ELR2B2,5,22\n"
+        update(admin, ("benchmarks.csv", benchmarks.encode(), "text/csv"))
+
+        body = update(admin, ("moe.csv", MOE_CSV.read_bytes(), "text/csv")).json()
+
+        assert body["benchmarks"] == 1
+
+    def test_benchmarks_with_an_unknown_measure_change_nothing(self, admin, raw_dir):
+        general = pd.read_csv(school_import.BUNDLED_DIR / "general.csv")
+        name = general.school_name[general.mainlevel_code == "POLYTECHNIC"].iloc[0]
+        bad = f"school_name,year,measure,low,high\n{name},2025,CGPA,3,4\n".encode()
+        response = update(admin, ("benchmarks.csv", bad, "text/csv"))
+        assert error(response, DatasetUpdateError) == DatasetUpdateError.PARSE_FAILURE
+        assert SchoolInfo.count() == 0
+        assert list(raw_dir.iterdir()) == []
+
     def test_a_second_run_updates_in_place(self, admin, raw_dir):
         first = update(admin, ("moe.csv", MOE_CSV.read_bytes(), "text/csv")).json()
         second = update(admin, ("moe.csv", MOE_CSV.read_bytes(), "text/csv")).json()
@@ -219,6 +261,10 @@ def add_schools():
                         )
                     ],
                     aid_rows=[SchoolAid(name="MOE FAS", note="100% fee subsidy")],
+                    benchmark_rows=[
+                        SchoolBenchmark(year=2024, measure="ELR2B2", low=9, high=21),
+                        SchoolBenchmark(year=2025, measure="ELR2B2", low=8.5, high=20),
+                    ],
                     scholarship_rows=[
                         SchoolScholarship(
                             name="Gold",
@@ -269,7 +315,7 @@ class TestExportDataset:
         header = next(csv.reader(io.StringIO(export(admin).text)))
         table_columns = {c.name for c in SchoolInfo.__table__.columns} - {"id"}
         assert table_columns <= set(header)
-        assert header[-7:] == [
+        assert header[-8:] == [
             "subjects",
             "ccas",
             "moe_programmes",
@@ -277,6 +323,7 @@ class TestExportDataset:
             "programmes",
             "financial_aid",
             "scholarships",
+            "benchmarks",
         ]
 
     def test_has_one_row_per_school_by_name(self, admin):
@@ -316,6 +363,11 @@ class TestExportDataset:
         )
         assert alpha["financial_aid"] == "MOE FAS | 100% fee subsidy"
         assert alpha["scholarships"] == "Gold | School | Top students"
+
+    def test_lists_the_yearly_benchmarks_latest_year_first(self, admin):
+        add_schools()
+        alpha = rows(export(admin))[0]
+        assert alpha["benchmarks"] == "2025 | ELR2B2 | 8.5 | 20; 2024 | ELR2B2 | 9 | 21"
 
     def test_leaves_missing_values_empty(self, admin):
         add_schools()

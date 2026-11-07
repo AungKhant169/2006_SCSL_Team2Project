@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from core.benchmarks import Measure
+
 
 class SchoolDataError(ValueError):
     """The uploaded files cannot be turned into a valid dataset."""
@@ -63,9 +65,12 @@ REQUIRED_COLUMNS = {
     ],
     "financial_aid": ["school_name", "aid_name", "aid_note"],
     "scholarships": ["school_name", "scholarship_name", "source", "eligibility"],
+    "benchmarks": ["school_name", "year", "measure", "low", "high"],
 }
 
 FILE_KEYS = tuple(REQUIRED_COLUMNS)
+# Files an update can do without. Without one, its table is left empty.
+OPTIONAL_FILES = frozenset({"benchmarks"})
 
 # Each file kind is recognised by a header only it has (so file names do not matter).
 SIGNATURE_COLUMNS = {
@@ -79,6 +84,7 @@ SIGNATURE_COLUMNS = {
     "programmes": {"fee_sc"},
     "financial_aid": {"aid_name"},
     "scholarships": {"scholarship_name"},
+    "benchmarks": {"measure", "year"},
 }
 
 # Names in the extra files that differ from the general-information file.
@@ -122,6 +128,9 @@ class CleanDataset:
     scholarships: list[dict] = field(
         default_factory=list
     )  # {school_key, name, source, eligibility}
+    benchmarks: list[dict] = field(
+        default_factory=list
+    )  # {school_key, year, measure, low, high}
     warnings: list[str] = field(default_factory=list)
 
 
@@ -211,12 +220,57 @@ def _to_number(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
 
 
+def _clean_benchmarks(df: pd.DataFrame, warnings: list[str]) -> list[dict]:
+    """The yearly entry figures: a whole-number year, a known measure and a `low` figure are
+    required on every row (the file is refused otherwise). A blank `high` means a single figure."""
+    if df.empty:
+        return []
+    rows = df[["school_key", "year", "measure", "low", "high"]].copy()
+    rows["year"] = _to_number(rows["year"])
+    rows["low"] = _to_number(rows["low"])
+    rows["high"] = _to_number(rows["high"])
+    rows["measure"] = rows["measure"].map(
+        lambda v: re.sub(r"[\s-]+", "_", v.strip().upper()) if isinstance(v, str) else v
+    )
+
+    invalid = (
+        rows["year"].isna()
+        | (rows["year"] % 1 != 0)
+        | rows["low"].isna()
+        | ~rows["measure"].isin([m.value for m in Measure])
+    )
+    if invalid.any():
+        lines = ", ".join(str(i + 2) for i in rows.index[invalid][:5])
+        raise SchoolDataError(
+            f"The 'benchmarks' file has {int(invalid.sum())} row(s) without a whole-number "
+            f"year, a low figure, or one of the measures "
+            f"{', '.join(m.value for m in Measure)} (e.g. on line {lines})."
+        )
+    rows["high"] = rows["high"].fillna(rows["low"])
+    if (rows["low"] > rows["high"]).any():
+        raise SchoolDataError(
+            "The 'benchmarks' file has row(s) whose low figure is above the high figure."
+        )
+
+    key = ["school_key", "year", "measure"]
+    repeated = int(rows.duplicated(key).sum())
+    if repeated:
+        warnings.append(
+            f"{repeated} repeated year(s) of a school's benchmark were ignored "
+            "(the last one is used)."
+        )
+        rows = rows.drop_duplicates(key, keep="last")
+    rows["year"] = rows["year"].astype(int)
+    return rows.to_dict("records")
+
+
 # ---------------------------------------------------------------- main function
 
 
 def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
-    """raw: {'general': DataFrame, 'ccas': DataFrame, ...} for every key in FILE_KEYS."""
-    missing = [k for k in FILE_KEYS if k not in raw]
+    """raw: {'general': DataFrame, 'ccas': DataFrame, ...} for every key in FILE_KEYS, except
+    the OPTIONAL_FILES, which may be left out."""
+    missing = [k for k in FILE_KEYS if k not in raw and k not in OPTIONAL_FILES]
     if missing:
         raise SchoolDataError(f"Missing file(s): {', '.join(missing)}")
 
@@ -406,6 +460,12 @@ def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
     scholarships = scholarships.rename(columns={"scholarship_name": "name"})
     scholarships = scholarships.astype(object).where(scholarships.notna(), None)
 
+    benchmarks = (
+        _clean_benchmarks(keep(dfs["benchmarks"]), warnings)
+        if "benchmarks" in dfs
+        else []
+    )
+
     return CleanDataset(
         schools=merged.to_dict("records"),
         subjects=subjects.to_dict("records"),
@@ -415,5 +475,6 @@ def clean_schools(raw: dict[str, pd.DataFrame]) -> CleanDataset:
         programmes=programmes.to_dict("records"),
         financial_aid=aid.to_dict("records"),
         scholarships=scholarships.to_dict("records"),
+        benchmarks=benchmarks,
         warnings=warnings,
     )
