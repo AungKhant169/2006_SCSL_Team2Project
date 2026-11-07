@@ -32,6 +32,8 @@ export interface SchoolSummaryPayload {
   gendermix: string | null
   psle_2017_cutoff: number | null
   places_taken_phase2b: number | null
+  /** Only the directory list carries the course titles of a tertiary institution. */
+  courses?: string[]
 }
 
 interface CcaPayload {
@@ -134,6 +136,7 @@ export function toSchool(payload: SchoolSummaryPayload, requested?: DirectoryTie
     longitude: payload.longitude,
     distanceKm: null,
     ...benchmarkOf(tier, payload),
+    courseTitles: payload.courses ?? [],
     courses: [],
     aid: [],
     scholarships: [],

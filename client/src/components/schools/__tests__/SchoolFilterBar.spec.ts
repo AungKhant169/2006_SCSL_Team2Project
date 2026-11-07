@@ -86,6 +86,59 @@ describe('SchoolFilterBar (REQ-1.1 to REQ-1.5, REQ-1.15)', () => {
       expect(wrapper.text()).not.toContain('Field of study')
     })
 
+    describe('course (REQ-1.1, REQ-1.4)', () => {
+      const COURSE = 'input[list="course-options"]'
+
+      async function mountOnPostsec() {
+        const mounted = await mountBar()
+        useDirectoryStore().tier = 'postsec'
+        await flushPromises()
+        return mounted
+      }
+
+      it('is not offered for a tier without courses', async () => {
+        const { wrapper } = await mountBar()
+        expect(wrapper.find(COURSE).exists()).toBe(false)
+        expect(wrapper.get(KEYWORD).attributes('placeholder')).toBe(
+          'School name or acronym (min. 2 characters)',
+        )
+      })
+
+      it('is offered for the tiers of tertiary institutions, and the keyword says it finds courses', async () => {
+        const { wrapper } = await mountOnPostsec()
+        expect(wrapper.text()).toContain('Course or programme')
+        expect(wrapper.get(KEYWORD).attributes('placeholder')).toBe(
+          'School name, acronym or course (min. 2 characters)',
+        )
+      })
+
+      it('suggests the course titles of the tier', async () => {
+        const { wrapper } = await mountOnPostsec()
+        const suggested = wrapper.findAll('datalist#course-options option')
+        expect(suggested.map((o) => o.attributes('value'))).toEqual([
+          'Humanities programme',
+          'Pre-university fees (monthly rate x 12)',
+        ])
+      })
+
+      it('typing a course drives the directory search', async () => {
+        const { wrapper } = await mountOnPostsec()
+        await wrapper.get(COURSE).setValue('humanities')
+        const directory = useDirectoryStore()
+        expect(directory.course).toBe('humanities')
+        expect(directory.matches.map((s) => s.name)).toEqual(['Eunoia Junior College'])
+      })
+
+      it('shows why a course was refused, linked to the field', async () => {
+        const { wrapper } = await mountOnPostsec()
+        const input = wrapper.get(COURSE)
+        await input.setValue('h')
+        const alert = wrapper.get('[role="alert"]')
+        expect(alert.text()).toBe('Enter at least 2 characters to search.')
+        expect(input.attributes('aria-describedby')).toBe(alert.attributes('id'))
+      })
+    })
+
     it('distance offers radius options', async () => {
       const { wrapper } = await mountBar()
       const select = wrapper.get('select[aria-label="Distance"]')
@@ -144,16 +197,18 @@ describe('SchoolFilterBar (REQ-1.1 to REQ-1.5, REQ-1.15)', () => {
     const { wrapper } = await mountBar()
     const directory = useDirectoryStore()
     directory.query = 'ro'
+    directory.course = 'humanities'
     directory.schoolType = 'Government'
     directory.distance = '1'
     directory.sort = 'za'
     const reset = wrapper.findAll('button').find((b) => b.text() === 'Reset all')!
     await reset.trigger('click')
-    expect([directory.query, directory.schoolType, directory.distance, directory.sort]).toEqual([
-      '',
-      '',
-      'any',
-      'az',
-    ])
+    expect([
+      directory.query,
+      directory.course,
+      directory.schoolType,
+      directory.distance,
+      directory.sort,
+    ]).toEqual(['', '', '', 'any', 'az'])
   })
 })

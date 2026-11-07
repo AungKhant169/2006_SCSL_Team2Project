@@ -78,6 +78,8 @@ export interface School {
   /** The tier's entry benchmark, or null when the dataset has none for this school. */
   benchmark: BenchmarkSpec | null
   history: BenchmarkPoint[]
+  /** Titles of the courses or degrees of a tertiary institution, to search by (REQ-1.1, REQ-1.4). */
+  courseTitles: string[]
   /*
    * Filled on the profile page from the school datasets (empty in the directory). A school with
    * none listed shows "Not available" (REQ-1.10).

@@ -153,6 +153,7 @@ export const SCHOOLS: ServerSchool[] = [
     [1.3157, 103.9331],
     {
       stages: ['postsec'],
+      courses: ['Pre-university fees (monthly rate x 12)'],
     },
   ),
   school(
@@ -163,6 +164,7 @@ export const SCHOOLS: ServerSchool[] = [
     [1.3414, 103.8333],
     {
       stages: ['postsec'],
+      courses: ['Pre-university fees (monthly rate x 12)', 'Humanities programme'],
     },
   ),
 ]
@@ -186,6 +188,7 @@ export function makeSchool(overrides: Partial<School> = {}): School {
     distanceKm: null,
     benchmark: null,
     history: [],
+    courseTitles: [],
     courses: [],
     aid: [],
     scholarships: [],

@@ -17,6 +17,12 @@ const typeOptions = computed(() => [
   ...directory.schoolTypes.map((value) => ({ value, label: value })),
 ])
 
+const keywordPlaceholder = computed(() =>
+  directory.searchesCourses
+    ? 'School name, acronym or course (min. 2 characters)'
+    : 'School name or acronym (min. 2 characters)',
+)
+
 const postalHint = computed(() => {
   if (directory.hasPostal) {
     return auth.loggedIn
@@ -44,8 +50,29 @@ const postalHint = computed(() => {
           v-model="directory.query"
           :aria-describedby="describedBy"
           :invalid="invalid"
-          placeholder="School name or acronym (min. 2 characters)"
+          :placeholder="keywordPlaceholder"
         />
+      </FormField>
+
+      <FormField
+        v-if="directory.searchesCourses"
+        v-slot="{ id, describedBy, invalid }"
+        label="Course or programme"
+        caps
+        class="flex-[1_1_220px]"
+        :error="directory.courseError"
+      >
+        <BaseInput
+          :id="id"
+          v-model="directory.course"
+          :aria-describedby="describedBy"
+          :invalid="invalid"
+          list="course-options"
+          placeholder="e.g. Computing, Nursing, Nitec"
+        />
+        <datalist id="course-options">
+          <option v-for="title in directory.courseTitles" :key="title" :value="title" />
+        </datalist>
       </FormField>
 
       <FormField v-slot="{ id }" label="School type" caps class="flex-[1_1_160px]">

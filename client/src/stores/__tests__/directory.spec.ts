@@ -120,6 +120,83 @@ describe('directory store (UC-1.1)', () => {
     expect(d.matches).toEqual([])
   })
 
+  describe('course search and filter (REQ-1.1, REQ-1.4)', () => {
+    /** The store on the post-secondary tier, whose junior colleges list their course titles. */
+    async function onPostsec() {
+      const d = await loaded()
+      d.tier = 'postsec'
+      await flushPromises()
+      return d
+    }
+
+    it('is offered for the tiers of tertiary institutions only', async () => {
+      const d = await loaded()
+      expect(d.searchesCourses).toBe(false)
+      d.tier = 'secondary'
+      expect(d.searchesCourses).toBe(false)
+      d.tier = 'postsec'
+      expect(d.searchesCourses).toBe(true)
+      d.tier = 'uni'
+      expect(d.searchesCourses).toBe(true)
+    })
+
+    it('suggests the course titles of the tier, sorted and listed once', async () => {
+      const d = await onPostsec()
+      expect(d.courseTitles).toEqual([
+        'Humanities programme',
+        'Pre-university fees (monthly rate x 12)',
+      ])
+    })
+
+    it('keeps the schools with a course whose title contains the text', async () => {
+      const d = await onPostsec()
+      d.course = 'humanities'
+      expect(d.matches.map((s) => s.name)).toEqual(['Eunoia Junior College'])
+      d.course = 'pre-university'
+      expect(d.matches.map((s) => s.name)).toEqual([
+        'Eunoia Junior College',
+        'Temasek Junior College',
+      ])
+    })
+
+    it('lets the keyword find a course too', async () => {
+      const d = await onPostsec()
+      d.query = 'humanities'
+      expect(d.matches.map((s) => s.name)).toEqual(['Eunoia Junior College'])
+    })
+
+    it('checks the course like the keyword and searches nothing when it is refused', async () => {
+      const d = await onPostsec()
+      d.course = 'h'
+      expect(d.courseError).toMatch(/at least 2 characters/)
+      expect(d.matches).toHaveLength(3)
+      d.course = '<script>'
+      expect(d.courseError).toMatch(/Unsupported characters/)
+      expect(d.matches).toEqual([])
+    })
+
+    it('does not filter the other tiers, which have no courses to search', async () => {
+      const d = await loaded()
+      d.course = 'humanities'
+      expect(d.matches).toHaveLength(4)
+    })
+
+    it('is cleared when the tier changes', async () => {
+      const d = await onPostsec()
+      d.course = 'humanities'
+      d.tier = 'secondary'
+      expect(d.course).toBe('')
+    })
+
+    it('is cleared by resetFilters', async () => {
+      const d = await onPostsec()
+      d.course = 'humanities'
+      d.resetFilters()
+      expect(d.course).toBe('')
+      expect(d.matches).toHaveLength(3)
+    })
+  })
+
   it('offers the school types of the tier and filters by one', async () => {
     const d = await loaded()
     expect(d.schoolTypes).toEqual(['Government', 'Government-Aided'])

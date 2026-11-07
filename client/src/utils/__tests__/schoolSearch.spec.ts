@@ -24,14 +24,34 @@ const SCHOOLS: School[] = [
   makeSchool({ id: 5, name: 'Far Away School', acronym: 'FAS', distanceKm: null }),
 ]
 
+/** Tertiary institutions, which list the titles of their courses. */
+const TERTIARY: School[] = [
+  makeSchool({
+    id: 6,
+    name: 'Alpha University',
+    acronym: 'AU',
+    courseTitles: ['Business', 'Computing', 'Nursing (Medicine)'],
+  }),
+  makeSchool({
+    id: 7,
+    name: 'Beta Polytechnic',
+    acronym: 'BP',
+    courseTitles: ['All full-time diploma courses'],
+  }),
+  makeSchool({ id: 8, name: 'Gamma College', acronym: 'GC' }),
+]
+
 const query = (overrides: Partial<SchoolQuery> = {}): SchoolQuery => ({
   term: '',
+  course: '',
   schoolType: '',
   maxKm: Infinity,
   sort: 'az',
   ...overrides,
 })
 const names = (q: Partial<SchoolQuery>) => searchSchools(SCHOOLS, query(q)).map((s) => s.name)
+const tertiaryNames = (q: Partial<SchoolQuery>) =>
+  searchSchools(TERTIARY, query(q)).map((s) => s.name)
 
 describe('searchSchools', () => {
   describe('keyword (REQ-1.1)', () => {
@@ -43,8 +63,37 @@ describe('searchSchools', () => {
       expect(names({ term: 'tns' })).toEqual(['Tao Nan School'])
     })
 
+    it('matches a course title (REQ-1.1)', () => {
+      expect(tertiaryNames({ term: 'computing' })).toEqual(['Alpha University'])
+      expect(tertiaryNames({ term: 'diploma' })).toEqual(['Beta Polytechnic'])
+    })
+
+    it('matches part of a course title, ignoring case', () => {
+      expect(tertiaryNames({ term: 'nurs' })).toEqual(['Alpha University'])
+    })
+
     it('yields no results when nothing matches', () => {
       expect(names({ term: 'zzzz' })).toEqual([])
+    })
+  })
+
+  describe('course (REQ-1.4)', () => {
+    it('keeps the schools with a course whose title contains the text', () => {
+      expect(tertiaryNames({ course: 'business' })).toEqual(['Alpha University'])
+      expect(tertiaryNames({ course: 'full-time' })).toEqual(['Beta Polytechnic'])
+    })
+
+    it('leaves out schools that list no courses', () => {
+      expect(tertiaryNames({ course: 'college' })).toEqual([])
+    })
+
+    it('an empty course keeps every school', () => {
+      expect(tertiaryNames({ course: '' })).toHaveLength(3)
+    })
+
+    it('works together with the keyword', () => {
+      expect(tertiaryNames({ term: 'alpha', course: 'computing' })).toEqual(['Alpha University'])
+      expect(tertiaryNames({ term: 'beta', course: 'computing' })).toEqual([])
     })
   })
 

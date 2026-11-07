@@ -18,6 +18,8 @@ export const useDirectoryStore = defineStore('directory', () => {
 
   const tier = ref<DirectoryTierId>('primary')
   const query = ref('')
+  /** Course or degree title to find, for the tiers of tertiary institutions (REQ-1.4). */
+  const course = ref('')
   /** Governance type to keep, e.g. "Government-Aided"; empty keeps every type. */
   const schoolType = ref('')
   const distance = ref<DistanceFilter>('any')
@@ -33,6 +35,10 @@ export const useDirectoryStore = defineStore('directory', () => {
 
   const parsedQuery = computed(() => parseSearchQuery(query.value))
   const queryError = computed(() => parsedQuery.value.error)
+  const parsedCourse = computed(() => parseSearchQuery(course.value))
+  const courseError = computed(() => parsedCourse.value.error)
+  /** Only polytechnics, ITE, junior colleges and universities have courses to search. */
+  const searchesCourses = computed(() => tier.value === 'postsec' || tier.value === 'uni')
   /** Distances can be shown once the server has placed the postal code. */
   const hasPostal = computed(() => location.originOf(postal.value) !== null)
   /** A complete postal code the server could not place, as opposed to one still being typed. */
@@ -55,10 +61,15 @@ export const useDirectoryStore = defineStore('directory', () => {
   const schoolTypes = computed(() =>
     [...new Set(schools.value.map((s) => s.type))].filter(Boolean).sort(),
   )
+  /** Every course title in the tier, to suggest while typing a course. */
+  const courseTitles = computed(() =>
+    [...new Set(schools.value.flatMap((s) => s.courseTitles))].sort((a, b) => a.localeCompare(b)),
+  )
 
   const matches = computed(() =>
     searchSchools(schools.value, {
       term: parsedQuery.value.term,
+      course: searchesCourses.value ? parsedCourse.value.term : '',
       schoolType: schoolType.value,
       maxKm: hasPostal.value && distance.value !== 'any' ? Number(distance.value) : Infinity,
       sort: sort.value,
@@ -103,13 +114,14 @@ export const useDirectoryStore = defineStore('directory', () => {
   }
 
   // Any change to the criteria returns to the first page; the tier's schools load on demand.
-  watch([query, schoolType, distance, sort, postal, tier], () => (page.value = 1), {
+  watch([query, course, schoolType, distance, sort, postal, tier], () => (page.value = 1), {
     flush: 'sync',
   })
   watch(
     tier,
     () => {
       schoolType.value = ''
+      course.value = ''
       void load()
     },
     { flush: 'sync' },
@@ -123,6 +135,7 @@ export const useDirectoryStore = defineStore('directory', () => {
   /** Restores every search input to its default and reloads the full list (REQ-1.15). */
   function resetFilters() {
     query.value = ''
+    course.value = ''
     schoolType.value = ''
     distance.value = 'any'
     sort.value = 'az'
@@ -140,12 +153,16 @@ export const useDirectoryStore = defineStore('directory', () => {
   return {
     tier,
     query,
+    course,
     schoolType,
     distance,
     sort,
     postal,
     status,
     queryError,
+    courseError,
+    searchesCourses,
+    courseTitles,
     hasPostal,
     postalUnknown,
     tierEmpty,

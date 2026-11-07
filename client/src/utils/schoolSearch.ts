@@ -6,6 +6,8 @@ export const PAGE_SIZE = 10
 export interface SchoolQuery {
   /** Already-sanitised, lower-cased keyword (see parseSearchQuery); empty means no keyword. */
   term: string
+  /** Already-sanitised, lower-cased course title text to find; empty keeps every school. */
+  course: string
   /** Governance type to keep, e.g. "Government-Aided"; empty keeps every type. */
   schoolType: string
   /** Farthest distance in km to keep; Infinity keeps every school. */
@@ -13,10 +15,20 @@ export interface SchoolQuery {
   sort: SortOrder
 }
 
-/** Keyword matches the school name or its acronym (REQ-1.1). */
+/** A course or degree title of the school contains the text (REQ-1.4). */
+function matchesCourse(school: School, course: string): boolean {
+  if (!course) return true
+  return school.courseTitles.some((title) => title.toLowerCase().includes(course))
+}
+
+/** Keyword matches the school name, its acronym or one of its course titles (REQ-1.1). */
 function matchesTerm(school: School, term: string): boolean {
   if (!term) return true
-  return school.name.toLowerCase().includes(term) || school.acronym.toLowerCase().includes(term)
+  return (
+    school.name.toLowerCase().includes(term) ||
+    school.acronym.toLowerCase().includes(term) ||
+    matchesCourse(school, term)
+  )
 }
 
 /** Schools without a known distance sort after the others when ordering by distance. */
@@ -30,6 +42,7 @@ function byDistance(a: School, b: School): number {
 export function searchSchools(schools: School[], query: SchoolQuery): School[] {
   const matches = schools
     .filter((s) => matchesTerm(s, query.term))
+    .filter((s) => matchesCourse(s, query.course))
     .filter((s) => !query.schoolType || s.type === query.schoolType)
     .filter(
       (s) => query.maxKm === Infinity || (s.distanceKm !== null && s.distanceKm <= query.maxKm),
