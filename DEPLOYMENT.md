@@ -43,8 +43,8 @@ pulling them, use `docker compose up -d --build`.
 | `BACKUP_KEEP`           | `7`                                             | How many backups to keep. The oldest are deleted                                     |
 
 These are read from the `.env` file next to `docker-compose.yml`, or from the shell. Only
-`SECRET_KEY` is required. The client container also takes `CLIENT_MAX_BODY_SIZE` (default `200m`),
-the largest request nginx forwards to the API. The school data update uploads up to ten CSV files
+`SECRET_KEY` is required. The client container also takes `CLIENT_MAX_BODY_SIZE` (default `250m`),
+the largest request nginx forwards to the API. The school data update uploads up to eleven CSV files
 of 20 MB each, so keep it at least that large: nginx's own default of 1 MB would reject them.
 
 Data is kept in the `pathsg-data` volume (a SQLite file), so it survives `docker compose down`
