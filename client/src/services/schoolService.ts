@@ -1,5 +1,7 @@
 import type {
+  BenchmarkMeasure,
   BenchmarkPoint,
+  BenchmarkSeries,
   BenchmarkSpec,
   CcaGroup,
   Course,
@@ -11,6 +13,7 @@ import type {
   SchoolProfile,
   TierId,
 } from '@/types/school'
+import { BENCHMARK_MEASURES, BENCHMARKS } from '@/data/benchmarks'
 import { DIRECTORY_TIER_IDS } from '@/data/education'
 import { formatSchoolName, schoolAcronym } from '@/utils/schoolName'
 import { ApiError, apiRequest } from './http'
@@ -62,6 +65,13 @@ interface ScholarshipPayload {
   eligibility: string | null
 }
 
+interface BenchmarkPayload {
+  year: number
+  measure: BenchmarkMeasure
+  low: number
+  high: number
+}
+
 /** What GET /school-api/{school_key} returns. */
 export interface SchoolDetailPayload extends SchoolSummaryPayload {
   url_address: string | null
@@ -83,6 +93,7 @@ export interface SchoolDetailPayload extends SchoolSummaryPayload {
   programmes: ProgrammePayload[]
   financial_aid: AidPayload[]
   scholarships: ScholarshipPayload[]
+  benchmarks: BenchmarkPayload[]
 }
 
 interface SchoolPage {
@@ -215,6 +226,17 @@ function scholarshipsOf(scholarships: ScholarshipPayload[]): Scholarship[] {
   }))
 }
 
+/** The yearly figures of each measure the school has, oldest year first (REQ-1.13). */
+function benchmarksOf(rows: BenchmarkPayload[]): BenchmarkSeries[] {
+  return BENCHMARK_MEASURES.flatMap((measure) => {
+    const points: BenchmarkPoint[] = rows
+      .filter((row) => row.measure === measure)
+      .sort((a, b) => a.year - b.year)
+      .map((row) => ({ year: String(row.year), value: row.high, low: row.low }))
+    return points.length > 0 ? [{ measure, ...BENCHMARKS[measure], points }] : []
+  })
+}
+
 export function toSchoolProfile(payload: SchoolDetailPayload): SchoolProfile {
   return {
     ...toSchool(payload),
@@ -231,6 +253,7 @@ export function toSchoolProfile(payload: SchoolDetailPayload): SchoolProfile {
     moeProgrammes: payload.moe_programmes.map(formatSchoolName),
     subjects: payload.subjects_list,
     ccas: ccasOf(payload.cca_details),
+    benchmarks: benchmarksOf(payload.benchmarks),
   }
 }
 

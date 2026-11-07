@@ -30,11 +30,18 @@ export interface Course {
 export interface BenchmarkPoint {
   /** The year the figure is for, or "Latest" when the dataset does not say. */
   year: string
+  /** The figure, or the cut-off (the 90th percentile for a GPA) of a range. */
   value: number
+  /** The best figure (the 10th percentile for a GPA) of a range. */
+  low?: number
 }
 
 /** How a benchmark value is rendered for display. */
-export type BenchmarkFormat = { kind: 'places' } | { kind: 'tScore' }
+export type BenchmarkFormat =
+  | { kind: 'places' }
+  | { kind: 'tScore' }
+  /** A range of a named score, such as "L1R5 5–8". */
+  | { kind: 'range'; label: string; digits: number }
 
 export interface BenchmarkSpec {
   format: BenchmarkFormat
@@ -42,6 +49,18 @@ export interface BenchmarkSpec {
   max: number
   /** True when a lower value means a more selective school. */
   inverse?: boolean
+}
+
+/** The entry figures the server can hold for a school each year. */
+export type BenchmarkMeasure = 'PSLE_AL' | 'L1R5' | 'ELR2B2' | 'GPA'
+
+/** The years of one entry figure of a school, oldest first. */
+export interface BenchmarkSeries {
+  measure: BenchmarkMeasure
+  title: string
+  description: string
+  spec: BenchmarkSpec
+  points: BenchmarkPoint[]
 }
 
 export interface FinancialAid {
@@ -115,4 +134,6 @@ export interface SchoolProfile extends School {
   moeProgrammes: string[]
   subjects: string[]
   ccas: CcaGroup[]
+  /** Multi-year entry figures from the benchmarks dataset (REQ-1.13); empty when it has none. */
+  benchmarks: BenchmarkSeries[]
 }

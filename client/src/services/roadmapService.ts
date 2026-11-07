@@ -14,6 +14,8 @@ export interface PlanRequest {
   postal: string
   /** The student's previous academic score for the stage, when they entered one. */
   score: number | null
+  /** Their second result where a stage has two, such as the ELR2B2 for post-secondary. */
+  scoreB?: number | null
 }
 
 /** What the rule-based plan is generated from: the same as any plan, and how to rank. */
@@ -58,10 +60,11 @@ const toStored = (payload: RoadmapPayload): StoredRoadmap => ({
   source: payload.source,
 })
 
-const toBody = ({ stage, postal, score }: PlanRequest) => ({
+const toBody = ({ stage, postal, score, scoreB }: PlanRequest) => ({
   stage,
   postal,
   previous_academic_score: score,
+  ...(scoreB === undefined ? {} : { previous_academic_score_b: scoreB }),
 })
 
 /** The rule-based plan: the server ranks the stage's schools by distance or by grade. */

@@ -48,9 +48,13 @@ export const RULE_ABOUT = {
       'Schools that fit equally well are ordered by distance. Without a score, every school ' +
       'counts as within reach.',
     postsec:
-      'The dataset has no admission cut-offs for post-secondary institutions, so your score is ' +
-      'not used. Schools are ordered by the number of subjects they offer, then the number of ' +
-      'CCAs, and those that tie are ordered by distance.',
+      'Your O-Level L1R5 is compared with the latest JAE cut-off of each junior college and ' +
+      'Millennia Institute, and your ELR2B2 with that of each polytechnic and ITE college. Lower ' +
+      'is better, so you are within reach of a school when your aggregate is at most its cut-off. ' +
+      'Schools within reach come first, then schools with no cut-off on record for a result you ' +
+      'entered, then schools out of reach, the closest to reach first. Schools that fit equally ' +
+      'well are ordered by distance. Without a result, or while no cut-offs are loaded, the plan ' +
+      'is ordered by distance.',
   } as Partial<Record<TierId, string>>,
   noGrade:
     'This stage has no grade to rank by: P1 registration does not use a score. Schools are ' +

@@ -1,12 +1,18 @@
 import type { BenchmarkSpec, School } from '@/types/school'
 
-export function formatBenchmark(spec: BenchmarkSpec, value: number): string {
+/** A figure as text; `low` is the other end of a range, shown as "low–value". */
+export function formatBenchmark(spec: BenchmarkSpec, value: number, low?: number): string {
   const { format } = spec
   switch (format.kind) {
     case 'places':
       return `${value} places`
     case 'tScore':
       return `T-score ≥ ${value}`
+    case 'range': {
+      const text = (figure: number) => figure.toFixed(format.digits)
+      const range = low === undefined || low === value ? text(value) : `${text(low)}–${text(value)}`
+      return `${format.label} ${range}`
+    }
   }
 }
 
@@ -24,5 +30,7 @@ export function latestBenchmark(school: School) {
 /** The latest figure ready to show, or an empty string when there is none. */
 export function formatLatestBenchmark(school: School): string {
   const latest = latestBenchmark(school)
-  return school.benchmark && latest ? formatBenchmark(school.benchmark, latest.value) : ''
+  return school.benchmark && latest
+    ? formatBenchmark(school.benchmark, latest.value, latest.low)
+    : ''
 }

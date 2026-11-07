@@ -127,6 +127,42 @@ describe('roadmap store (UC-3.1 to UC-3.4)', () => {
       expect(api.callsTo(`POST ${AI}`)[0]?.body).toEqual(expected)
     })
 
+    it('sends both O-Level results for post-secondary, and the second for no other stage', async () => {
+      const profile = useProfileStore()
+      profile.setLevel('postsec')
+      profile.scoreA = '12'
+      profile.scoreB = '18'
+      const r = useRoadmapStore()
+      r.generate()
+      await flushPromises()
+      const expected = {
+        stage: 'postsec',
+        postal: '556000',
+        previous_academic_score: 12,
+        previous_academic_score_b: 18,
+      }
+      expect(api.callsTo(`POST ${RULE}`)[0]?.body).toMatchObject(expected)
+      expect(api.callsTo(`POST ${AI}`)[0]?.body).toEqual(expected)
+
+      r.selectStage('secondary')
+      r.generate()
+      await flushPromises()
+      expect(api.callsTo(`POST ${RULE}`)[1]?.body).not.toHaveProperty('previous_academic_score_b')
+    })
+
+    it('sends a blank O-Level result as none', async () => {
+      const profile = useProfileStore()
+      profile.setLevel('postsec')
+      profile.scoreA = '12'
+      const r = useRoadmapStore()
+      r.generate()
+      await flushPromises()
+      expect(api.callsTo(`POST ${RULE}`)[0]?.body).toMatchObject({
+        previous_academic_score: 12,
+        previous_academic_score_b: null,
+      })
+    })
+
     it('sends no score when none is entered, or when the stage is not the target level', async () => {
       const profile = useProfileStore()
       const r = await generated()

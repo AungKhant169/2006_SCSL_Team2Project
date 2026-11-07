@@ -58,6 +58,7 @@ function school(
     programmes: [],
     financial_aid: [],
     scholarships: [],
+    benchmarks: [],
     ...options,
   }
 }

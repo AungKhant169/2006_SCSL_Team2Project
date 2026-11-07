@@ -140,6 +140,35 @@ describe('toSchoolProfile', () => {
     ])
   })
 
+  describe('yearly benchmarks (REQ-1.13)', () => {
+    const rows = [
+      { year: 2025, measure: 'L1R5', low: 5, high: 8 },
+      { year: 2023, measure: 'L1R5', low: 4, high: 7 },
+      { year: 2024, measure: 'L1R5', low: 4, high: 8 },
+      { year: 2025, measure: 'GPA', low: 3.4, high: 3.9 },
+    ] as const
+
+    it('groups the years of each measure, oldest first', () => {
+      const { benchmarks } = toSchoolProfile({ ...temasek, benchmarks: [...rows] })
+      expect(benchmarks.map((b) => b.measure)).toEqual(['L1R5', 'GPA'])
+      expect(benchmarks[0]!.points).toEqual([
+        { year: '2023', value: 7, low: 4 },
+        { year: '2024', value: 8, low: 4 },
+        { year: '2025', value: 8, low: 5 },
+      ])
+    })
+
+    it('describes each measure', () => {
+      const [l1r5] = toSchoolProfile({ ...temasek, benchmarks: [...rows] }).benchmarks
+      expect(l1r5).toMatchObject({ title: 'JAE cut-off (L1R5)', measure: 'L1R5' })
+      expect(l1r5!.spec.format).toEqual({ kind: 'range', label: 'L1R5', digits: 0 })
+    })
+
+    it('has none for a school without figures', () => {
+      expect(toSchoolProfile(temasek).benchmarks).toEqual([])
+    })
+  })
+
   it('lists every flag the school has', () => {
     expect(toSchoolProfile(raffles).features).toEqual(['Autonomous', 'Integrated Programme'])
     expect(toSchoolProfile(raffles).moeProgrammes).toEqual(['Enhanced Music Programme'])

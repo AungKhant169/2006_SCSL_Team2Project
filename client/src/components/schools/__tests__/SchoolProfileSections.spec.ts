@@ -221,6 +221,63 @@ describe('BenchmarkHistory (REQ-1.13)', () => {
     expect(wrapper.find('li').exists()).toBe(false)
     expect(wrapper.text()).toContain('Not available')
   })
+
+  describe('yearly entry figures from the benchmarks dataset', () => {
+    const jaeProfile = () =>
+      toSchoolProfile({
+        ...SCHOOLS.find((s) => s.id === 9)!,
+        benchmarks: [
+          { year: 2025, measure: 'L1R5', low: 5, high: 8 },
+          { year: 2024, measure: 'L1R5', low: 4, high: 9 },
+          { year: 2025, measure: 'GPA', low: 3.4, high: 3.9 },
+        ],
+      })
+
+    it('lists a titled block for each measure, with its years oldest first', () => {
+      const wrapper = mount(BenchmarkHistory, { props: { school: jaeProfile() } })
+      expect(wrapper.findAll('h3').map((h) => h.text())).toEqual([
+        'JAE cut-off (L1R5)',
+        'Admitted GPA (10th–90th percentile)',
+      ])
+      const rows = wrapper.findAll('li').map((li) => li.findAll('span').map((s) => s.text()))
+      expect(rows).toEqual([
+        ['2024', 'L1R5 4–9'],
+        ['2025', 'L1R5 5–8'],
+        ['2025', 'GPA 3.40–3.90'],
+      ])
+      expect(wrapper.text()).toContain('Latest (2025)')
+      expect(wrapper.text()).not.toContain('Not available')
+    })
+
+    it('explains what each figure is', () => {
+      const text = mount(BenchmarkHistory, { props: { school: jaeProfile() } }).text()
+      expect(text).toContain('Net L1R5 of the students admitted to the junior college')
+      expect(text).toContain('10th and 90th percentile')
+    })
+
+    it('draws the bar of a cut-off fuller the lower it is', () => {
+      const widths = mount(BenchmarkHistory, { props: { school: jaeProfile() } })
+        .findAll<HTMLElement>('li [style]')
+        .map((el) => Number.parseInt(el.element.style.width))
+      // L1R5 is out of 20 and a lower figure is more selective; the GPA is out of 4.
+      expect(widths).toEqual([55, 60, 98])
+    })
+
+    it('follows the figure of the tier, when it has one', () => {
+      const school = {
+        ...makeSchool({
+          tier: 'secondary',
+          benchmark: T_SCORE,
+          history: [{ year: '2017', value: 260 }],
+        }),
+        benchmarks: jaeProfile().benchmarks,
+      }
+      const wrapper = mount(BenchmarkHistory, { props: { school } })
+      expect(wrapper.findAll('li')).toHaveLength(4)
+      expect(wrapper.findAll('h3')).toHaveLength(2)
+      expect(wrapper.text()).toContain('T-score ≥ 260')
+    })
+  })
 })
 
 describe('FinancialSupport (REQ-1.11, REQ-1.12)', () => {

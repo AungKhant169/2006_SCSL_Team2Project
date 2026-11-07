@@ -112,14 +112,20 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     discardRuns()
   }
 
-  /** What the plans are generated from. The score only applies to the stage the profile targets. */
+  /** What the plans are generated from. The scores only apply to the stage the profile targets. */
   function planRequest(): PlanRequest {
-    const score = stage.value === profile.level ? Number(profile.scoreA) : NaN
-    return {
+    const own = stage.value === profile.level
+    const scoreOf = (text: string) => {
+      const score = Number(text)
+      return !own || text.trim() === '' || Number.isNaN(score) ? null : score
+    }
+    const request: PlanRequest = {
       stage: stage.value,
       postal: profile.postal,
-      score: profile.scoreA.trim() === '' || Number.isNaN(score) ? null : score,
+      score: scoreOf(profile.scoreA),
     }
+    // Post-secondary has two results: the L1R5 for junior colleges and the ELR2B2 for the rest.
+    return stage.value === 'postsec' ? { ...request, scoreB: scoreOf(profile.scoreB) } : request
   }
 
   function ruleRequest(): RulePlanRequest {

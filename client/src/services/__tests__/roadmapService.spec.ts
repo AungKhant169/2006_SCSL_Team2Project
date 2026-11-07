@@ -48,6 +48,17 @@ describe('roadmapService (matches the /roadmap API contract)', () => {
     expect(request.mock.calls[0]![1]?.body).toMatchObject({ previous_academic_score: null })
   })
 
+  it('sends the second result of a stage only when it has one', async () => {
+    request.mockResolvedValue({ choices: [], schools: [] })
+    await generateRulePlan({ ...ranked, stage: 'postsec', scoreB: 14 })
+    await generateRulePlan({ ...ranked, stage: 'postsec', scoreB: null })
+    await generateRulePlan(ranked)
+    const bodies = request.mock.calls.map((call) => call[1]?.body)
+    expect(bodies[0]).toMatchObject({ previous_academic_score_b: 14 })
+    expect(bodies[1]).toMatchObject({ previous_academic_score_b: null })
+    expect(bodies[2]).not.toHaveProperty('previous_academic_score_b')
+  })
+
   it('asks for the plan by distance, within a distance limit', async () => {
     request.mockResolvedValue({ choices: [], schools: [] })
     await generateRulePlan({ ...ranked, sortBy: 'distance', maxDistanceKm: 5 })
