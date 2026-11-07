@@ -1,6 +1,7 @@
 import pytest
 from fastapi import status
 
+from core.geolocation import LocationError
 from models.profile import ProfileError
 from models.user import UserError
 from tests.conftest import client
@@ -12,7 +13,7 @@ def headers(auth):
 
 def error(response):
     body = response.status_code, response.json()["detail"]
-    return next((e for e in ProfileError if e.value == body), None)
+    return next((e for e in [*ProfileError, *LocationError] if e.value == body), None)
 
 
 def save(auth, **fields):
@@ -69,7 +70,7 @@ class TestSaveProfile:
 
     @pytest.mark.parametrize("postal", ["", "55600", "5560000", "55600a"])
     def test_rejects_a_malformed_postal_code(self, authenticated, postal):
-        assert error(save(authenticated, postal=postal)) == ProfileError.INVALID_POSTAL
+        assert error(save(authenticated, postal=postal)) == LocationError.INVALID_POSTAL
 
     def test_rejects_an_unknown_level(self, authenticated):
         response = save(authenticated, level="kindergarten")

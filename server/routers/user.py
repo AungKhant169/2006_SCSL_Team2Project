@@ -1,6 +1,7 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, status
 
 from core.authenticator import Requester
+from core.rate_limit import RateLimitError, login_key, login_limiter
 from models.user import User
 from schemas.user import Credentials, Identity, TokenRequest, TokenResponse
 
@@ -25,7 +26,10 @@ def register(data: Credentials):
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: Credentials):
+def login(data: Credentials, request: Request):
+    key = login_key(data.username, request)
+    if login_limiter.exceeded(key):
+        raise RateLimitError.LOGIN_RATE_LIMITED()
     access_token, refresh_token = User.login(data.username, data.password)
     return TokenResponse(access_token=access_token, refresh_token=refresh_token)
 

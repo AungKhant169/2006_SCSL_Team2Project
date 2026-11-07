@@ -60,6 +60,11 @@ process environment first, then from `server/.env` for anything not set there. `
 | `SCHOOL_RAW_DIR`      | `data/raw`              | Where uploaded CSVs are kept for the next refresh. Docker uses `/data/school_raw`|
 | `OPENAI_API_KEY`      | none                    | Needed by `POST /roadmap/generate-ai-roadmap`; without it that endpoint returns 503 |
 | `OPENAI_MODEL`        | `gpt-5.5`               | Model used for AI roadmaps                                                       |
+| `AI_RATE_LIMIT`       | `10`                    | AI roadmaps allowed per user in each window                                      |
+| `AI_RATE_WINDOW`      | `300`                   | Length of that window in seconds                                                 |
+| `LOGIN_RATE_LIMIT`    | `5`                     | Login attempts allowed per (username, address) in each window                    |
+| `LOGIN_RATE_WINDOW`   | `300`                   | Length of that window in seconds                                                 |
+| `TRUSTED_PROXY_HOPS`  | `0`                     | Reverse proxies in front of the server (see [Rate limits](#rate-limits))         |
 
 `.env` is git-ignored. Only `.env.example` is tracked.
 
@@ -131,6 +136,17 @@ each one's `id` as well as its `school_key`, so a client never needs a second lo
   redeploy does not sign anyone out. Logging out, or using a token, deletes it.
 - A user's role is read from the database on every request, so promoting or demoting an account
   takes effect immediately, with no new token needed.
+
+### Rate limits
+
+Requests over a limit get a 429 until older ones fall out of the sliding window. Counts are held in
+memory ([`core/rate_limit.py`](core/rate_limit.py)) and reset when the server restarts.
+
+- `POST /user/login`: 5 attempts per 5 minutes per username and client address, successes included.
+- `POST /roadmap/generate-ai-roadmap`: 10 per 5 minutes per user. Invalid requests do not count.
+
+The client address is the `X-Forwarded-For` entry `TRUSTED_PROXY_HOPS` from the right, as anything
+further left was sent by the client. The default, `0`, ignores the header.
 
 ### School search
 
@@ -250,8 +266,8 @@ this time.` when the database is unreachable or holds no schools. The code is in
 Failures return `{"detail": "<message>"}`. Domain errors are enums that extend `BaseError`
 ([`core/exceptions.py`](core/exceptions.py)), each member being a `(status code, message)` pair that
 `main.py` turns into a response. Raise a called member (`raise UserError.ADMIN_REQUIRED()`) rather than
-building an `HTTPException`. Request bodies that fail pydantic validation get FastAPI's standard
-422.
+building an `HTTPException`. A request that fails pydantic validation gets a 422 listing each error's
+`loc` and `msg`. Unlike FastAPI's default, the values sent are never echoed back.
 
 ## Tests
 
@@ -262,9 +278,9 @@ python -m pytest
 Tests live in [`tests/`](tests/) as `*_test.py` files, driven through FastAPI's `TestClient` with no
 running server. [`tests/conftest.py`](tests/conftest.py) points the app at a throwaway SQLite
 database and sets its own `SECRET_KEY` and `FRONTEND_ORIGIN`, so your `.env` is not used, and resets
-every table before each test. Use the `authenticated` and `admin` fixtures for a logged-in user or
-administrator. The OpenAI client is replaced with `monkeypatch`; the school data pipeline runs for
-real on the bundled CSVs, with uploads redirected to a temporary folder.
+every table and rate limit before each test. Use the `authenticated` and `admin` fixtures for a
+logged-in user or administrator. The OpenAI client is replaced with `monkeypatch`; the school data
+pipeline runs for real on the bundled CSVs, with uploads redirected to a temporary folder.
 
 ## Database migrations
 
@@ -311,6 +327,7 @@ core/
   exceptions.py      BaseError base, HttpError and its response handler
   roadmap_*.py       Candidate pool, rule-based and AI roadmap generators
   geolocation.py     Postal districts and distance
+  rate_limit.py      In-memory rate limits
   school_cleaning.py Raw school CSVs to clean records (pandas)
   school_import.py   Writes cleaned records to the database, keeps uploaded CSVs
   dataset_update.py  Admin school data update: upload checks, the single-update lock

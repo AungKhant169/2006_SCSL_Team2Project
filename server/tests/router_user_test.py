@@ -144,6 +144,30 @@ class TestLogin:
         assert error(response) == UserError.LOGIN_INVALID_PASSWORD
 
 
+class TestValidation:
+    @staticmethod
+    def locations(response):
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        return [e["loc"] for e in response.json()["detail"]]
+
+    def test_invalid_fields(self):
+        credentials = {"username": ["alice"], "password": 98765432}
+        response = client.post("/user/login", json=credentials)
+        assert self.locations(response) == [["body", "username"], ["body", "password"]]
+        assert "98765432" not in response.text
+
+    def test_missing_body(self):
+        response = client.post("/user/login")
+        assert self.locations(response) == [["body"]]
+
+    def test_malformed_json(self):
+        content = b'{"username": "alice", "password": "secret!12"'
+        headers = {"Content-Type": "application/json"}
+        response = client.post("/user/login", content=content, headers=headers)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert "secret!12" not in response.text
+
+
 class TestLogout:
     def test_success(self, authenticated):
         response = client.post("/user/logout", json=authenticated.tokens)

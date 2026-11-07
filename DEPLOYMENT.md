@@ -24,20 +24,22 @@ docker compose up -d
 The site is then at <http://localhost:8080>. To build the images from the checkout instead of
 pulling them, use `docker compose up -d --build`.
 
-| Setting         | Default                                         | Purpose                                              |
-| --------------- | ----------------------------------------------- | ---------------------------------------------------- |
-| `SECRET_KEY`    | none, required                                  | Signs login tokens. Keep it stable and secret        |
-| `PUBLIC_ORIGIN` | `http://localhost:8080`                         | Address users open, for the API's CORS allow-list    |
-| `HTTP_PORT`     | `8080`                                          | Host port the site is published on                   |
-| `IMAGE_TAG`     | `latest`                                        | Image tag to run: `latest`, `1.2.3`, `sha-<commit>`  |
-| `IMAGE_PREFIX`  | `ghcr.io/aungkhant169/2006_scsl_team2project`   | Registry namespace, change if you run a fork         |
+| Setting           | Default                                         | Purpose                                              |
+| ----------------- | ----------------------------------------------- | ---------------------------------------------------- |
+| `SECRET_KEY`      | none, required                                  | Signs login tokens. Keep it stable and secret        |
+| `FRONTEND_ORIGIN` | `http://localhost:8080`                         | Address users open, for the API's CORS allow-list    |
+| `HTTP_PORT`       | `8080`                                          | Host port the site is published on                   |
+| `IMAGE_TAG`       | `latest`                                        | Image tag to run: `latest`, `1.2.3`, `sha-<commit>`  |
+| `IMAGE_PREFIX`    | `ghcr.io/aungkhant169/2006_scsl_team2project`   | Registry namespace, change if you run a fork         |
 
 Data is kept in the `pathsg-data` volume (a SQLite file), so it survives `docker compose down`
 and upgrades. `docker compose down -v` deletes it. The server must run as a single instance:
 the database is SQLite and the school data update lock is held in memory.
 
 To serve over HTTPS, put a TLS-terminating proxy in front of the client container and set
-`PUBLIC_ORIGIN` to the public `https://` address.
+`FRONTEND_ORIGIN` to the public `https://` address. Also, set `TRUSTED_PROXY_HOPS=2` so the
+login limit sees each visitor's actual address, which requires the proxy to append the
+`X-Forwarded-For` header.
 
 ## Upgrade
 
@@ -49,9 +51,9 @@ Pin `IMAGE_TAG` to a release version for repeatable deployments.
 
 ## Workflows
 
-| Workflow                        | Runs on                              | Does                                                                                           |
-| ------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| `.github/workflows/ci.yml`      | Pull requests, manual                | Client: format, type-check, tests, build. Server: ruff lint and format, pytest. Builds both Docker images and validates the compose file (nothing is pushed) |
+| Workflow                        | Runs on                               | Does                                                                                           |
+| ------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `.github/workflows/ci.yml`      | Pull requests, manual                 | Client: format, type-check, tests, build. Server: ruff lint and format, pytest. Builds both Docker images and validates the compose file (nothing is pushed) |
 | `.github/workflows/publish.yml` | Push to `main`, `v*.*.*` tags, manual | Runs CI first, then pushes `linux/amd64` and `linux/arm64` images to ghcr.io                   |
 
 Tags pushed to ghcr.io:

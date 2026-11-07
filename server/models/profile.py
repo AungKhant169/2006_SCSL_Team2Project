@@ -1,13 +1,11 @@
-import re
-
 from fastapi import status
 from sqlalchemy import Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.exceptions import BaseError
+from core.geolocation import validate_postal
 from models.base import Base, Persistable
 
-POSTAL_PATTERN = re.compile(r"\d{6}")
 DEFAULT_LEVEL = "secondary"
 DEFAULT_PRIMARY_RESULT = "None"
 
@@ -17,10 +15,6 @@ def _invalid_score(message: str) -> str:
 
 
 class ProfileError(BaseError):
-    INVALID_POSTAL = (
-        status.HTTP_422_UNPROCESSABLE_CONTENT,
-        "Please enter a valid 6-digit Singapore postal code.",
-    )
     INVALID_PSLE = (
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         _invalid_score("PSLE AL must be a whole number from 4 to 32."),
@@ -127,8 +121,7 @@ class Profile(Base, Persistable):
         primary_result: str,
     ) -> "Profile":
         """Validate and store the user's profile, replacing the previous one."""
-        if not POSTAL_PATTERN.fullmatch(postal):
-            raise ProfileError.INVALID_POSTAL()
+        validate_postal(postal)
         score_a, score_b = validate_scores(level, score_a, score_b)
         values = {
             "level": level,

@@ -1,7 +1,7 @@
 from collections.abc import Callable
 from enum import IntEnum
 
-from core.geolocation import Geolocation
+from core.geolocation import Geolocation, validate_postal
 from core.roadmap_pool import candidate_pool
 from models.roadmap import PLAN_LENGTH
 from models.school_record import SchoolInfo
@@ -23,6 +23,8 @@ class Reach(IntEnum):
 class RuleRoadmapGenerator:
     @classmethod
     def generate(cls, user: User, request: CreateRuleRoadmapRequest) -> list[int]:
+        if request.postal:
+            validate_postal(request.postal)
         if request.stage not in RULE_STAGES:
             return []
         if not (pool := list(candidate_pool(request.stage).values())):

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from pydantic import SecretStr, field_validator
+from pydantic import NonNegativeInt, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"
@@ -12,13 +12,18 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=ENV_FILE, extra="ignore")
 
     admin_usernames: str = ""
+    ai_rate_limit: int = 10
+    ai_rate_window: int = 300
     database_url: str = "sqlite:///./main.db"
     frontend_origin: str
+    login_rate_limit: int = 5
+    login_rate_window: int = 300
     openai_api_key: str = ""
     openai_model: str = "gpt-5.5"
     school_max_upload_mb: float = 20
     school_raw_dir: Path | None = None
     secret_key: SecretStr
+    trusted_proxy_hops: NonNegativeInt = 0
 
     @field_validator("frontend_origin")
     @classmethod

@@ -1,7 +1,8 @@
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from core.exceptions import HttpError, http_error_handler
+from core.exceptions import HttpError, http_error_handler, rw_error_handler
 from core.settings import settings
 from routers import (
     admin_router,
@@ -37,6 +38,7 @@ app.include_router(school_info_router)
 app.include_router(review_router)
 app.include_router(bookmark_router)
 app.exception_handler(HttpError)(http_error_handler)
+app.exception_handler(RequestValidationError)(rw_error_handler)
 
 
 @app.get("/")

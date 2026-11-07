@@ -15,6 +15,7 @@ os.environ["FRONTEND_ORIGIN"] = "http://localhost:5173"
 import pytest
 from fastapi.testclient import TestClient
 
+from core.rate_limit import ai_limiter, login_limiter
 from main import app
 from models.base import Base, engine
 from models.user import Role, User
@@ -43,6 +44,8 @@ def reset_database():
     """Runs automatically before every test to ensure a fresh state for every test."""
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
+    ai_limiter.clear()
+    login_limiter.clear()
 
 
 @pytest.fixture

@@ -1,6 +1,7 @@
 from enum import Enum
 
-from fastapi import Request
+from fastapi import Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 
@@ -34,3 +35,16 @@ class BaseError(Enum):
 
 def http_error_handler(request: Request, exc: HttpError) -> JSONResponse:
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+def rw_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """
+    This function replaces FastAPI's validation handler, returning only each error's loc and msg.
+    The value sent is never echoed back, so a mistyped password stays out of the response.
+    """
+    errors = [{"loc": list(e["loc"]), "msg": e["msg"]} for e in exc.errors()]
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": errors},
+    )

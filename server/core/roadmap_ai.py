@@ -4,6 +4,8 @@ from fastapi import status
 from openai import APITimeoutError, OpenAI, OpenAIError
 
 from core.exceptions import BaseError
+from core.geolocation import validate_postal
+from core.rate_limit import RateLimitError, ai_limiter
 from core.roadmap_pool import candidate_pool
 from core.settings import settings
 from models.roadmap import PLAN_LENGTH
@@ -155,10 +157,15 @@ class AIRoadmapGenerator:
     @classmethod
     def generate(cls, user: User, request: CreateRoadmapRequest) -> list[int]:
         """Return school ids in preference order for the requested stage."""
+        if request.postal:
+            validate_postal(request.postal)
+        if ai_limiter.exceeded(user.id):
+            raise RateLimitError.AI_RATE_LIMITED()
         if not (pool := candidate_pool(request.stage)):
             return []
 
-        # The username is deliberately not sent to the AI: no personal identifiers should leave the system.
+        # The username is deliberately not sent to the AI, only the postal code and score.
+        # Every request goes out under our API key, so the provider cannot identify a specific user.
         prompt = cls._build_prompt(request, list(pool.values()))
 
         # An empty key (docker compose passes one through) would only earn a 401 from OpenAI.

@@ -13,15 +13,21 @@ services:
     build: ./server
     restart: unless-stopped
     environment:
-      SECRET_KEY: "${SECRET_KEY:?Set SECRET_KEY in .env (generate one with openssl rand -hex 32)}"
-      # Origin the browser loads the site from. Only used for CORS; nginx proxies /api same-origin.
-      FRONTEND_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
       DATABASE_URL: sqlite:////data/main.db
-      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
-      # For AI roadmaps; without a key that endpoint answers 503.
+      SCHOOL_RAW_DIR: /data/school_raw
+      # For AI roadmaps; without a key the endpoint answers 503.
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-}
-      SCHOOL_RAW_DIR: /data/school_raw
+      # Rate Limits
+      AI_RATE_LIMIT: ${AI_RATE_LIMIT:-10}
+      AI_RATE_WINDOW: ${AI_RATE_WINDOW:-300}
+      LOGIN_RATE_LIMIT: ${LOGIN_RATE_LIMIT:-5}
+      LOGIN_RATE_WINDOW: ${LOGIN_RATE_WINDOW:-300}
+      # Security
+      ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-${PUBLIC_ORIGIN:-http://localhost:8080}}  # Origin the browser loads the site from for the API's CORS allow-list.
+      SECRET_KEY: "${SECRET_KEY:?Set SECRET_KEY in .env (generate one with openssl rand -hex 32)}"
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}  # Number of proxies in front of the server. 1st hop = client nginx.
     volumes:
       - pathsg-data:/data
 
