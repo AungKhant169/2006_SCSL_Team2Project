@@ -174,6 +174,11 @@ To restore, stop the server and copy a backup over the database file (`main.db`)
   `STAGE_LEVELS` in [`models/school_record.py`](models/school_record.py).
 - Text: `q` (name contains), `level` and `mrt` (contains), `area`, `zone`, `school_type`,
   `gendermix`, `nature`, `session`, `mother_tongue`, `alp_domain`, `llp_domain` (exact, ignoring case).
+- Course: `course` (a course, diploma or degree title contains, ignoring case). Each item also
+  lists the `courses` of a polytechnic, ITE college, junior college or university (the programme
+  titles shown with its fees), so a client can search by course. Other schools list none, since
+  their only programme is the standard fee. The data holds the titles as published with the fees:
+  one "all diploma courses" entry for a polytechnic, not each diploma.
 - Flags: `sap`, `autonomous`, `gifted`, `ip`, `ib` (`true` or `false`).
 - Repeatable (the school must have all the values given): `bus`, `subject`, `cca`, `moe_programme`.
 - CCA details, matched on a single CCA: `cca_category`, `cca_section`, `cca_name`.

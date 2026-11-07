@@ -40,6 +40,16 @@ STAGE_LEVELS = {
 }
 
 
+# Main levels of the schools that offer courses or degrees. The programme of any other school is
+# only its standard fee, which is not a course, and a mixed-level school is not listed here.
+TERTIARY_LEVELS = (
+    "POLYTECHNIC",
+    "JUNIOR COLLEGE",
+    "CENTRALISED INSTITUTE",
+    "UNIVERSITY",
+)
+
+
 def _eq(column, value: str):
     """Case-insensitive, space-insensitive 'equals'."""
     return func.lower(func.trim(column)) == value.strip().lower()
@@ -166,6 +176,16 @@ class SchoolInfo(Base, Persistable):
         return sorted(self.scholarship_rows, key=lambda r: r.name)
 
     @property
+    def courses(self) -> list[str]:
+        """Titles of the programmes a polytechnic, ITE college, junior college or university
+        offers, as listed with its fees. Empty for other schools. Only valid on a school loaded
+        with its programmes."""
+        level = (self.mainlevel_code or "").upper()
+        if not any(part in level for part in TERTIARY_LEVELS):
+            return []
+        return sorted({r.name for r in self.programme_rows})
+
+    @property
     def benchmarks(self) -> list["SchoolBenchmark"]:
         """Every yearly entry figure of the school, the latest year first."""
         return sorted(self.benchmark_rows, key=lambda r: (-r.year, r.measure))
@@ -221,6 +241,7 @@ class SchoolInfo(Base, Persistable):
         cca_section=None,
         cca_name=None,
         moe_programme=(),
+        course=None,
         psle_min=None,
         psle_max=None,
         rank_min=None,
@@ -230,13 +251,17 @@ class SchoolInfo(Base, Persistable):
         limit=50,
         offset=0,
         load_benchmarks=False,
+        load_courses=False,
     ):
         """Every filter given must match. For the repeatable ones (bus, subject, cca,
         moe_programme) the school must have ALL the values listed. With load_benchmarks
-        the yearly entry figures are loaded too, so benchmarks can be read."""
+        the yearly entry figures are loaded too, so benchmarks can be read, and with load_courses
+        the programmes, so courses can be."""
         stmt = select(cls)
         if load_benchmarks:
             stmt = stmt.options(selectinload(cls.benchmark_rows))
+        if load_courses:
+            stmt = stmt.options(selectinload(cls.programme_rows))
 
         def add(condition):
             nonlocal stmt
@@ -306,6 +331,9 @@ class SchoolInfo(Base, Persistable):
             add(cls.subjects.any(_eq(SchoolSubject.name, value)))
         for value in moe_programme:
             add(cls.moe_programme_rows.any(_eq(SchoolMoeProgramme.name, value)))
+        if course and course.strip():
+            like = f"%{course.strip()}%"
+            add(cls.programme_rows.any(SchoolProgramme.name.ilike(like)))
         for value in bus:
             add(cls.bus_rows.any(_eq(SchoolBus.bus_no, value)))
         for value in cca:

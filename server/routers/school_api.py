@@ -17,7 +17,7 @@ router = APIRouter(prefix="/school-api", tags=["school-api"])
 
 @router.get("", response_model=SchoolPage)
 def list_schools(filters: Annotated[SchoolFilter, Query()]):
-    items, total = SchoolInfo.search(**filters.model_dump())
+    items, total = SchoolInfo.search(**filters.model_dump(), load_courses=True)
     return SchoolPage(
         total=total, limit=filters.limit, offset=filters.offset, items=items
     )

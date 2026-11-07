@@ -71,6 +71,63 @@ class TestListSchools:
         assert [item["school_key"] for item in body["items"]] == ["s2"]
 
 
+def add_programmes(school, *names):
+    with SessionLocal() as db:
+        db.add_all(SchoolProgramme(school_id=school.id, name=n) for n in names)
+        db.commit()
+
+
+class TestCourses:
+    """Courses are searched by their titles (REQ-1.1, REQ-1.4)."""
+
+    @staticmethod
+    def tertiary():
+        uni = make_school("uni", "Alpha University", mainlevel_code="UNIVERSITY")
+        poly = make_school("poly", "Beta Polytechnic", mainlevel_code="POLYTECHNIC")
+        add_programmes(uni, "Computing", "Business", "Computing")
+        add_programmes(poly, "All full-time diploma courses")
+        return uni, poly
+
+    def test_a_tertiary_school_lists_its_course_titles_once_each_in_order(self):
+        self.tertiary()
+        items = {i["school_key"]: i for i in client.get("/school-api").json()["items"]}
+        assert items["uni"]["courses"] == ["Business", "Computing"]
+        assert items["poly"]["courses"] == ["All full-time diploma courses"]
+
+    def test_other_schools_list_none_as_their_programme_is_only_a_fee(self):
+        primary = make_school("pri", "Gamma Primary", mainlevel_code="PRIMARY")
+        mixed = make_school("mix", "Delta", mainlevel_code="MIXED LEVEL (S1-JC2)")
+        add_programmes(primary, "Standard school fees")
+        add_programmes(mixed, "Standard school fees")
+        for item in client.get("/school-api").json()["items"]:
+            assert item["courses"] == []
+
+    def test_filters_by_part_of_a_course_title_ignoring_case(self):
+        self.tertiary()
+        keys = [
+            i["school_key"]
+            for i in client.get("/school-api", params={"course": "compUT"}).json()[
+                "items"
+            ]
+        ]
+        assert keys == ["uni"]
+
+    def test_the_course_filter_needs_every_other_filter_to_match_too(self):
+        self.tertiary()
+        response = client.get(
+            "/school-api", params={"course": "computing", "stage": "postsec"}
+        )
+        assert response.json()["total"] == 0
+
+    def test_a_blank_course_filter_is_ignored(self):
+        self.tertiary()
+        assert client.get("/school-api", params={"course": "  "}).json()["total"] == 2
+
+    def test_no_course_matches_a_school_with_no_programmes(self):
+        make_school("bare", "Bare College", mainlevel_code="UNIVERSITY")
+        assert client.get("/school-api", params={"course": "a"}).json()["total"] == 0
+
+
 class TestSchoolDetail:
     def test_returns_the_profile_with_its_id(self):
         school = make_school(principal_name="MS TAN")

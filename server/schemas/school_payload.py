@@ -38,6 +38,10 @@ class SchoolFilter(BaseModel):
     alp_domain: str | None = None
     llp_domain: str | None = None
     mrt: str | None = Field(None, description="MRT description contains, e.g. Bishan")
+    course: str | None = Field(
+        None,
+        description="Course, diploma or degree title contains, e.g. Computing, Nitec",
+    )
     bus: list[str] = Field([], description="Bus number; repeat to require several")
     subject: list[str] = Field([], description="Subject; repeat to require several")
     cca: list[str] = Field(
@@ -168,11 +172,18 @@ class SchoolInfoDetail(SchoolInfoSummary):
     )
 
 
+class SchoolListItem(SchoolInfoSummary):
+    courses: list[str] = Field(
+        [],
+        description="Titles of the courses or degrees of a tertiary institution, for searching by course",
+    )
+
+
 class SchoolPage(BaseModel):
     total: int
     limit: int
     offset: int
-    items: list[SchoolInfoSummary]
+    items: list[SchoolListItem]
 
 
 class DatasetStatus(BaseModel):
