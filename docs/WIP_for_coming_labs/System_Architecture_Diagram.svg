@@ -183,28 +183,32 @@
 <text x="1448.0" y="871.5" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c20">Persistable: get · create · update · delete</text>
 <rect x="1022" y="950" width="628" height="168" rx="14" fill="none" stroke="#92400e" stroke-width="1.4" stroke-dasharray="8 5"/>
 <text x="1166" y="1109" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="start">Docker volume  pathsg-data → /data</text>
+<text x="1460" y="1109" font-size="11.5" font-weight="600" fill="#92400e" text-anchor="start">daily backups: /data/backups</text>
 <path d="M1032,968 H1204 L1222,986 V1090 H1032 Z" fill="#fffbeb" stroke="#b45309" stroke-width="1.7" stroke-linejoin="round"/>
 <path d="M1204,968 V986 H1222" fill="none" stroke="#b45309" stroke-width="1.4"/>
 <text x="1123.0" y="993.0" font-size="11" font-weight="400" fill="#64748b" text-anchor="middle" font-style="italic" data-c="c21">«entity»</text>
 <text x="1123.0" y="1012.0" font-size="14.5" font-weight="700" fill="#1e293b" text-anchor="middle" data-c="c21">Raw school CSVs</text>
-<text x="1123.0" y="1029.0" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">general · primary · sdp</text>
-<text x="1123.0" y="1045.5" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">secondary · moe · ccas</text>
-<text x="1123.0" y="1062.0" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">subjects  (7 files)</text>
-<text x="1123.0" y="1078.5" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">uploads: /data/school_raw</text>
+<text x="1123.0" y="1026.0" font-size="10.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">10 required: general · primary</text>
+<text x="1123.0" y="1037.6" font-size="10.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">secondary · sdp · moe · ccas</text>
+<text x="1123.0" y="1049.2" font-size="10.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">subjects · programmes ·</text>
+<text x="1123.0" y="1060.8" font-size="10.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">financial_aid · scholarships</text>
+<text x="1123.0" y="1072.4" font-size="10.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">+ benchmarks (optional)</text>
+<text x="1123.0" y="1084.0" font-size="10.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c21">uploads: /data/school_raw</text>
 <path d="M1256,975 v108 a192.0,13 0 0 0 384,0 v-108 a192.0,13 0 0 0 -384,0 z" fill="#fffbeb" stroke="#b45309" stroke-width="1.7"/>
 <ellipse cx="1448.0" cy="975" rx="192.0" ry="13" fill="#fffbeb" stroke="#b45309" stroke-width="1.7"/>
 <text x="1448.0" y="996.8" font-size="11" font-weight="400" fill="#64748b" text-anchor="middle" font-style="italic" data-c="c22">«entity»</text>
 <text x="1448.0" y="1015.8" font-size="14.5" font-weight="700" fill="#1e293b" text-anchor="middle" data-c="c22">SQLite  ·  main.db</text>
-<text x="1448.0" y="1032.8" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">users · refresh_tokens · profiles · reviews</text>
-<text x="1448.0" y="1049.3" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">schools (+ subjects · CCAs · MOE · buses)</text>
-<text x="1448.0" y="1065.8" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">bookmarks · roadmaps · dataset_updates</text>
-<text x="1448.0" y="1082.3" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">schema versioned with Alembic</text>
+<text x="1448.0" y="1031.0" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">users · refresh_tokens · profiles · reviews</text>
+<text x="1448.0" y="1044.5" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">schools (+ subjects · CCAs · MOE · buses ·</text>
+<text x="1448.0" y="1058.0" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">programmes · aid · scholarships · benchmarks)</text>
+<text x="1448.0" y="1071.5" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">bookmarks · roadmaps · dataset_updates</text>
+<text x="1448.0" y="1085.0" font-size="11.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c22">schema versioned with Alembic (16 tables)</text>
 <rect x="1032" y="1150" width="608" height="82" rx="10" fill="#fdf2f8" stroke="#9d174d" stroke-width="1.6"/>
 <rect x="1036" y="1154" width="600" height="74" rx="7" fill="none" stroke="#be185d" stroke-width="0.9" stroke-dasharray="3 3"/>
 <text x="1336.0" y="1167.5" font-size="11" font-weight="400" fill="#64748b" text-anchor="middle" font-style="italic" data-c="c23">«startup»</text>
 <text x="1336.0" y="1186.5" font-size="14.5" font-weight="700" fill="#1e293b" text-anchor="middle" data-c="c23">Start-up (Dockerfile CMD → main.py)</text>
 <text x="1336.0" y="1203.5" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c23">alembic upgrade head → refresh_school_data --if-empty → uvicorn</text>
-<text x="1336.0" y="1220.0" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c23">main.py: load .env · register CORS, routers and the error handler</text>
+<text x="1336.0" y="1220.0" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c23">main.py: load .env · CORS, routers, error handler · start the daily backup</text>
 <rect x="1730" y="104" width="200" height="76" rx="12" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6" stroke-dasharray="7 4"/>
 <text x="1830.0" y="138.75" font-size="14.5" font-weight="700" fill="#1e293b" text-anchor="middle" data-c="c24">data.gov.sg</text>
 <text x="1830.0" y="155.75" font-size="12.5" font-weight="400" fill="#334155" text-anchor="middle" data-c="c24">official school datasets (CSV)</text>

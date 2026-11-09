@@ -7,7 +7,7 @@ Authors: SC2006 SCSL Team 2
 The tables below link each tested requirement to its design class, code, and test cases.
 
 - [Software requirements](../../WIP_for_coming_labs/SRS_2006_Team2.docx).
-- [Design class diagram](<../../WIP_for_coming_labs/Class_Diagram(Design_Model).jpg>).
+- [Design class diagram](<../../WIP_for_coming_labs/Class Diagram (Design).jpg>).
 
 The controller logic is spread across frontend stores, helpers, and services.
 These tests use a fake API.
@@ -60,8 +60,8 @@ whitespace and empty HTML.
 
 ## 4. Execution Results
 
-Executed on 2026-10-29: **68 files / 890 tests passed, 0 failed, 0 skipped**.
-The total includes all 40 black-box cases and eight white-box basis-case IDs.
+Re-executed on 2026-11-09 on the current code: **74 files / 995 tests, 994 passed and 1 failed**, 0 skipped. The failure is `routes.spec.ts` > "lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run; it does not touch the profile, roadmap or review code. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
+The total includes all 40 black-box cases and eight white-box basis-case IDs, which all pass.
 
 The run checks frontend behavior with a fake API. Backend security, database
 behavior, live AI results, and UI rendering need separate tests.

@@ -73,12 +73,12 @@ Presentation (`«boundary»`), Application Logic (`«control»`) and Persistent 
 
 ## Implementation Notes
 
-- `SEC-5` says JWTs in HTTP-only cookies for 24 hours. The code uses a Bearer access token (5
-  minutes) and a single-use refresh token (7 days), kept in `sessionStorage`. The diagram shows the
-  code; the SRS's own *Communications Interfaces* section already describes it this way.
+- `SEC-5` (SRS v1.4) matches the code: a Bearer access token (5 minutes) and a single-use refresh token
+  (7 days), kept in `sessionStorage`. Earlier drafts of the SRS asked for JWTs in HTTP-only cookies for 24
+  hours; that design was not built.
 - `SAFE-1` asks for a daily backup of the SQLite file. `core/backup.py` makes it with SQLite's online
   backup while the server runs, and its age decides when the next one is due, so a restart does not
   reset the clock. The backups sit on the same volume as the database (see `DEPLOYMENT.md` for
-  restoring one). The diagram image has not been redrawn to show this task.
+  restoring one). The diagram shows them in the Docker volume box and in the start-up box.
 - During development the client talks to `:8000` directly (`VITE_API_URL`), which is why the CORS
   middleware exists; in Docker everything goes through nginx on one origin.

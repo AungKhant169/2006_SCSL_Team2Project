@@ -63,7 +63,7 @@ The AI request body is
 | WB-AI-03 | P3 | Set fake AI outcome to error; call `generate()`; fake service returns HTTP 503; wait for completion | One AI request; AI status error and plan empty; rule status ready with three nodes; generated state true | AI error and empty plan; rule ready with three nodes; generated true; one AI request | Pass |
 | WB-AI-04 | P4 | Hold the AI route; call `generate()`; select stage uni; set fake AI outcome to error; release the old request | One AI request with the original secondary-stage body; selected stage stays uni; AI status remains idle and plan empty | Uni stage, idle status, empty plan; one original secondary request | Pass |
 
-The test file passed **36 tests**, including these four basis cases.
+The test file now has **50 tests** (36 when first run on 2026-10-29) and all pass, including these four basis cases.
 
 ## 2. Review Submission: `submit()`
 
@@ -127,8 +127,11 @@ The test file passed **21 tests**, including these four basis cases.
 
 ## 3. Execution and Scope
 
-Executed on 2026-10-29: all eight basis-case IDs passed in the full frontend run
-of **68 files / 890 tests**. Test IDs appear in the executable test titles.
+Re-executed on 2026-11-09: all eight basis-case IDs pass (`roadmap.spec.ts`: 50 of 50, `reviews.spec.ts`: 21 of 21).
+The full frontend run is **74 files / 995 tests, 994 passed**; the one failure is `routes.spec.ts` >
+"lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run,
+unrelated to these tests. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
+Test IDs appear in the executable test titles.
 
 Run from `client`: `npm test -- roadmap.spec.ts reviews.spec.ts`.
 

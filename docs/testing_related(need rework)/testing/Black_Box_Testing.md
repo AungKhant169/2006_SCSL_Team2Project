@@ -219,8 +219,10 @@ checks the request count, saved profile, and directory postal code.
 
 ## 7. Execution Results
 
-Executed on 2026-10-29: **40 matrix cases passed** within the full frontend run of
-**68 files / 890 tests passed**, with no failures or skipped tests.
+Re-executed on 2026-11-09: **40 matrix cases passed** (`profileBlackBox.spec.ts`: 40 of 40) within
+the full frontend run of **74 files / 995 tests, 994 passed**. The one failure is `routes.spec.ts` >
+"lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run,
+unrelated to the profile tests. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
 
 Run from `client`: `npm test -- src/stores/__tests__/profileBlackBox.spec.ts`.
 
