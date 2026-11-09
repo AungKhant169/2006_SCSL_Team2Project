@@ -47,8 +47,8 @@ const roadmap = useRoadmapStore()
 
     <template v-else-if="roadmap.aiStatus === 'ready'">
       <p class="m-0 text-[13px] text-muted">
-        An alternative ordering from an AI model, weighing your score, location and what each school
-        offers.
+        An alternative ordering from an AI model, weighing your score and what each school offers,
+        and your location where distance matters for the stage.
       </p>
       <PlanNodeList :nodes="roadmap.aiPlan" :from="getLevel(roadmap.stage).from" tone="ai" />
       <PlanMap :nodes="roadmap.aiPlan" :origin="roadmap.origin" tone="ai" />

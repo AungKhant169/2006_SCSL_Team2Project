@@ -128,6 +128,21 @@ describe('profile store (UC-2.4)', () => {
       })
     })
 
+    it('remembers the stored postal code apart from the one being typed', async () => {
+      const p = useProfileStore()
+      expect(p.savedPostal).toBe('')
+      p.setPostal('119077')
+      expect(p.savedPostal).toBe('')
+      expect(await p.save()).toBe(false)
+      p.scoreA = '12'
+      expect(await p.save()).toBe(true)
+      expect(p.savedPostal).toBe('119077')
+      p.setPostal('556000')
+      expect(p.savedPostal).toBe('119077')
+      p.reset()
+      expect(p.savedPostal).toBe('')
+    })
+
     it('blocks an out-of-range score with an inline message and sends nothing', async () => {
       const p = useProfileStore()
       p.setPostal('556000')

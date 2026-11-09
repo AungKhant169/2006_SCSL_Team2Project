@@ -2,10 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { parseSearchQuery } from '../searchQuery'
 
 describe('parseSearchQuery (REQ-1.1)', () => {
-  it('treats an empty or whitespace-only box as "no search" without an error', () => {
+  it('treats an empty box as "no search" without an error', () => {
     expect(parseSearchQuery('')).toEqual({ term: '', error: '' })
-    expect(parseSearchQuery('   ')).toEqual({ term: '', error: '' })
   })
+
+  it.each([' ', '   ', '\t'])(
+    'rejects whitespace-only input %j like input with no letters',
+    (input) => {
+      const result = parseSearchQuery(input)
+      expect(result.term).toBe('')
+      expect(result.error).toBe(
+        'Search must include letters or numbers. Symbols and code syntax are ignored.',
+      )
+    },
+  )
 
   it('rejects a single character and asks for at least two', () => {
     const result = parseSearchQuery('N')

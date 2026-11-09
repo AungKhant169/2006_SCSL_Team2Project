@@ -15,10 +15,10 @@ const DISALLOWED_CHARS = /[^A-Za-z0-9 '.-]/g
  * spaces / hyphens / periods / apostrophes only. Symbols are stripped rather than sent anywhere.
  */
 export function parseSearchQuery(raw: string): ParsedQuery {
+  if (raw.length === 0) return { term: '', error: '' }
   const trimmed = raw.trim()
-  if (trimmed.length === 0) return { term: '', error: '' }
 
-  if (trimmed.length < MIN_QUERY_LENGTH) {
+  if (trimmed.length > 0 && trimmed.length < MIN_QUERY_LENGTH) {
     return { term: '', error: `Enter at least ${MIN_QUERY_LENGTH} characters to search.` }
   }
   if (!/[A-Za-z0-9]/.test(trimmed)) {

@@ -2,15 +2,24 @@ import { describe, expect, it } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 import type { VueWrapper } from '@vue/test-utils'
 import { useBookmarksStore } from '@/stores/bookmarks'
-import { useDirectoryStore } from '@/stores/directory'
+import { useProfileStore } from '@/stores/profile'
 import { stubApi } from '@/test/fakeApi'
 import { mountWithApp } from '@/test/helpers'
 import SavedView from '../SavedView.vue'
 
 /** The Saved page of a student with Rosyth (primary) and Raffles Institution (secondary) saved. */
-async function mountSaved() {
+async function mountSaved(savedPostal: string | null = '556000') {
   const api = stubApi()
   api.bookmark('planner2026', 2, 5)
+  if (savedPostal) {
+    api.profiles['planner2026'] = {
+      level: 'secondary',
+      score_a: 8,
+      score_b: null,
+      postal: savedPostal,
+      primary_result: 'None',
+    }
+  }
   const mounted = await mountWithApp(SavedView, {
     route: '/saved',
     signedInAs: 'planner2026',
@@ -45,13 +54,34 @@ describe('SavedView (UC-2.7, REQ-2.11 to REQ-2.14)', () => {
     expect(raffles.text()).toContain('T-score ≥ 260')
   })
 
-  it('names the postal code distances are measured from', async () => {
+  it('names the saved postal code distances are measured from', async () => {
     const { wrapper } = await mountSaved()
     expect(wrapper.text()).toContain('Distances from your saved postal code 556000.')
-    useDirectoryStore().setPostal('')
+  })
+
+  it('leaves the distances out when the account has no saved postal code (UC-2.7)', async () => {
+    const { wrapper } = await mountSaved(null)
+    expect(wrapper.text()).toContain('Add a postal code in your profile to see distances.')
+    expect(wrapper.text()).not.toContain('saved postal code 556000')
+    expect(wrapper.text()).toContain('Add postal code')
+    expect(wrapper.text()).not.toMatch(/\d\.\d km/)
+  })
+
+  it('measures from the saved code, not from one typed into the directory filter', async () => {
+    const { wrapper } = await mountSaved()
+    const before = cards(wrapper)[0]!.text()
+    // The directory's own reference code is only a filter; it must not move the saved distances.
+    const { useDirectoryStore } = await import('@/stores/directory')
+    useDirectoryStore().setPostal('600000')
+    await flushPromises()
+    expect(cards(wrapper)[0]!.text()).toBe(before)
+  })
+
+  it('stops showing distances once the session ends', async () => {
+    const { wrapper } = await mountSaved()
+    useProfileStore().reset()
     await flushPromises()
     expect(wrapper.text()).toContain('Add a postal code in your profile to see distances.')
-    expect(wrapper.text()).toContain('Add postal code')
   })
 
   it('opens a school from its name', async () => {

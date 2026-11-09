@@ -30,7 +30,7 @@ const postalHint = computed(() => {
       : 'Reference postal code for distances.'
   }
   return directory.postalUnknown
-    ? 'This postal code could not be located.'
+    ? 'This postal code could not be located. Please check it and try again.'
     : 'Please enter a valid 6-digit Singapore postal code.'
 })
 </script>
@@ -105,7 +105,7 @@ const postalHint = computed(() => {
         class="whitespace-nowrap"
         @click="directory.resetFilters()"
       >
-        Reset all
+        Reset All Filters
       </BaseButton>
     </div>
 

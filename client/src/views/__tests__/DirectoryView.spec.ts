@@ -224,10 +224,10 @@ describe('DirectoryView (UC-1.1)', () => {
 
     it('Reset All Filters brings back the whole list in one click', async () => {
       const { wrapper } = await mountEmpty()
-      await wrapper
-        .findAll('button')
-        .find((b) => b.text() === 'Reset All Filters')!
-        .trigger('click')
+      // The filter bar has the same button; the one in the empty state comes after it.
+      const resets = wrapper.findAll('button').filter((b) => b.text() === 'Reset All Filters')
+      expect(resets).toHaveLength(2)
+      await resets[1]!.trigger('click')
       expect(names(wrapper)).toHaveLength(4)
       expect((keyword(wrapper).element as HTMLInputElement).value).toBe('')
       expect(wrapper.text()).not.toContain('No Schools Found')

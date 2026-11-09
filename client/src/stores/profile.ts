@@ -18,6 +18,8 @@ export const useProfileStore = defineStore('profile', () => {
   const scoreA = ref('')
   const scoreB = ref('')
   const postal = ref('')
+  /** The postal code stored on the account, as opposed to whatever is being typed in the form. */
+  const savedPostal = ref('')
   const primaryResult = ref<PrimaryResult>('None')
   const error = ref('')
   const saving = ref(false)
@@ -58,6 +60,7 @@ export const useProfileStore = defineStore('profile', () => {
     scoreA.value = form.scoreA
     scoreB.value = form.scoreB
     postal.value = form.postal
+    savedPostal.value = isValidPostalCode(form.postal) ? form.postal : ''
     primaryResult.value = form.primaryResult
   }
 
@@ -97,6 +100,7 @@ export const useProfileStore = defineStore('profile', () => {
     } finally {
       saving.value = false
     }
+    savedPostal.value = postal.value
     useDirectoryStore().setPostal(postal.value)
     return true
   }
@@ -108,6 +112,7 @@ export const useProfileStore = defineStore('profile', () => {
     scoreA.value = ''
     scoreB.value = ''
     postal.value = ''
+    savedPostal.value = ''
     primaryResult.value = 'None'
     clearMessages()
   }
@@ -117,6 +122,7 @@ export const useProfileStore = defineStore('profile', () => {
     scoreA,
     scoreB,
     postal,
+    savedPostal,
     primaryResult,
     error,
     saving,

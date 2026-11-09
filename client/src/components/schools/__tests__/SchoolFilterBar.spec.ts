@@ -189,11 +189,13 @@ describe('SchoolFilterBar (REQ-1.1 to REQ-1.5, REQ-1.15)', () => {
       const { wrapper } = await mountBar()
       await postalInput(wrapper).setValue('990000')
       await flushPromises()
-      expect(wrapper.text()).toContain('This postal code could not be located.')
+      expect(wrapper.text()).toContain(
+        'This postal code could not be located. Please check it and try again.',
+      )
     })
   })
 
-  it('Reset all restores every filter in one click (REQ-1.15)', async () => {
+  it('Reset All Filters restores every filter in one click (REQ-1.15)', async () => {
     const { wrapper } = await mountBar()
     const directory = useDirectoryStore()
     directory.query = 'ro'
@@ -201,7 +203,7 @@ describe('SchoolFilterBar (REQ-1.1 to REQ-1.5, REQ-1.15)', () => {
     directory.schoolType = 'Government'
     directory.distance = '1'
     directory.sort = 'za'
-    const reset = wrapper.findAll('button').find((b) => b.text() === 'Reset all')!
+    const reset = wrapper.findAll('button').find((b) => b.text() === 'Reset All Filters')!
     await reset.trigger('click')
     expect([
       directory.query,

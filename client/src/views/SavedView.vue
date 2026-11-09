@@ -1,25 +1,35 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import SavedSchoolCard from '@/components/schools/SavedSchoolCard.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import LinkButton from '@/components/ui/LinkButton.vue'
 import PageHeader from '@/components/ui/PageHeader.vue'
 import { useBookmarksStore } from '@/stores/bookmarks'
-import { useDirectoryStore } from '@/stores/directory'
 import { useLocationStore } from '@/stores/location'
+import { useProfileStore } from '@/stores/profile'
 
 const bookmarks = useBookmarksStore()
-const directory = useDirectoryStore()
 const location = useLocationStore()
+const profile = useProfileStore()
 
-/** The bookmarks with their distance from the directory's reference postal code. */
-const saved = computed(() =>
-  bookmarks.schools.map((school) => location.withDistance(school, directory.postal)),
+// Distances are measured from the postal code stored on the account (REQ-2.13), not from the
+// directory's reference code, which a guest or a student without a profile starts at a sample.
+watch(
+  () => profile.savedPostal,
+  (postal) => void location.locate(postal),
+  { immediate: true },
 )
 
+/** The bookmarks with their distance from the saved postal code; none when there is no usable one. */
+const saved = computed(() =>
+  bookmarks.schools.map((school) => location.withDistance(school, profile.savedPostal)),
+)
+
+const hasPostal = computed(() => location.originOf(profile.savedPostal) !== null)
+
 const subtitle = computed(() =>
-  directory.hasPostal
-    ? `Distances from your saved postal code ${directory.postal}.`
+  hasPostal.value
+    ? `Distances from your saved postal code ${profile.savedPostal}.`
     : 'Add a postal code in your profile to see distances.',
 )
 </script>
