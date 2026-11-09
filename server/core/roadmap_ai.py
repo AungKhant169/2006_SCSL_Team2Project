@@ -7,6 +7,7 @@ from core.benchmarks import Measure
 from core.exceptions import BaseError
 from core.geolocation import validate_postal
 from core.rate_limit import RateLimitError, ai_limiter
+from core.roadmap_generator import RoadmapGenerator
 from core.roadmap_pool import candidate_pool
 from core.settings import settings
 from models.roadmap import PLAN_LENGTH
@@ -173,7 +174,7 @@ def _describe(school: SchoolInfo) -> dict:
     }
 
 
-class AIRoadmapGenerator:
+class AIRoadmapGenerator(RoadmapGenerator[CreateRoadmapRequest]):
     @classmethod
     def generate(cls, user: User, request: CreateRoadmapRequest) -> list[int]:
         """Return school ids in preference order for the requested stage."""

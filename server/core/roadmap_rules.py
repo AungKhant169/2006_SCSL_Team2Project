@@ -3,6 +3,7 @@ from enum import IntEnum
 
 from core.benchmarks import Measure
 from core.geolocation import Geolocation, validate_postal
+from core.roadmap_generator import RoadmapGenerator
 from core.roadmap_pool import candidate_pool
 from models.roadmap import PLAN_LENGTH
 from models.school_record import SchoolInfo
@@ -22,7 +23,7 @@ class Reach(IntEnum):
     BEYOND = 2  # out of reach
 
 
-class RuleRoadmapGenerator:
+class RuleRoadmapGenerator(RoadmapGenerator[CreateRuleRoadmapRequest]):
     @classmethod
     def generate(cls, user: User, request: CreateRuleRoadmapRequest) -> list[int]:
         if request.postal:

@@ -386,7 +386,7 @@ models/          SQLAlchemy models. Each also holds its own queries and business
 core/
   authenticator.py   Bearer-token dependencies (Requester, admin guard)
   exceptions.py      BaseError base, HttpError and its response handler
-  roadmap_*.py       Candidate pool, rule-based and AI roadmap generators
+  roadmap_*.py       Candidate pool, the RoadmapGenerator strategy, and its rule-based and AI generators
   backup.py          Daily SQLite backup
   geolocation.py     Postal districts and distance
   rate_limit.py      In-memory rate limits
