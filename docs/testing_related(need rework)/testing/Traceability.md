@@ -24,8 +24,8 @@ These tests use a fake API.
 | REQ-2.8; RP 0-90 | UserProfileController | `validateProfile()`, invoked by save | BB-GPA-02/03/04; BB-RP-01/05/06/07 | Inclusive limits and non-numeric results |
 | REQ-2.9 / REQ-2.16; six-digit postal format and error | UserProfileController | `save()` and `client/src/utils/postalCode.ts::isValidPostalCode()` | BB-POSTAL-01/03/04/05; BB-PSLE-02 | 5/6/7 characters, empty and non-digit input, and a leading zero |
 | REQ-2.10; default proximity anchor | UserProfileController | `save()` and directory postal update | Every BB row | Valid saves update the directory postal code; invalid saves leave it unchanged |
-| Acceptance assumption: ELR2B2 nonnegative integer | UserProfileController | `validateProfile()`, invoked by save | BB-L1R5-02; BB-ELR-02 through BB-ELR-05 | Assumed lower limit, fractions, and non-numeric input; the SRS gives no upper limit |
-| Acceptance assumption: alternative result presence | UserProfileController | `validateProfile()`, invoked by save | BB-PAIR-01/04; BB-L1R5-02/03/06; BB-ELR-02/05; BB-GPA-02/05/06; BB-RP-05/06 | Either result or both can be used; both blank or an invalid result is rejected |
+| REQ-2.8 (SRS v1.4): ELR2B2 whole number of 0 or more | UserProfileController | `validateProfile()`, invoked by save | BB-L1R5-02; BB-ELR-02 through BB-ELR-05 | Lower limit, fractions, and non-numeric input; the SRS gives no upper limit. The cases were written as an assumption before v1.4 stated it |
+| REQ-2.8 (SRS v1.4): at least one result for Post-Secondary and University | UserProfileController | `validateProfile()`, invoked by save | BB-PAIR-01/04; BB-L1R5-02/03/06; BB-ELR-02/05; BB-GPA-02/05/06; BB-RP-05/06 | Either result or both can be used; both blank or an invalid result is rejected |
 | Acceptance assumption: no numeric score at early levels | UserProfileController | `save()` | BB-LEVEL-01/02 | Preschool/primary acceptance with primary result None |
 | UC-3.1; REQ-3.3; AI request orchestration | RoadmapController / AIRoadmapGenerator context | `client/src/stores/roadmap.ts::runAi()` | WB-AI-01 | A successful current request fills the AI plan |
 | REQ-3.7; AI fault isolation | RoadmapController | `runAi()` | WB-AI-03 | An AI failure sets its error status and leaves the rule plan ready |
@@ -60,7 +60,7 @@ whitespace and empty HTML.
 
 ## 4. Execution Results
 
-Re-executed on 2026-11-09 on the current code: **74 files / 995 tests, 994 passed and 1 failed**, 0 skipped. The failure is `routes.spec.ts` > "lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run; it does not touch the profile, roadmap or review code. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
+Re-executed on 2026-11-09 on the current code: **74 files / 1002 tests, 1001 passed and 1 failed**, 0 skipped. The failure is `routes.spec.ts` > "lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run; it does not touch the profile, roadmap or review code. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
 The total includes all 40 black-box cases and eight white-box basis-case IDs, which all pass.
 
 The run checks frontend behavior with a fake API. Backend security, database

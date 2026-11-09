@@ -128,7 +128,7 @@ The test file passed **21 tests**, including these four basis cases.
 ## 3. Execution and Scope
 
 Re-executed on 2026-11-09: all eight basis-case IDs pass (`roadmap.spec.ts`: 50 of 50, `reviews.spec.ts`: 21 of 21).
-The full frontend run is **74 files / 995 tests, 994 passed**; the one failure is `routes.spec.ts` >
+The full frontend run is **74 files / 1002 tests, 1001 passed**; the one failure is `routes.spec.ts` >
 "lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run,
 unrelated to these tests. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
 Test IDs appear in the executable test titles.

@@ -22,11 +22,12 @@ GPA is 0-4 and RP is 0-90. All limits are inclusive. REQ-2.9/2.16 cover postal
 code validation and its error message. REQ-2.10 covers the saved postal code,
 and REQ-2.6/2.7 cover the fields shown for each education level.
 
-We used the following assumptions where the SRS leaves details open. These are
-marked in the test data:
+We wrote these cases against SRS v1.3, which left some details open, and marked them
+"Acceptance assumption" in the test data. SRS v1.4 (REQ-2.8) has since made the first two
+of these requirements, so they now have a basis in the SRS and the cases still apply as written:
 
-- Post-secondary and university profiles require either result or both; every supplied result must be valid.
-- ELR2B2 is a nonnegative integer. Since the SRS gives no limits, we tested the assumed lower limit of 0 but did not set an upper limit.
+- Post-secondary and university profiles require either result or both; every supplied result must be valid (SRS v1.4: at least one of the listed scores must be entered).
+- ELR2B2 is a nonnegative integer (SRS v1.4: a whole number of 0 or more). The SRS gives no upper limit, so we tested the lower limit of 0 and set no upper limit.
 - Preschool and primary profiles require no numeric score; primary result is `None`.
 - Academic errors start with `Invalid academic score!`, as specified in the SRS. We also check the full field-specific messages used by the application.
 
@@ -220,7 +221,7 @@ checks the request count, saved profile, and directory postal code.
 ## 7. Execution Results
 
 Re-executed on 2026-11-09: **40 matrix cases passed** (`profileBlackBox.spec.ts`: 40 of 40) within
-the full frontend run of **74 files / 995 tests, 994 passed**. The one failure is `routes.spec.ts` >
+the full frontend run of **74 files / 1002 tests, 1001 passed**. The one failure is `routes.spec.ts` >
 "lazy-loads a component for every page", a 5-second timeout on the slow Windows machine used for the run,
 unrelated to the profile tests. The first run, on 2026-10-29, was 68 files / 890 tests with none failing.
 
