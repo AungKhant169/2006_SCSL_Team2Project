@@ -54,10 +54,14 @@ The admin export (`GET /admin/dataset/export`) answers with a CSV file instead o
 through `authorizedDownload` (same token renewal) and `utils/download.ts` hands the file to the
 browser under the name the server gave it, `pathsg_schools_YYYYMMDD.csv`.
 
-What the school dataset does not have, the app shows as "Not available": fees, financial aid and
-scholarships, benchmark history, polytechnics and universities (the Post-Secondary tier lists
-junior colleges and integrated schools; the University tier is empty). The PSLE benchmark is the
-2017 T-score cut-off, and primary schools show the places taken up to Phase 2B.
+What the school dataset does not have, the app shows as "Not available". The bundled data has the
+fees, financial aid and scholarships of the polytechnics, ITE colleges, junior colleges and
+universities, and the University tier lists the universities, but it has no preschools, so the
+Preschool stage of the roadmap can only produce an empty AI plan. `server/data/raw/benchmarks.csv`
+holds only its header: the multi-year entry figures (JAE cut-offs, GPA ranges, PSLE AL ranges)
+appear once an administrator uploads a benchmarks file. Until then the figures are the 2017 PSLE
+T-score cut-off and, for primary schools, the places taken up to Phase 2B, and the post-secondary
+rule-based plan ranks by distance.
 
 Distances are measured from the centre of the postal code's district, the point the server's
 rule-based roadmap also uses. That is too rough to print, so the roadmap does not show a distance

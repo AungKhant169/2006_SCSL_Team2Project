@@ -31,7 +31,7 @@ pulling them, use `docker compose up -d --build`.
 | `HTTP_PORT`             | `8080`                                          | Host port the site is published on                                                   |
 | `IMAGE_TAG`             | `latest`                                        | Image tag to run: `latest`, `1.2.3`, `sha-<commit>`                                  |
 | `IMAGE_PREFIX`          | `ghcr.io/aungkhant169/2006_scsl_team2project`   | Registry namespace, change if you run a fork                                         |
-| `ADMIN_USERNAMES`       | empty                                           | Comma-separated usernames treated as administrators. Register the accounts first     |
+| `ADMIN_USERNAMES`       | empty                                           | Usernames allowed to run the school data update through the older `POST /school-api/admin/refresh` route only. They do **not** get the Admin panel (see below) |
 | `OPENAI_API_KEY`        | empty                                           | Key for the AI-generated roadmap. Without it that plan answers 503                   |
 | `OPENAI_MODEL`          | `gpt-5.5`                                       | Model used for the AI-generated roadmap. Leaving it empty uses the default           |
 | `AI_RATE_LIMIT`         | `10`                                            | AI roadmaps one account may generate per window                                      |
@@ -46,6 +46,13 @@ These are read from the `.env` file next to `docker-compose.yml`, or from the sh
 `SECRET_KEY` is required. The client container also takes `CLIENT_MAX_BODY_SIZE` (default `250m`),
 the largest request nginx forwards to the API. The school data update uploads up to eleven CSV files
 of 20 MB each, so keep it at least that large: nginx's own default of 1 MB would reject them.
+
+To make an administrator, register the account first, then give it the admin role (the Admin panel and
+the `/admin/*` routes read the stored role, which `ADMIN_USERNAMES` does not change):
+
+```sh
+docker compose exec server python -m scripts.make_admin <username>            # add --remove to undo
+```
 
 Data is kept in the `pathsg-data` volume (a SQLite file), so it survives `docker compose down`
 and upgrades. `docker compose down -v` deletes it, backups included. The server must run as a

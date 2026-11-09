@@ -131,8 +131,10 @@ each one's `id` as well as its `school_key`, so a client never needs a second lo
 
 ### Accounts and sessions
 
-- Usernames are 1 to 36 letters and digits. Passwords are 8 to 36 printable ASCII characters with at
-  least one digit and one special character. Passwords are stored as bcrypt hashes.
+- Usernames are 1 to 36 letters and digits, unique ignoring case: "Jane" cannot be registered next to
+  "jane", and logging in as "jane" finds "Jane". Passwords are 8 to 36 printable ASCII characters with
+  at least one digit and one special character, and stay case-sensitive. Passwords are stored as bcrypt
+  hashes.
 - Access tokens are HS256 JWTs that expire after 5 minutes. Refresh tokens are random strings, and
   each is single-use: `/user/refresh` returns a new pair.
 - Refresh tokens are kept in the database as SHA-256 digests and expire after 7 days, so a restart or
@@ -194,8 +196,10 @@ A request carries `stage` (`preschool`, `primary`, `secondary`, `postsec` or `un
 `postal` (6-digit postal code) and `previous_academic_score`: the PSLE AL for `secondary`, the
 O-Level L1R5 for `postsec` and the polytechnic GPA for `uni`. `postsec` also takes
 `previous_academic_score_b`, the O-Level ELR2B2. A roadmap holds 1 to 3 school ids in
-preference order, and an account keeps at most one. Every roadmap response lists the chosen
-schools' details (`schools`, in the same order as `choices`; an id whose school no longer exists is
+preference order, and an account keeps at most one. `PUT /roadmap` and `PATCH /roadmap` accept only
+ids of schools that exist and belong to the roadmap's stage (the schools `stage` lists in
+`GET /school-api`); any other id is a 422, and the saved roadmap stays as it was. Every roadmap
+response lists the chosen schools' details (`schools`, in the same order as `choices`; an id whose school no longer exists is
 left out).
 
 - **Rule-based** ([`core/roadmap_rules.py`](core/roadmap_rules.py)). The student chooses what it
@@ -229,7 +233,8 @@ left out).
 
 `GET /profile` returns the saved profile, or the starting values (`secondary`, no scores, no postal
 code) for an account that has none. `PUT /profile` validates and replaces it with the rules the
-client form uses: a 6-digit postal code, and for the target level a PSLE AL (4 to 32, whole), an
+client form uses: a 6-digit postal code that belongs to a postal district (the first two digits must be
+a postal sector, otherwise 422 "This postal code could not be located."), and for the target level a PSLE AL (4 to 32, whole), an
 L1R5 (2 to 54) and/or ELR2B2, or a GPA (0 to 4) and/or A-Level rank points (0 to 90). Scores the
 level does not use are dropped. Only these fields are stored, never a name or NRIC.
 
