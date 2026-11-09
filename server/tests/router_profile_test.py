@@ -72,6 +72,22 @@ class TestSaveProfile:
     def test_rejects_a_malformed_postal_code(self, authenticated, postal):
         assert error(save(authenticated, postal=postal)) == LocationError.INVALID_POSTAL
 
+    @pytest.mark.parametrize("postal", ["000000", "740000", "990000"])
+    def test_rejects_a_postal_code_that_cannot_be_located(self, authenticated, postal):
+        """The right format is not enough: the first two digits must belong to a postal district."""
+        assert (
+            error(save(authenticated, postal=postal))
+            == LocationError.POSTAL_UNLOCATABLE
+        )
+        assert (
+            client.get("/profile", headers=headers(authenticated)).json()["postal"]
+            is None
+        )
+
+    @pytest.mark.parametrize("postal", ["010000", "119077", "730000", "820000"])
+    def test_accepts_the_first_and_last_postal_sectors(self, authenticated, postal):
+        assert save(authenticated, postal=postal).status_code == status.HTTP_200_OK
+
     def test_rejects_an_unknown_level(self, authenticated):
         response = save(authenticated, level="kindergarten")
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT

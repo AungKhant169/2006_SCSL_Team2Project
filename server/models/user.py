@@ -6,13 +6,13 @@ from typing import Self
 import bcrypt
 import jwt
 from fastapi import status
-from sqlalchemy import Index, String, func, text
+from sqlalchemy import Index, String, func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from core.exceptions import BaseError
 from core.settings import settings
-from models.base import Base, Persistable
+from models.base import Base, Persistable, SessionLocal
 from models.refresh_token import RefreshToken
 
 SECRET_KEY = settings.secret_key.get_secret_value()
@@ -147,8 +147,15 @@ class User(Base, Persistable):
         return user.create_tokens()
 
     @classmethod
+    def get_by_username(cls, username: str) -> Self | None:
+        """The account with this username, ignoring case: "Jane" and "jane" are one account."""
+        stmt = select(cls).where(func.lower(cls.username) == username.lower())
+        with SessionLocal() as session:
+            return session.scalars(stmt).first()
+
+    @classmethod
     def login(cls, username: str, password: str) -> tuple[str, str]:
-        if not (user := cls.get_by_key(username=username)):
+        if not (user := cls.get_by_username(username)):
             raise UserError.LOGIN_INVALID_USERNAME()
         if not bcrypt.checkpw(password.encode()[:72], user.password.encode()):
             raise UserError.LOGIN_INVALID_PASSWORD()

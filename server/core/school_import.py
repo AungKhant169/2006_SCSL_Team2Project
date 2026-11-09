@@ -1,7 +1,8 @@
 """Puts a cleaned dataset in the database, and remembers the raw files on disk.
 
-Used by both the admin endpoint (POST /school-api/admin/refresh) and the command
-line script (python -m scripts.refresh_school_data).
+Used by the admin endpoints (POST /admin/dataset/update, and POST /school-api/admin/refresh,
+which is open to the ADMIN_USERNAMES accounts as well) and the command line script
+(python -m scripts.refresh_school_data).
 """
 
 import logging

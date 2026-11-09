@@ -3,7 +3,7 @@ from sqlalchemy import Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.exceptions import BaseError
-from core.geolocation import validate_postal
+from core.geolocation import validate_locatable_postal
 from models.base import Base, Persistable
 
 DEFAULT_LEVEL = "secondary"
@@ -121,7 +121,7 @@ class Profile(Base, Persistable):
         primary_result: str,
     ) -> "Profile":
         """Validate and store the user's profile, replacing the previous one."""
-        validate_postal(postal)
+        validate_locatable_postal(postal)
         score_a, score_b = validate_scores(level, score_a, score_b)
         values = {
             "level": level,

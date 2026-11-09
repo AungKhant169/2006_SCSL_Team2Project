@@ -19,11 +19,24 @@ class LocationError(BaseError):
         status.HTTP_404_NOT_FOUND,
         "This postal code could not be located. Please check it and try again.",
     )
+    # The same message for a profile that is saved with a code that has the right format but
+    # belongs to no postal district. A save is not a lookup, so it is a 422 rather than a 404.
+    POSTAL_UNLOCATABLE = (
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "This postal code could not be located. Please check it and try again.",
+    )
 
 
 def validate_postal(postal: str) -> None:
     if not POSTAL_PATTERN.fullmatch(postal):
         raise LocationError.INVALID_POSTAL()
+
+
+def validate_locatable_postal(postal: str) -> None:
+    """The postal code has six digits and belongs to a postal district (REQ-2.16)."""
+    validate_postal(postal)
+    if Geolocation.postal_district(postal) is None:
+        raise LocationError.POSTAL_UNLOCATABLE()
 
 
 class District(NamedTuple):

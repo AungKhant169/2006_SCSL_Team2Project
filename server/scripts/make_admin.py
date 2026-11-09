@@ -16,7 +16,7 @@ def main(argv: list[str]) -> int:
     if len(names) != 1:
         print(__doc__)
         return 1
-    if not (user := User.get_by_key(username=names[0])):
+    if not (user := User.get_by_username(names[0])):
         print(f"No user called '{names[0]}'. Register that account first.")
         return 1
     role = ROLE_USER if "--remove" in argv else ROLE_ADMIN

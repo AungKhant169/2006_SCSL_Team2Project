@@ -9,6 +9,7 @@ from core.geolocation import LocationError
 from core.roadmap_ai import AIRoadmapGenerator, RoadmapAIError
 from core.settings import settings
 from models.base import SessionLocal
+from models.roadmap import RoadmapError
 from models.school_record import SchoolBenchmark, SchoolInfo, SchoolSubject
 from models.user import UserError
 from schemas.roadmap import CreateRoadmapRequest
@@ -27,6 +28,16 @@ def pool_of(*schools):
     ids = {school.id for school in schools}
     found, _ = SchoolInfo.search(limit=100, load_benchmarks=True)
     return [school for school in found if school.id in ids]
+
+
+def primary_school(key, name):
+    """A school that belongs to the primary stage, as a saved roadmap needs."""
+    return SchoolInfo.create(school_key=key, school_name=name, mainlevel_code="PRIMARY")
+
+
+def save_roadmap(authenticated, choices, stage="primary", source="Rule-Based Plan"):
+    body = {"stage": stage, "source": source, "choices": choices}
+    return client.put("/roadmap", json=body, headers=headers(authenticated))
 
 
 def generate(authenticated, payload=PAYLOAD):
@@ -401,8 +412,8 @@ class TestSavedRoadmap:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_save_replaces_and_returns_school_details(self, authenticated):
-        first = SchoolInfo.create(school_key="first", school_name="First")
-        second = SchoolInfo.create(school_key="second", school_name="Second")
+        first = primary_school("first", "First")
+        second = primary_school("second", "Second")
         for choices in ([first.id], [second.id, first.id]):
             response = client.put(
                 "/roadmap",
@@ -422,8 +433,8 @@ class TestSavedRoadmap:
         assert client.get("/roadmap", headers=headers(authenticated)).json() == body
 
     def test_edit_changes_only_the_choices(self, authenticated):
-        first = SchoolInfo.create(school_key="first", school_name="First")
-        second = SchoolInfo.create(school_key="second", school_name="Second")
+        first = primary_school("first", "First")
+        second = primary_school("second", "Second")
         client.put(
             "/roadmap",
             json={
@@ -453,19 +464,72 @@ class TestSavedRoadmap:
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_a_deleted_school_is_left_out_of_the_details(self, authenticated):
-        school = SchoolInfo.create(school_key="first", school_name="First")
-        response = client.put(
-            "/roadmap",
-            json={
-                "stage": "primary",
-                "source": "Rule-Based Plan",
-                "choices": [school.id, 999],
-            },
-            headers=headers(authenticated),
+        kept = primary_school("kept", "Kept")
+        gone = primary_school("gone", "Gone")
+        save_roadmap(authenticated, [kept.id, gone.id])
+        SchoolInfo.delete(gone.id)
+        body = client.get("/roadmap", headers=headers(authenticated)).json()
+        assert body["choices"] == [kept.id, gone.id]
+        assert [s["id"] for s in body["schools"]] == [kept.id]
+
+    @pytest.mark.parametrize(
+        ("choices", "why"),
+        [
+            pytest.param(lambda own, other: [999], "no such school", id="unknown"),
+            pytest.param(
+                lambda own, other: [own, 999], "one unknown", id="one-unknown"
+            ),
+            pytest.param(lambda own, other: [other], "another stage", id="other-stage"),
+            pytest.param(
+                lambda own, other: [own, other], "one of another stage", id="mixed"
+            ),
+        ],
+    )
+    def test_save_only_takes_schools_of_the_stage(self, authenticated, choices, why):
+        own = primary_school("own", "Own")
+        other = SchoolInfo.create(
+            school_key="other", school_name="Other", mainlevel_code="SECONDARY (S1-S5)"
         )
-        body = response.json()
-        assert body["choices"] == [school.id, 999]
-        assert [s["id"] for s in body["schools"]] == [school.id]
+        response = save_roadmap(authenticated, choices(own.id, other.id))
+        assert (
+            response.status_code,
+            response.json()["detail"],
+        ) == RoadmapError.INVALID_SCHOOL.value, why
+        assert client.get("/roadmap", headers=headers(authenticated)).status_code == 404
+
+    def test_a_school_that_spans_stages_fits_each_of_them(self, authenticated):
+        school = SchoolInfo.create(
+            school_key="integrated",
+            school_name="Integrated",
+            mainlevel_code="MIXED LEVEL (S1-JC2)",
+        )
+        for stage in ("secondary", "postsec"):
+            response = save_roadmap(authenticated, [school.id], stage=stage)
+            assert response.status_code == status.HTTP_200_OK
+
+    def test_edit_only_takes_schools_of_the_saved_stage(self, authenticated):
+        own = primary_school("own", "Own")
+        other = SchoolInfo.create(
+            school_key="other", school_name="Other", mainlevel_code="SECONDARY (S1-S5)"
+        )
+        save_roadmap(authenticated, [own.id])
+        for choices in ([other.id], [own.id, 999]):
+            response = client.patch(
+                "/roadmap", json={"choices": choices}, headers=headers(authenticated)
+            )
+            assert (
+                response.status_code,
+                response.json()["detail"],
+            ) == RoadmapError.INVALID_SCHOOL.value
+        # A refused edit leaves the saved roadmap as it was.
+        saved = client.get("/roadmap", headers=headers(authenticated)).json()
+        assert saved["choices"] == [own.id]
+
+    @pytest.mark.parametrize("fields", [{"stage": "kindergarten"}, {"source": "Mine"}])
+    def test_an_unknown_stage_or_source_is_refused(self, authenticated, fields):
+        school = primary_school("first", "First")
+        response = save_roadmap(authenticated, [school.id], **fields)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     def test_delete_is_idempotent(self, authenticated):
         for _ in range(2):

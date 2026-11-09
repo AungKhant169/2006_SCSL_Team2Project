@@ -133,6 +133,22 @@ class TestLogin:
         response = identity(response.json()["access_token"])
         assert response.json()["id"] == authenticated.user.id
 
+    @pytest.mark.parametrize("username", ["ALICE", "Alice", "aLiCe"])
+    def test_ignores_the_case_of_the_username(self, authenticated, username):
+        response = client.post(
+            "/user/login", json={"username": username, "password": USER["password"]}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        response = identity(response.json()["access_token"])
+        assert response.json()["id"] == authenticated.user.id
+        # The username is shown as it was registered.
+        assert response.json()["username"] == USER["username"]
+
+    def test_the_password_is_still_case_sensitive(self, authenticated):
+        credentials = {"username": "ALICE", "password": USER["password"].upper()}
+        response = client.post("/user/login", json=credentials)
+        assert error(response) == UserError.LOGIN_INVALID_PASSWORD
+
     def test_invalid_username(self, authenticated):
         credentials = {"username": "bob", "password": USER["password"]}
         response = client.post("/user/login", json=credentials)
