@@ -23,7 +23,7 @@ Presentation (`«boundary»`), Application Logic (`«control»`) and Persistent 
 | FastAPI | CORS, Pydantic Schemas, Error Handler | `server/main.py`, `schemas/`, `core/exceptions.py` | API boundary: origin check, validation and response shape, `HttpError` to `{"detail"}` |
 | FastAPI | API Routers | `server/routers/` | Eight routers, kept thin: validate, call a model or `core/` class, respond |
 | FastAPI | Authenticator | `core/authenticator.py` | Bearer JWT to `Requester`; admin guard reads the role from the database on every request |
-| FastAPI | Roadmap Engine | `core/roadmap_rules.py`, `roadmap_ai.py`, `roadmap_pool.py`, `geolocation.py` | Rule-based and AI generators over a stage's candidate schools; distance from postal-district centroids |
+| FastAPI | Roadmap Engine | `core/roadmap_generator.py`, `roadmap_rules.py`, `roadmap_ai.py`, `roadmap_pool.py`, `geolocation.py` | `RoadmapGenerator` strategy, implemented by the rule-based and AI generators over a stage's candidate schools; distance from postal-district centroids |
 | FastAPI | School Data Pipeline | `core/dataset_update.py`, `school_cleaning.py`, `school_import.py`, `dataset_export.py` | Admin CSV update (one at a time, all-or-nothing) and CSV export |
 | FastAPI | Domain Models | `server/models/` | Entities with their own rules and queries, on a shared `Persistable` mixin |
 | FastAPI | Database Backup | `core/backup.py`, `server/main.py` | Copies the SQLite file every 24 hours into `backups/` beside it (`/data/backups` in Docker) and keeps the newest seven; started by the app's lifespan (`SAFE-1`) |
