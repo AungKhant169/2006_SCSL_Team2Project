@@ -107,3 +107,7 @@ jobs:
         run: docker compose config --quiet
         env:
           SECRET_KEY: ci-placeholder
+      - name: Check the separate demo deployment
+        run: docker compose -p pathsg-demo -f docker-compose.yml -f docker-compose.demo.yml config --quiet
+        env:
+          SECRET_KEY: ci-placeholder

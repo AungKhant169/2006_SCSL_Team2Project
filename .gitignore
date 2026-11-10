@@ -1,2 +1,5 @@
 # Local settings for docker-compose.yml (holds SECRET_KEY)
 .env
+.env.demo
+output/
+.playwright-cli/

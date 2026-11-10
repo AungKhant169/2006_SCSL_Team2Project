@@ -18,6 +18,7 @@ from routers import (
     school_info_router,
     user_router,
 )
+from routers.demo import router as demo_router
 
 
 @asynccontextmanager
@@ -47,6 +48,7 @@ app.add_middleware(
 )
 
 app.include_router(user_router)
+app.include_router(demo_router)
 app.include_router(profile_router)
 app.include_router(location_router)
 app.include_router(admin_router)

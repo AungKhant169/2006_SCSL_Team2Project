@@ -12,7 +12,7 @@ onMounted(() => admin.load())
 </script>
 
 <template>
-  <div class="page page-narrow">
+  <div data-demo="admin-dataset" class="page page-narrow">
     <PageHeader
       title="Admin panel"
       subtitle="Restricted to accounts with the Admin role. Update the school dataset from raw CSV files, or export it."

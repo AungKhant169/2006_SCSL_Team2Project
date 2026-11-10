@@ -35,7 +35,7 @@ const subtitle = computed(() =>
 </script>
 
 <template>
-  <div class="page">
+  <div data-demo="saved-schools" class="page">
     <PageHeader title="Saved institutions" :subtitle="subtitle">
       <LinkButton :to="{ name: 'directory' }" variant="outline">Browse directory</LinkButton>
     </PageHeader>

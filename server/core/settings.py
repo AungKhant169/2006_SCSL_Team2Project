@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     backup_interval_hours: NonNegativeFloat = 24
     backup_keep: PositiveInt = 7
     database_url: str = "sqlite:///./main.db"
+    demo_enabled: bool = False
     frontend_origin: str
     login_rate_limit: int = 5
     login_rate_window: int = 300

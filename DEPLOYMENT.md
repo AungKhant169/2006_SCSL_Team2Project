@@ -1,5 +1,8 @@
 # Deployment
 
+For the phone-controlled presentation deployment on port 8081 and the separate `:demo` images,
+see [DEMO.md](DEMO.md).
+
 PathSG ships as two container images, built and published to GitHub Container Registry by
 GitHub Actions:
 

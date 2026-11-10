@@ -1,0 +1,13 @@
+# Use with: docker compose -p pathsg-demo -f docker-compose.yml -f docker-compose.demo.yml up -d
+# A separate project name also gives this deployment its own database volume.
+name: pathsg-demo
+services:
+  server:
+    image: ${IMAGE_PREFIX:-ghcr.io/aungkhant169/2006_scsl_team2project}/server:demo
+    environment:
+      DEMO_ENABLED: "true"
+      FRONTEND_ORIGIN: ${DEMO_PUBLIC_ORIGIN:-http://localhost:8081}
+  client:
+    image: ${IMAGE_PREFIX:-ghcr.io/aungkhant169/2006_scsl_team2project}/client:demo
+    ports: !override
+      - "${DEMO_HTTP_PORT:-8081}:8080"

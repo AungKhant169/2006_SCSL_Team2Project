@@ -27,6 +27,7 @@ onMounted(() => directory.load())
 <template>
   <div class="page">
     <PageHeader
+      data-demo="directory-tier"
       title="School Directory"
       subtitle="Institutional profiles and entry benchmarks across Singapore. Data: MOE via Data.gov.sg, OneMap."
     >
@@ -38,7 +39,7 @@ onMounted(() => directory.load())
       />
     </PageHeader>
 
-    <SchoolFilterBar />
+    <SchoolFilterBar data-demo="directory-filters" />
 
     <div
       v-if="directory.status === 'loading'"
@@ -62,7 +63,7 @@ onMounted(() => directory.load())
       message="The school dataset has no schools in this tier. Try another tier."
     />
 
-    <div v-else class="flex min-w-0 flex-col gap-3">
+    <div v-else data-demo="directory-results" class="flex min-w-0 flex-col gap-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <span class="text-sm text-muted" data-testid="result-count">
           <b class="text-ink">{{ total }}</b> {{ pluralize(total, 'school') }} · {{ tierLabel }}

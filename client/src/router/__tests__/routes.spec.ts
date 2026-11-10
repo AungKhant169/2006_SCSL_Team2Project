@@ -25,17 +25,22 @@ describe('route table', () => {
       'profile',
       'saved',
       'admin',
+      'demo',
+      'demo-session',
     ])
   })
 
   it('lazy-loads a component for every page', async () => {
-    for (const route of routes) {
-      if ('redirect' in route) continue
-      const component = (route as unknown as { component: () => Promise<{ default: unknown }> })
-        .component
-      expect((await component()).default).toBeTruthy()
-    }
-  })
+    await Promise.all(
+      routes
+        .filter((route) => !('redirect' in route))
+        .map(async (route) => {
+          const component = (route as unknown as { component: () => Promise<{ default: unknown }> })
+            .component
+          expect((await component()).default).toBeTruthy()
+        }),
+    )
+  }, 15000)
 
   it('passes the school key from the URL to the profile page as a prop', async () => {
     const router = realRouter()

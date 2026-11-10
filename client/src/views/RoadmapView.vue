@@ -67,7 +67,7 @@ function askDelete() {
       subtitle="Two plans per generation: a rule-based pathway from official entry rules, and an AI-generated alternative. One roadmap can be saved at a time."
     />
 
-    <SectionCard title="Target transition stage" :hint="preselectNote">
+    <SectionCard data-demo="roadmap-stage" title="Target transition stage" :hint="preselectNote">
       <template #actions>
         <BaseButton size="lg" class="text-sm" @click="generate">Generate Roadmap</BaseButton>
       </template>
@@ -80,9 +80,10 @@ function askDelete() {
 
     <div
       v-if="roadmap.generated"
+      data-demo="roadmap-plans"
       class="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-5"
     >
-      <RulePlanPanel @save="save('Rule-Based Plan')" />
+      <RulePlanPanel data-demo="roadmap-rule" @save="save('Rule-Based Plan')" />
       <AiPlanPanel @save="save('AI-Generated Plan')" />
     </div>
 

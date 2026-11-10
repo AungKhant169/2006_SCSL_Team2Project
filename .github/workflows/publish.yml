@@ -2,10 +2,11 @@ name: Publish images
 
 # Builds the client and server images and pushes them to GitHub Container Registry:
 #   - every push to main            -> :latest, :main and :sha-<commit>
+#   - every push to demo            -> :demo and :sha-<commit>
 #   - a version tag such as v1.2.3  -> :1.2.3, :1.2 and :sha-<commit>
 on:
   push:
-    branches: [main]
+    branches: [main, demo]
     tags: ["v*.*.*"]
   workflow_dispatch:
 

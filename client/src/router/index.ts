@@ -49,6 +49,12 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/AdminView.vue'),
     meta: { requiresAdmin: true },
   },
+  { path: '/demo', name: 'demo', component: () => import('@/demo/DemoView.vue') },
+  {
+    path: '/demo/:role(control|display)/:sessionId',
+    name: 'demo-session',
+    component: () => import('@/demo/DemoView.vue'),
+  },
   { path: '/:pathMatch(.*)*', redirect: { name: 'home' } },
 ]
 

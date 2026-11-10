@@ -27,9 +27,9 @@ async function save() {
       subtitle="Academic parameters and location. No personal identifiers are stored."
     />
 
-    <PostalCodeCard />
+    <PostalCodeCard data-demo="profile-postal" />
     <TargetLevelCard />
-    <AcademicResultsCard />
+    <AcademicResultsCard data-demo="profile-results" />
 
     <div class="flex flex-wrap items-center justify-end gap-2.5">
       <BaseButton size="lg" class="text-sm" :disabled="profile.saving" @click="save">

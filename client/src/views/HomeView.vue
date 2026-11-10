@@ -11,7 +11,10 @@ const bookmarks = useBookmarksStore()
 
 <template>
   <div>
-    <section class="bg-primary-dark px-4 pt-10 pb-8 text-white sm:px-8 sm:pt-14 sm:pb-10">
+    <section
+      data-demo="home-intro"
+      class="bg-primary-dark px-4 pt-10 pb-8 text-white sm:px-8 sm:pt-14 sm:pb-10"
+    >
       <div class="grid gap-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)] lg:items-end lg:gap-14">
         <h1
           class="m-0 text-[clamp(2.25rem,5.4vw,3.6rem)] leading-[1.04] font-extrabold tracking-[-0.035em]"
@@ -23,7 +26,7 @@ const bookmarks = useBookmarksStore()
           results and where you live.
         </p>
       </div>
-      <div class="mt-9 sm:mt-12">
+      <div data-demo="home-journey" class="mt-9 sm:mt-12">
         <RouteJourney />
       </div>
     </section>

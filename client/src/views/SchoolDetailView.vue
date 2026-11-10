@@ -58,21 +58,26 @@ const origin = computed(() => location.originOf(directory.postal))
       ← Back to directory
     </RouterLink>
 
-    <SchoolIdentityCard :school="school" />
+    <SchoolIdentityCard data-demo="school-identity" :school="school" />
 
-    <SchoolLocationCard :school="school" :origin="origin" :postal="directory.postal" />
+    <SchoolLocationCard
+      data-demo="school-location"
+      :school="school"
+      :origin="origin"
+      :postal="directory.postal"
+    />
 
-    <FeeTable :school="school" />
+    <FeeTable data-demo="school-fees" :school="school" />
 
     <div class="grid grid-cols-[repeat(auto-fit,minmax(min(320px,100%),1fr))] gap-5">
       <BenchmarkHistory :school="school" />
       <FinancialSupport :school="school" />
     </div>
 
-    <SchoolProgrammes :school="school" />
+    <SchoolProgrammes data-demo="school-programmes" :school="school" />
 
     <!-- Keyed so draft text and edit mode never leak from one school to the next. -->
-    <ReviewSection :key="school.id" :school-id="school.id" />
+    <ReviewSection data-demo="school-reviews" :key="school.id" :school-id="school.id" />
   </div>
 
   <div v-else-if="status === 'loading'" class="page">
