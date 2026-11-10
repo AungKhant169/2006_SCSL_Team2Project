@@ -1,6 +1,8 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { DISTANCE_LIMIT, distanceLimitKm, RULE_SORTS } from '@/data/ruleSort'
+import { sampleAiPlan } from '@/demo/sampleAiPlan'
+import { useDemoSession } from '@/demo/session'
 import { ApiError, GENERIC_ERROR } from '@/services/http'
 import * as roadmapService from '@/services/roadmapService'
 import type { PlanRequest, RulePlanRequest, StoredRoadmap } from '@/services/roadmapService'
@@ -31,6 +33,7 @@ export const useRoadmapStore = defineStore('roadmap', () => {
   /** The acceptable-distance slider; its top end is no limit. */
   const ruleDistance = ref<number>(DISTANCE_LIMIT.max)
   const aiStatus = ref<PlanStatus>('idle')
+  const aiIsSample = ref(false)
   const aiChoices = ref<number[]>([])
   const saved = ref<SavedRoadmap | null>(null)
   const editing = ref(false)
@@ -92,6 +95,7 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     ruleStatus.value = 'idle'
     ruleChoices.value = []
     aiStatus.value = 'idle'
+    aiIsSample.value = false
     aiChoices.value = []
   }
 
@@ -158,8 +162,16 @@ export const useRoadmapStore = defineStore('roadmap', () => {
   async function runAi() {
     const run = ++aiRun
     aiStatus.value = 'loading'
+    const demo = useDemoSession()
+    const sample = demo.credentials?.role === 'display' && !!demo.state && !demo.ended
+    aiIsSample.value = sample
     try {
-      const plan = await roadmapService.generateAiPlan(planRequest())
+      const plan = sample
+        ? sampleAiPlan(
+            stage.value,
+            stage.value === 'preschool' ? [] : await directory.loadTier(stage.value),
+          )
+        : await roadmapService.generateAiPlan(planRequest())
       if (run !== aiRun) return
       remember(plan.schools)
       aiChoices.value = plan.choices
@@ -303,6 +315,7 @@ export const useRoadmapStore = defineStore('roadmap', () => {
     ruleDistance,
     ruleLimitKm,
     aiStatus,
+    aiIsSample,
     saved,
     editing,
     editChoices,

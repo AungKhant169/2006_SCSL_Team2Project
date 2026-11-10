@@ -14,6 +14,13 @@ const roadmap = useRoadmapStore()
 
 <template>
   <SectionCard title="AI-Generated Plan">
+    <p
+      v-if="roadmap.aiIsSample"
+      class="m-0 rounded-lg bg-ai-tint px-3 py-2 text-[13px] text-ai"
+      data-testid="demo-ai-sample"
+    >
+      Demo sample · Prepared recommendations for this presentation. No live AI request.
+    </p>
     <!-- Loading and failure stay inside this panel so the rule-based plan is never affected. -->
     <div
       v-if="roadmap.aiStatus === 'loading'"
@@ -46,7 +53,7 @@ const roadmap = useRoadmapStore()
     </div>
 
     <template v-else-if="roadmap.aiStatus === 'ready'">
-      <p class="m-0 text-[13px] text-muted">
+      <p v-if="!roadmap.aiIsSample" class="m-0 text-[13px] text-muted">
         An alternative ordering from an AI model, weighing your score and what each school offers,
         and your location where distance matters for the stage.
       </p>

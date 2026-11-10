@@ -208,7 +208,8 @@ onBeforeUnmount(() => {
           <summary>Before you present</summary>
           <p>
             Use the demo deployment with school data loaded. Both devices must reach the same
-            address. OneMap needs internet; AI plans need a server API key.
+            address. OneMap needs internet. The AI demo uses prepared recommendations without an API
+            key.
           </p>
           <p>
             The student section creates a sample account if this browser is signed out. It saves AL

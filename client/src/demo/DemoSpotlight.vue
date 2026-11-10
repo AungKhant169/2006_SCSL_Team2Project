@@ -3,11 +3,14 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDemoSession } from './session'
 import { prepareStep } from './prepare'
+import { animateFocus, focusRectangle } from './focusMotion'
+import type { FocusRectangle } from './focusMotion'
 
 const demo = useDemoSession()
 const router = useRouter()
 const route = useRoute()
-const rectangle = ref<{ top: number; left: number; width: number; height: number } | null>(null)
+const rectangle = ref<FocusRectangle | null>(null)
+const transitioning = ref(false)
 const message = ref('')
 let target: HTMLElement | null = null
 let run = 0
@@ -15,41 +18,36 @@ let lastStep = -1
 let destination: string | null = null
 let observer: ResizeObserver | undefined
 let pending: ReturnType<typeof setTimeout> | undefined
+let movement: AbortController | undefined
 
 function measure() {
+  if (transitioning.value) return
   if (!target?.isConnected || demo.state?.paused || !demo.state?.spotlight) {
     rectangle.value = null
     return
   }
-  const box = target.getBoundingClientRect()
-  const top = Math.max(8, box.top - 8)
-  const bottom = Math.min(window.innerHeight - 66, box.bottom + 8)
-  rectangle.value =
-    bottom > top
-      ? {
-          top,
-          left: Math.max(8, box.left - 8),
-          width: Math.min(box.width + 16, window.innerWidth - 16),
-          height: bottom - top,
-        }
-      : null
+  rectangle.value = focusRectangle(target)
 }
 
-function clearTarget() {
+function clearTarget(preserveRectangle = false) {
+  movement?.abort()
   observer?.disconnect()
   target = null
-  rectangle.value = null
+  transitioning.value = false
+  if (!preserveRectangle) rectangle.value = null
 }
 
 async function focusStep(version: number, changed: boolean) {
   const currentRun = ++run
-  clearTarget()
+  clearTarget(true)
   clearTimeout(pending)
   if (!demo.state || demo.state.paused || demo.ended) {
+    rectangle.value = null
     if (demo.state?.paused)
       void demo.acknowledge(version, 'Following paused. Explore the site freely.')
     return
   }
+  transitioning.value = true
   message.value = ''
   try {
     // Preparation happens only when entering a step, so toggling the spotlight never regenerates a plan.
@@ -73,31 +71,51 @@ async function focusStep(version: number, changed: boolean) {
       if (!target) {
         if (Date.now() < deadline) pending = setTimeout(findTarget, 120)
         else {
+          transitioning.value = false
+          rectangle.value = null
           message.value =
             'Feature is not available on this page. Check the laptop, then press Refocus.'
           void demo.acknowledge(version, message.value)
         }
         return
       }
-      const frameTarget = () => {
+      const frameTarget = async () => {
         if (!target?.isConnected || currentRun !== run) return
-        target.scrollIntoView({
-          behavior: 'instant',
-          block: target.offsetHeight > window.innerHeight - 120 ? 'start' : 'center',
-        })
+        movement?.abort()
+        const currentMovement = new AbortController()
+        movement = currentMovement
+        transitioning.value = true
+        const completed = await animateFocus(
+          target,
+          rectangle.value,
+          (box) => {
+            // Spotlight-off still animates the page, without revealing an outline.
+            rectangle.value = demo.state?.spotlight ? box : null
+          },
+          currentMovement.signal,
+        )
+        if (!completed || currentRun !== run || currentMovement.signal.aborted) return
+        transitioning.value = false
         measure()
+        void demo.acknowledge(version, 'Feature ready on the display.')
       }
-      frameTarget()
+      void frameTarget()
       // Reframe when an async school profile or generated plan expands after its loading state.
-      observer = new ResizeObserver(frameTarget)
+      let width = target.offsetWidth
+      let height = target.offsetHeight
+      observer = new ResizeObserver(() => {
+        if (!target || (width === target.offsetWidth && height === target.offsetHeight)) return
+        width = target.offsetWidth
+        height = target.offsetHeight
+        void frameTarget()
+      })
       observer.observe(target)
-      measure()
-      void demo.acknowledge(version, 'Feature ready on the display.')
     }
     findTarget()
   } catch (reason) {
     if (currentRun !== run) return
     lastStep = -1
+    clearTarget()
     message.value =
       reason instanceof Error ? reason.message : 'Check the laptop, then press Refocus.'
     void demo.acknowledge(version, message.value)
@@ -139,17 +157,20 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div
-    v-if="rectangle && demo.connected && !demo.ended"
-    class="demo-spotlight"
-    aria-hidden="true"
-    :style="{
-      top: `${rectangle.top}px`,
-      left: `${rectangle.left}px`,
-      width: `${rectangle.width}px`,
-      height: `${rectangle.height}px`,
-    }"
-  />
+  <Transition name="demo-focus">
+    <div
+      v-if="rectangle && demo.connected && !demo.ended"
+      class="demo-spotlight"
+      :class="{ 'is-traveling': transitioning }"
+      aria-hidden="true"
+      :style="{
+        top: `${rectangle.top}px`,
+        left: `${rectangle.left}px`,
+        width: `${rectangle.width}px`,
+        height: `${rectangle.height}px`,
+      }"
+    />
+  </Transition>
   <aside class="demo-display-bar" aria-label="Demo display status">
     <span class="demo-live-dot" :class="{ 'is-offline': !demo.connected }" />
     <template v-if="demo.ended"

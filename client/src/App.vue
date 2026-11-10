@@ -24,7 +24,11 @@ onMounted(() => {
       <AppHeader />
       <NoticeBanner />
       <main class="flex flex-1 flex-col">
-        <RouterView />
+        <RouterView v-slot="{ Component }">
+          <Transition name="demo-page" mode="out-in" :css="demo.credentials?.role === 'display'">
+            <component :is="Component" />
+          </Transition>
+        </RouterView>
       </main>
     </div>
   </div>

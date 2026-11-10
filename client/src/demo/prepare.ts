@@ -39,6 +39,8 @@ export async function prepareStep(step: DemoStep): Promise<string> {
   }
   if (step.prepare === 'generate') {
     const roadmap = useRoadmapStore()
+    // Warm the local catalogue before the reveal; demo AI never contacts the external model.
+    if (roadmap.stage !== 'preschool') await directory.loadTier(roadmap.stage)
     if (!roadmap.generated && !roadmap.generate()) {
       throw new Error('Complete the student profile on the laptop, then press Refocus.')
     }

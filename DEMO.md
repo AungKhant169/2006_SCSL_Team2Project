@@ -27,7 +27,7 @@ Optional `.env.demo` settings:
 | --- | --- |
 | `DEMO_HTTP_PORT=8081` | Demo HTTP port |
 | `DEMO_PUBLIC_ORIGIN=https://demo.example.com` | Origin for a hosted demo behind an HTTPS proxy |
-| `OPENAI_API_KEY=…` | Enables real AI roadmap generation |
+| `OPENAI_API_KEY=…` | Enables real AI outside paired demos; the presentation uses a prepared sample |
 | `IMAGE_PREFIX=…` | Registry namespace when using a fork |
 
 The demo API defaults to disabled; only the demo Compose override sets `DEMO_ENABLED=true`.
@@ -43,6 +43,8 @@ HTTP through the existing `/api` proxy, so no WebSocket proxy changes are needed
 3. Click **Open audience display** on the laptop. Share this browser window with the audience.
 4. Press **Next feature** on the phone. The laptop navigates, scrolls and outlines the feature;
    the phone advances the private script. Readiness and reconnect messages appear on the phone.
+   The spotlight and page scroll travel together, with a short fade between pages. Next becomes
+   available when the focus has settled. Reduced-motion preferences make these changes immediate.
 5. Use **Pause following** to explore manually. **Resume following** returns to the current
    feature; **Refocus display** restores a feature after manual navigation. The running order
    jumps directly to any step. Left/right arrows and Space also work on the remote.
@@ -59,8 +61,11 @@ primary schools. These records live only in the demo database. It never replaces
 an existing signed-in account. Start signed out for the prepared example; use your own prepared
 student if you prefer. Sample accounts remain in the demo database after the session ends.
 
-Entering the generation step calls the real rule and AI generators once, unless plans are already
-generated. Missing AI configuration shows the app’s real error and Retry control. Further changes
+Entering the generation step calls the real rule generator once, unless plans are already
+generated. In a paired display, the AI panel immediately uses a fixed sample ordering of real
+schools from the local catalogue. It is labelled **Demo sample**, needs no API key, and never calls
+the external AI service. Maps and saving use the actual school IDs. Unpaired site visits retain
+real AI generation. Further changes
 to rankings, reviews, saved roadmaps and CSV uploads are deliberate interactions on the laptop.
 Next never submits a review, saves a roadmap, uploads data, or grants administrator access.
 

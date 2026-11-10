@@ -543,6 +543,28 @@
   border: 3px solid #e59c5d;
   border-radius: 12px;
   box-shadow: 0 0 0 9999px #0a2f454d;
+  transition: opacity 180ms ease;
+}
+.demo-spotlight.is-traveling {
+  opacity: 0.72;
+}
+.demo-focus-enter-active,
+.demo-focus-leave-active {
+  transition: opacity 180ms ease;
+}
+.demo-focus-enter-from,
+.demo-focus-leave-to {
+  opacity: 0;
+}
+.demo-page-enter-active {
+  transition: opacity 240ms ease-out;
+}
+.demo-page-leave-active {
+  transition: opacity 140ms ease-in;
+}
+.demo-page-enter-from,
+.demo-page-leave-to {
+  opacity: 0;
 }
 .demo-display-bar {
   position: fixed;
@@ -625,7 +647,12 @@ body:has(.demo-display-bar) {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .demo-progress-line > span {
+  .demo-progress-line > span,
+  .demo-spotlight,
+  .demo-focus-enter-active,
+  .demo-focus-leave-active,
+  .demo-page-enter-active,
+  .demo-page-leave-active {
     transition: none;
   }
 }

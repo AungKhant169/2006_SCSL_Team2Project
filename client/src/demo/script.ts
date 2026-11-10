@@ -181,8 +181,8 @@ export const DEMO_STEPS: DemoStep[] = [
     student: true,
     prepare: 'generate',
     script:
-      'The rule-based plan applies official entry rules. Beside it, an AI-generated alternative considers the student’s results and school offerings. Each plan loads independently: if the AI service fails, the rule-based plan still works and the AI panel offers Retry. The username is never sent to the AI model.',
-    cue: 'Generation runs once on entering this step. AI needs a server API key; its failure is shown honestly.',
+      'The rule-based plan applies official entry rules. Beside it is an example of the AI-generated alternative. For this presentation, the AI panel uses prepared sample recommendations so there is no waiting on an external service. In the live product, the plans load independently, and the username is never sent to the AI model.',
+    cue: 'The AI panel uses a labelled demo sample. No API key, external AI request or timeout is involved.',
   },
   {
     chapter: 'The roadmap',
