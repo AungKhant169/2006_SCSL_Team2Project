@@ -71,7 +71,8 @@ HTTP through the existing `/api` proxy, so no WebSocket proxy changes are needed
    The spotlight and page scroll travel together, with a short fade between pages. Next becomes
    available when the focus has settled. Reduced-motion preferences make these changes immediate.
    Selected cards also play a visible click cue or type the example on screen: the home level,
-   directory tiers, school-name search, unmatched search and review draft. These actions stop on pause or
+   directory tiers, school-name search, unmatched search, sign-in examples and review draft. Typing
+   runs at 110 ms per character, with a pause between account and password fields. These actions stop on pause or
    navigation, respect reduced motion, and never submit forms or erase an existing review draft.
 5. Use **Pause following** to explore manually. **Resume following** returns to the current
    feature; **Refocus display** restores a feature after manual navigation. The running order
@@ -104,6 +105,11 @@ an account registered in the demo database:
 ```sh
 docker compose --env-file .env.demo -p pathsg-demo -f docker-compose.yml -f docker-compose.demo.yml exec server python -m scripts.make_admin <username>
 ```
+
+The student and administrator sign-in cards animate clearly fictitious account/password examples.
+Passwords stay masked; neither form is submitted automatically. Replace the examples with your
+prepared credentials before signing in. If either field already has a value, the animation leaves
+both fields untouched, including password-manager autofill.
 
 The bundled benchmark CSV has no historical rows; import the prepared benchmark dataset to show
 history. OneMap needs internet. Keep the SRS and diagrams ready for the engineering segment.

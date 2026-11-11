@@ -1,6 +1,7 @@
 /** Live Demo sections 1–10 of PathSG_Demo_Script_Updated.docx. */
 export type DemoFeature = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-export type DemoAutomation = 'home' | 'tiers' | 'search' | 'empty' | 'review'
+export type DemoAutomation =
+  'home' | 'tiers' | 'search' | 'empty' | 'review' | 'signin' | 'admin-signin'
 
 export interface DemoStep {
   feature: DemoFeature
@@ -149,14 +150,16 @@ export const DEMO_STEPS: DemoStep[] = [
     route: '/login',
     target: 'login',
     seconds: 65,
+    automation: 'signin',
     script:
       'On the account page, I’ll choose Create account. First I’ll enter a username containing a symbol to show the validation message. Next, a weak password leaves requirements unticked in the live checklist. Replacing it with a valid password completes the checklist. Only a username and password are requested; there is no name, date of birth or NRIC field.\n\nI’ll now submit valid details. A new student arrives at My profile with a welcome notice. Existing students can use Log in instead. Passwords are hashed before storage. The short-lived access token is renewed automatically using a single-use refresh token, so the student does not have to keep signing in during normal use.',
     actions: [
+      'Watch an example account and masked password being typed into the login form.',
       'Choose Create account; try student! and a weak password, then submit to show validation.',
       'Replace them with a unique letters-and-numbers username and a valid password.',
       'Create the demo account, or use the prepared student login.',
     ],
-    cue: 'Allow roughly 30 seconds for the form interaction. If needed, the next card can prepare a sample student. Planned finish: 04:10.',
+    cue: 'The animated credentials are examples only; use your prepared login or unique signup details before submitting. Allow roughly 30 seconds for the form interaction. The next card can prepare a sample student. Planned finish: 04:10.',
   },
   {
     feature: 5,
@@ -401,13 +404,15 @@ export const DEMO_STEPS: DemoStep[] = [
     route: '/login',
     target: 'login',
     seconds: 20,
+    automation: 'admin-signin',
     script:
       'I’ll sign in using the prepared administrator account. This account lands on the Admin panel. Access is based on the stored role: a normal student cannot gain access just by entering the administrator URL. The role is checked by the server on requests to these functions.',
     actions: [
-      'Enter the prepared administrator credentials and sign in.',
+      'Watch the example administrator account and masked password being typed.',
+      'Replace the example values with the prepared administrator credentials and sign in.',
       'Point out the Admin panel navigation entry.',
     ],
-    cue: 'Keep credentials private. If needed, pause following before entering them; resume and advance after login.',
+    cue: 'The animated credentials are examples, not an administrator login. Keep real credentials private. Pause following to replace the examples; resume and advance after login.',
   },
   {
     feature: 10,
