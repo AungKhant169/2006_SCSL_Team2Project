@@ -61,7 +61,7 @@ function askDelete() {
 </script>
 
 <template>
-  <div class="page">
+  <div data-demo="roadmap-workspace" class="page">
     <PageHeader
       title="Education roadmap"
       subtitle="Two plans per generation: a rule-based pathway from official entry rules, and an AI-generated alternative. One roadmap can be saved at a time."

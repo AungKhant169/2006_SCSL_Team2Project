@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { flushPromises } from '@vue/test-utils'
 import { ApiError, apiRequest } from '@/services/http'
-import { DEMO_STEPS } from '../script'
+import { DEMO_STEPS, SCRIPT_ID } from '../script'
 import { createDemoSession, pairingUrl, useDemoSession } from '../session'
 import type { DemoState, Pairing } from '../session'
 
@@ -14,7 +14,7 @@ vi.mock('@/services/http', async (original) => ({
 const request = vi.mocked(apiRequest)
 const key = 'x'.repeat(43)
 const snapshot = (version = 0): DemoState => ({
-  script_id: 'pathsg-v1',
+  script_id: SCRIPT_ID,
   step: version,
   step_count: DEMO_STEPS.length,
   version,
@@ -160,7 +160,7 @@ describe('paired demo session', () => {
     expect(request).toHaveBeenCalledWith(
       '/demo/sessions',
       expect.objectContaining({
-        body: { script_id: 'pathsg-v1', step_count: DEMO_STEPS.length },
+        body: { script_id: SCRIPT_ID, step_count: DEMO_STEPS.length },
       }),
     )
     const pair: Pairing = {

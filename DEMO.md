@@ -1,9 +1,34 @@
 # Present PathSG from your phone
 
 The `demo` branch publishes both images with the `:demo` tag. The audience sees the actual
-PathSG app. The phone shows a 23-step script adapted from
-`docs/WIP_for_coming_labs/PathSG_Demo_Script.docx`, with Next, Back, a running order, elapsed time,
+PathSG app. The phone shows 26 focus cards covering only Live Demo sections 1–10 of
+`PathSG_Demo_Script_Updated.docx`, with Next, Back, a running order, elapsed time,
 script size, spotlight, pause, refocus, restart and end controls.
+
+## Running order and timing
+
+The live demo is planned for **14 minutes**, including speaking and interaction, with a one-minute
+margin over the 13-minute minimum. Presenter one covers features 1–7 in **7:00**; presenter two
+covers features 8–10 in **7:00**. The phone shows the presenter, each card's time window, click cues,
+and the handoff at 07:00. Read the lines while showing the corresponding interaction. Follow the
+planned finish times; if ahead, keep the result visible and explain the change before advancing.
+The timer does not force or delay Next, so rehearse both halves to the same seven-minute pace.
+
+| Presenter | Feature | Duration | Planned window |
+| --- | --- | --- | --- |
+| 1 | 1. Guest home page | 0:35 | 00:00–00:35 |
+| 1 | 2. School directory | 1:20 | 00:35–01:55 |
+| 1 | 3. School profile and guest reviews | 1:10 | 01:55–03:05 |
+| 1 | 4. Register and login | 1:05 | 03:05–04:10 |
+| 1 | 5. Student profile | 1:05 | 04:10–05:15 |
+| 1 | 6. Bookmarks | 0:45 | 05:15–06:00 |
+| 1 | 7. Student reviews and handoff | 1:00 | 06:00–07:00 |
+| 2 | 8. Education roadmap | 4:45 | 07:00–11:45 |
+| 2 | 9. Logout | 0:35 | 11:45–12:20 |
+| 2 | 10. Administrator | 1:40 | 12:20–14:00 |
+
+The revised Word rehearsal script is [PathSG_Demo_Script_Revised.docx](docs/PathSG_Demo_Script_Revised.docx).
+The opening pitch, engineering-practices section and product recap are excluded.
 
 ## Deploy
 
@@ -45,6 +70,9 @@ HTTP through the existing `/api` proxy, so no WebSocket proxy changes are needed
    the phone advances the private script. Readiness and reconnect messages appear on the phone.
    The spotlight and page scroll travel together, with a short fade between pages. Next becomes
    available when the focus has settled. Reduced-motion preferences make these changes immediate.
+   Selected cards also play a visible click cue or type the example on screen: the home level,
+   directory tiers, RI search, unmatched search and review draft. These actions stop on pause or
+   navigation, respect reduced motion, and never submit forms or erase an existing review draft.
 5. Use **Pause following** to explore manually. **Resume following** returns to the current
    feature; **Refocus display** restores a feature after manual navigation. The running order
    jumps directly to any step. Left/right arrows and Space also work on the remote.
@@ -56,8 +84,8 @@ phone’s screen timeout before presenting. Mobile controls remain fixed while t
 ## Sample student and administrator
 
 If the display is signed out when entering a student step, it registers a randomly named sample
-student through the normal API, saves PSLE AL 8 and postal code 556000, and bookmarks the first two
-primary schools. These records live only in the demo database. It never replaces the profile of
+student through the normal API and saves PSLE AL 8 and postal code 556000. Bookmarking is shown
+manually during feature 6. These records live only in the demo database. It never replaces the profile of
 an existing signed-in account. Start signed out for the prepared example; use your own prepared
 student if you prefer. Sample accounts remain in the demo database after the session ends.
 

@@ -5,6 +5,7 @@ import { useDemoSession } from './session'
 import { prepareStep } from './prepare'
 import { animateFocus, focusRectangle } from './focusMotion'
 import type { FocusRectangle } from './focusMotion'
+import { playDemoActions } from './actions'
 
 const demo = useDemoSession()
 const router = useRouter()
@@ -19,6 +20,7 @@ let destination: string | null = null
 let observer: ResizeObserver | undefined
 let pending: ReturnType<typeof setTimeout> | undefined
 let movement: AbortController | undefined
+let demonstration: AbortController | undefined
 
 function measure() {
   if (transitioning.value) return
@@ -31,6 +33,7 @@ function measure() {
 
 function clearTarget(preserveRectangle = false) {
   movement?.abort()
+  demonstration?.abort()
   observer?.disconnect()
   target = null
   transitioning.value = false
@@ -54,6 +57,9 @@ async function focusStep(version: number, changed: boolean) {
     const path = changed ? await prepareStep(demo.step) : destination
     if (currentRun !== run) return
     destination = path
+    // Leave the protected page first: pushing its current URL again would skip the route guard.
+    if (changed && demo.step.prepare === 'logout') await router.push('/directory')
+    if (currentRun !== run) return
     if (path) await router.push(path)
     await nextTick()
     if (currentRun !== run) return
@@ -79,6 +85,9 @@ async function focusStep(version: number, changed: boolean) {
         }
         return
       }
+      const actionController = new AbortController()
+      demonstration = actionController
+      let actions: Promise<void> | undefined
       const frameTarget = async () => {
         if (!target?.isConnected || currentRun !== run) return
         movement?.abort()
@@ -97,6 +106,20 @@ async function focusStep(version: number, changed: boolean) {
         if (!completed || currentRun !== run || currentMovement.signal.aborted) return
         transitioning.value = false
         measure()
+        try {
+          actions ??= playDemoActions(demo.step.automation, actionController.signal)
+          await actions
+        } catch (reason) {
+          if (actionController.signal.aborted || currentRun !== run) return
+          message.value =
+            reason instanceof Error
+              ? reason.message
+              : 'Continue the example manually on the display.'
+          void demo.acknowledge(version, message.value)
+          return
+        }
+        if (currentRun !== run || currentMovement.signal.aborted || actionController.signal.aborted)
+          return
         void demo.acknowledge(version, 'Feature ready on the display.')
       }
       void frameTarget()

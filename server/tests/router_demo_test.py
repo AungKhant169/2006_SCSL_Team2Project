@@ -18,7 +18,7 @@ def demo_enabled(monkeypatch):
 
 def create():
     response = client.post(
-        "/demo/sessions", json={"script_id": "pathsg-v1", "step_count": 23}
+        "/demo/sessions", json={"script_id": "pathsg-v2", "step_count": 26}
     )
     assert response.status_code == 201
     assert response.headers["cache-control"] == "no-store"
@@ -91,13 +91,13 @@ def test_step_boundaries_and_pause_spotlight_restart():
         return response
 
     assert command("previous").json()["step"] == 0
-    assert command("goto", step=23).status_code == 422
+    assert command("goto", step=26).status_code == 422
     assert command("goto").status_code == 422
-    assert command("goto", step=22).json()["step"] == 22
-    assert command("next").json()["step"] == 22
+    assert command("goto", step=25).json()["step"] == 25
+    assert command("next").json()["step"] == 25
     assert command("pause").json()["paused"] is True
     assert command("spotlight").json()["spotlight"] is False
-    assert command("refocus").json()["step"] == 22
+    assert command("refocus").json()["step"] == 25
     assert command("restart").json()["step"] == 0
     assert sessions[pair["id"]].paused is False
 
@@ -140,7 +140,7 @@ def test_session_limits_and_validation():
     )
     assert (
         client.post(
-            "/demo/sessions", json={"script_id": "pathsg-v1", "step_count": 65}
+            "/demo/sessions", json={"script_id": "pathsg-v2", "step_count": 65}
         ).status_code
         == 422
     )
@@ -148,7 +148,7 @@ def test_session_limits_and_validation():
         sessions[str(index)] = Session(step_count=23)
     assert (
         client.post(
-            "/demo/sessions", json={"script_id": "pathsg-v1", "step_count": 23}
+            "/demo/sessions", json={"script_id": "pathsg-v2", "step_count": 26}
         ).status_code
         == 429
     )

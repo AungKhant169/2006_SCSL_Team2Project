@@ -44,7 +44,7 @@ class Session:
 
     def snapshot(self):
         return {
-            "script_id": "pathsg-v1",
+            "script_id": "pathsg-v2",
             "step": self.step,
             "step_count": self.step_count,
             "version": self.version,
@@ -79,7 +79,7 @@ def get_session(session_id: str, authorization: str, *, control: bool = False):
 
 
 class CreateSession(BaseModel):
-    script_id: Literal["pathsg-v1"]
+    script_id: Literal["pathsg-v2"]
     step_count: int = Field(ge=1, le=64)
 
 

@@ -6,7 +6,13 @@ import logo from '@/assets/logo.svg'
 import { useAuthStore } from '@/stores/auth'
 import { createDemoSession, pairingUrl, useDemoSession } from './session'
 import type { Pairing } from './session'
-import { DEMO_STEPS } from './script'
+import {
+  DEMO_STEPS,
+  DEMO_TOTAL_SECONDS,
+  formatDemoTime,
+  plannedWindow,
+  presenterOf,
+} from './script'
 import './demo.css'
 
 const route = useRoute()
@@ -62,6 +68,10 @@ const clock = computed(
       .padStart(2, '0')}:${(elapsed.value % 60).toString().padStart(2, '0')}`,
 )
 const next = computed(() => DEMO_STEPS[(demo.state?.step ?? 0) + 1])
+const presenter = computed(() => presenterOf(demo.step))
+const handoff = computed(
+  () => presenter.value === 2 && DEMO_STEPS[(demo.state?.step ?? 0) - 1]?.feature === 7,
+)
 let clockTimer: ReturnType<typeof setInterval> | undefined
 let wakeLock: WakeLockSentinel | null = null
 let clockStart = Date.now()
@@ -213,8 +223,13 @@ onBeforeUnmount(() => {
           </p>
           <p>
             The student section creates a sample account if this browser is signed out. It saves AL
-            8, postal 556000, and two bookmarks. Existing signed-in accounts keep their own profile.
-            Prepare an admin account for the administrator section.
+            8 and postal 556000. Bookmarking is demonstrated during feature 6. Start signed out for
+            the guest sections. Existing signed-in accounts keep their own profile. Prepare an admin
+            account for the administrator section.
+          </p>
+          <p>
+            Live demo only: {{ formatDemoTime(DEMO_TOTAL_SECONDS) }} planned. Presenter one covers
+            features 1–7 in 7:00; presenter two covers features 8–10 in 7:00.
           </p>
           <p v-if="useAuthStore().loggedIn">
             This display is currently signed in as <strong>{{ useAuthStore().username }}</strong
@@ -306,12 +321,26 @@ onBeforeUnmount(() => {
         <span :style="{ width: `${(((demo.state?.step ?? 0) + 1) / DEMO_STEPS.length) * 100}%` }" />
       </div>
       <div class="demo-step-meta">
-        <span>{{ demo.step.chapter }}</span
+        <span>{{ demo.step.feature }}. {{ demo.step.chapter }}</span
         ><span
           >{{ (demo.state?.step ?? 0) + 1 }}
           <span class="demo-muted">/ {{ DEMO_STEPS.length }}</span></span
         ><time :aria-label="`${elapsed} seconds elapsed`">{{ clock }}</time>
       </div>
+      <div class="demo-presenter-meta">
+        <strong
+          >Presenter {{ presenter }}
+          <span>· features {{ presenter === 1 ? '1–7' : '8–10' }}</span></strong
+        >
+        <span>7:00 allocated</span>
+        <p>
+          {{ plannedWindow(demo.state?.step ?? 0) }} planned ·
+          {{ formatDemoTime(demo.step.seconds) }} for this card
+        </p>
+      </div>
+      <p v-if="handoff" class="demo-handoff" role="note">
+        Handoff at 07:00. Presenter two takes over here; keep the student signed in.
+      </p>
       <div v-if="demo.error" class="demo-error" role="alert">
         {{ demo.error }} {{ !demo.ended ? 'Reconnecting automatically.' : '' }}
       </div>
@@ -346,15 +375,24 @@ onBeforeUnmount(() => {
         :style="{ '--demo-script-size': `${scriptSize}px` }"
       >
         <h1>{{ demo.step.title }}</h1>
-        <p class="demo-script-copy">{{ demo.step.script }}</p>
+        <p
+          v-for="(paragraph, index) in demo.step.script.split('\n\n')"
+          :key="index"
+          class="demo-script-copy"
+        >
+          {{ paragraph }}
+        </p>
         <aside class="demo-cue">
           <span>On the display</span>
+          <ol>
+            <li v-for="action in demo.step.actions" :key="action">{{ action }}</li>
+          </ol>
           <p>{{ demo.step.cue }}</p>
         </aside>
       </article>
       <div class="demo-up-next">
         <span class="demo-muted">{{ next ? 'Up next' : 'Final step' }}</span
-        ><strong>{{ next?.title ?? 'Questions from the audience' }}</strong
+        ><strong>{{ next?.title ?? 'Hand back to the next speaker' }}</strong
         ><span class="demo-muted">{{ remaining }} min left</span>
       </div>
       <details class="demo-run-order">
@@ -368,7 +406,11 @@ onBeforeUnmount(() => {
             >
               <span>{{ index + 1 }}</span
               ><span
-                >{{ item.title }}<small>{{ item.chapter }}</small></span
+                >{{ item.title
+                }}<small
+                  >Feature {{ item.feature }} · Presenter {{ presenterOf(item) }} ·
+                  {{ plannedWindow(index) }}</small
+                ></span
               ><span v-if="demo.state?.step === index" class="demo-current-mark">●</span>
             </button>
           </li>

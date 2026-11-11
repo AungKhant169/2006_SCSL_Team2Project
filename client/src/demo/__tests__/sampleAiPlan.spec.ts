@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useDemoSession } from '../session'
-import { DEMO_STEPS } from '../script'
+import { DEMO_STEPS, SCRIPT_ID } from '../script'
 import { sampleAiPlan } from '../sampleAiPlan'
 import { useDirectoryStore } from '@/stores/directory'
 import { useRoadmapStore } from '@/stores/roadmap'
@@ -17,7 +17,7 @@ describe('prepared AI demo', () => {
     const demo = useDemoSession()
     demo.credentials = { id: 'presentation', key: 'x'.repeat(43), role }
     demo.state = {
-      script_id: 'pathsg-v1',
+      script_id: SCRIPT_ID,
       step_count: DEMO_STEPS.length,
       step: 15,
       version: 0,

@@ -1,5 +1,4 @@
 import { useAuthStore } from '@/stores/auth'
-import { useBookmarksStore } from '@/stores/bookmarks'
 import { useDirectoryStore } from '@/stores/directory'
 import { useProfileStore } from '@/stores/profile'
 import { useRoadmapStore } from '@/stores/roadmap'
@@ -18,16 +17,15 @@ export async function prepareStep(step: DemoStep): Promise<string> {
     profile.setPostal('556000')
     profile.scoreA = '8'
     if (!(await profile.save())) throw new Error(`Cannot save the sample profile: ${profile.error}`)
-    const schools = await directory.loadTier('primary')
-    for (const school of schools.slice(0, 2)) await useBookmarksStore().toggle(school.id)
   }
   if (['directory', 'search', 'empty'].includes(step.prepare ?? '')) {
-    directory.tier = 'primary'
+    directory.tier = step.prepare === 'search' ? 'secondary' : 'primary'
     directory.resetFilters()
-    directory.query =
-      step.prepare === 'search' ? 'Rosyth' : step.prepare === 'empty' ? 'zzzzzzzz' : ''
+    // Typing is played on screen after the spotlight settles.
+    directory.query = ''
     await directory.load()
   }
+  if (step.prepare === 'logout') await useAuthStore().logout()
   if (step.route === 'school') {
     const schools = await directory.loadTier('primary')
     const school = schools.find((s) => /rosyth/i.test(s.name)) ?? schools[0]
