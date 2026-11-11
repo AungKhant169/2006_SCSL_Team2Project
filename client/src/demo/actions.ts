@@ -1,5 +1,6 @@
 import { prefersReducedMotion } from './focusMotion'
 import type { DemoAutomation } from './script'
+import { DEMO_SEARCH_TERM } from './script'
 
 function wait(ms: number, signal: AbortSignal): Promise<void> {
   signal.throwIfAborted()
@@ -81,7 +82,7 @@ export async function playDemoActions(action: DemoAutomation | undefined, signal
     const input = document.querySelector<HTMLInputElement>(
       '[data-demo="directory-filters"] input[placeholder^="School name"]',
     )
-    if (input) await type(input, action === 'search' ? 'RI' : 'zzzz', signal)
+    if (input) await type(input, action === 'search' ? DEMO_SEARCH_TERM : 'zzzz', signal)
   } else if (action === 'review') {
     const input = document.querySelector<HTMLTextAreaElement>(
       '[data-demo="school-reviews"] textarea',

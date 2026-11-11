@@ -57,6 +57,6 @@ describe('rehearsed typing and click cues', () => {
     document.body.innerHTML =
       '<section data-demo="directory-filters"><input placeholder="School name"></section>'
     await playDemoActions('search', new AbortController().signal)
-    expect(document.querySelector('input')!.value).toBe('RI')
+    expect(document.querySelector('input')!.value).toBe('Raffles Institution')
   })
 })

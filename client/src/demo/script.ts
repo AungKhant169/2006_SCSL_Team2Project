@@ -18,6 +18,7 @@ export interface DemoStep {
 }
 
 export const SCRIPT_ID = 'pathsg-v2'
+export const DEMO_SEARCH_TERM = 'Raffles Institution'
 export const DEMO_STEPS: DemoStep[] = [
   {
     feature: 1,
@@ -50,22 +51,22 @@ export const DEMO_STEPS: DemoStep[] = [
       'Watch the tier buttons being selected in sequence.',
       'Point out the result count and pagination.',
     ],
-    cue: 'The animated clicks return to Secondary for the RI search.',
+    cue: 'The animated clicks return to Secondary for the school-name search.',
   },
   {
     feature: 2,
     chapter: 'School directory',
-    title: 'Search RI, then narrow the results',
+    title: 'Search Raffles Institution, then narrow the results',
     route: '/directory',
     target: 'directory-filters',
     seconds: 35,
     prepare: 'search',
     automation: 'search',
     script:
-      'I’ll type “RI” to search by an acronym rather than the full school name. Search accepts a minimum of two characters. Beside it, I can filter by school type and by one, two or five kilometres from a postal code. I can also sort alphabetically or by nearest distance. These distances use postal-district centroids; loading the map service is not required for this calculation.',
+      'I’ll type “Raffles Institution” to find the school by its name. Search accepts a minimum of two characters. Beside it, I can filter by school type and by one, two or five kilometres from a postal code. I can also sort alphabetically or by nearest distance. These distances use postal-district centroids; loading the map service is not required for this calculation.',
     actions: [
-      'Watch RI being typed into Keyword.',
-      'Clear RI, demonstrate School type and Distance, then choose nearest sorting.',
+      'Watch Raffles Institution being typed into Keyword.',
+      'Clear the school name, demonstrate School type and Distance, then choose nearest sorting.',
     ],
     cue: 'Pause following for the manual filter examples; resume before advancing. Keep postal code 556000.',
   },

@@ -71,7 +71,7 @@ HTTP through the existing `/api` proxy, so no WebSocket proxy changes are needed
    The spotlight and page scroll travel together, with a short fade between pages. Next becomes
    available when the focus has settled. Reduced-motion preferences make these changes immediate.
    Selected cards also play a visible click cue or type the example on screen: the home level,
-   directory tiers, RI search, unmatched search and review draft. These actions stop on pause or
+   directory tiers, school-name search, unmatched search and review draft. These actions stop on pause or
    navigation, respect reduced motion, and never submit forms or erase an existing review draft.
 5. Use **Pause following** to explore manually. **Resume following** returns to the current
    feature; **Refocus display** restores a feature after manual navigation. The running order
